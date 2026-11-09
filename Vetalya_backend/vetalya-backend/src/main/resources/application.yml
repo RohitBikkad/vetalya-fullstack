@@ -17,6 +17,9 @@ spring:
       idle-timeout: 300000
       connection-timeout: 20000
       max-lifetime: 1200000
+      data-source-properties:
+        sslmode: require
+        sslfactory: org.postgresql.ssl.NonValidatingFactory
 
   # ── JPA / Hibernate ──
   jpa:
