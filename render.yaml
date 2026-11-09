@@ -1,8 +1,6 @@
 # ============================================================
 # Render Blueprint Specification for Vetalya Fullstack Platform
 # Deploy directly from Render Dashboard: New + -> Blueprint
-# All sensitive secrets are marked with `sync: false` so you
-# can enter them directly in the Render UI without pushing to Git.
 # ============================================================
 
 services:
@@ -12,7 +10,7 @@ services:
     runtime: docker
     dockerfilePath: ./Vetalya_backend/vetalya-backend/Dockerfile
     dockerContext: ./Vetalya_backend/vetalya-backend
-    plan: free # Change to starter for 24/7 dedicated compute
+    plan: starter
     region: singapore # Options: singapore, oregon, frankfurt, ohio
     healthCheckPath: /api/public/db-inspect
     autoDeploy: true
@@ -49,10 +47,8 @@ services:
         sync: false
 
   # ── 2. Vetalya React Frontend Static Site ──
-  - type: web
+  - type: static_site
     name: vetalya-frontend
-    runtime: static
-    plan: free
     rootDir: Vetalaya_frontend
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
