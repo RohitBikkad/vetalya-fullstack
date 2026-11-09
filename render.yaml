@@ -47,8 +47,9 @@ services:
         sync: false
 
   # ── 2. Vetalya React Frontend Static Site ──
-  - type: static_site
+  - type: web
     name: vetalya-frontend
+    runtime: static
     rootDir: Vetalaya_frontend
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
