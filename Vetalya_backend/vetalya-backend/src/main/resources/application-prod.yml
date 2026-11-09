@@ -5,29 +5,20 @@ spring:
       ddl-auto: validate
     show-sql: false
 
-# Spring Boot 4 Built-In Structured JSON Logging
+# Spring Boot Built-In Structured JSON Logging
 logging:
   structured:
     format:
       console: json
-      file: json
-  file:
-    name: ${LOG_FILE_PATH:/var/log/vetalya/application.log}
-  logback:
-    rollingpolicy:
-      max-history: 14
-      total-size-cap: 1GB
-      max-file-size: 50MB
-      clean-history-on-start: false
   level:
-    root: WARN
+    root: INFO
     com.pet.vetalya: INFO
     org.springframework.security: WARN
     org.springframework.web: WARN
 
 management:
   server:
-    port: ${MANAGEMENT_PORT:9090} # Dedicated isolated management port in production
+    port: ${MANAGEMENT_PORT:${PORT:8080}}
   endpoints:
     web:
       exposure:

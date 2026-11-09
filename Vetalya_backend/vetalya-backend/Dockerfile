@@ -20,7 +20,9 @@ RUN ./mvnw clean package -DskipTests -B
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-RUN addgroup -S vetalya && adduser -S vetalya -G vetalya
+RUN addgroup -S vetalya && adduser -S vetalya -G vetalya && \
+    mkdir -p /var/log/vetalya /app && \
+    chown -R vetalya:vetalya /var/log/vetalya /app
 
 # Copy compiled jar from builder
 COPY --from=builder /workspace/target/Vetalya-0.0.1-SNAPSHOT.jar app.jar

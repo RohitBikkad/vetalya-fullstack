@@ -17,33 +17,16 @@
         <logger name="com.pet.vetalya" level="DEBUG" />
     </springProfile>
 
-    <!-- Prod Profile: Container Mode (stdout JSON) and Non-Container Mode (Rolling File JSON) -->
+    <!-- Prod Profile: Container Mode (stdout JSON for cloud platforms like Render / Docker) -->
     <springProfile name="prod">
-        <!-- 1. Container Deployments: Standard Output Appender -->
         <appender name="STDOUT_CONTAINER" class="ch.qos.logback.core.ConsoleAppender">
             <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
                 <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX,UTC}","level":"%level","service":"Vetalya","environment":"prod","logger":"%logger","thread":"%thread","correlationId":"%X{correlationId:-}","traceId":"%X{traceId:-}","userId":"%X{userId:-}","role":"%X{role:-}","message":"%maskedMsg"}%n</pattern>
             </encoder>
         </appender>
 
-        <!-- 2. Non-Container Virtual Machine Deployments: Rolling File Appender -->
-        <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <file>${LOG_FILE_PATH:-/var/log/vetalya/application.log}</file>
-            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                <fileNamePattern>${LOG_FILE_PATH:-/var/log/vetalya/application}-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-                <maxFileSize>50MB</maxFileSize>
-                <maxHistory>14</maxHistory>
-                <totalSizeCap>1GB</totalSizeCap>
-                <cleanHistoryOnStart>false</cleanHistoryOnStart>
-            </rollingPolicy>
-            <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-                <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX,UTC}","level":"%level","service":"Vetalya","environment":"prod","logger":"%logger","thread":"%thread","correlationId":"%X{correlationId:-}","traceId":"%X{traceId:-}","userId":"%X{userId:-}","role":"%X{role:-}","message":"%maskedMsg"}%n</pattern>
-            </encoder>
-        </appender>
-
-        <root level="WARN">
+        <root level="INFO">
             <appender-ref ref="STDOUT_CONTAINER" />
-            <appender-ref ref="ROLLING_FILE" />
         </root>
         <logger name="com.pet.vetalya" level="INFO" />
     </springProfile>
