@@ -1,12 +1,19 @@
+# ============================================================
+# Render Blueprint Specification for Vetalya Fullstack Platform
+# Deploy directly from Render Dashboard: New + -> Blueprint
+# ============================================================
+
 services:
-  # ── Vetalya Spring Boot Backend ──
+  # ── 1. Vetalya Spring Boot Backend Web Service ──
   - type: web
     name: vetalya-backend
     runtime: docker
     dockerfilePath: ./Vetalya_backend/vetalya-backend/Dockerfile
     dockerContext: ./Vetalya_backend/vetalya-backend
-    plan: starter
-    region: singapore
+    plan: free # Change to starter/standard for 24/7 dedicated compute
+    region: singapore # Options: oregon, frankfurt, singapore, ohio
+    healthCheckPath: /api/public/db-inspect
+    autoDeploy: true
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
@@ -22,7 +29,9 @@ services:
         value: "*"
       - key: WEB_REDIRECT_URL
         value: https://vetalya-frontend.onrender.com
-      # Optional SMTP Email Configuration
+
+      # ── Optional: Live SMTP Email Delivery (Gmail, SendGrid, Brevo, AWS SES) ──
+      # Provide credentials to deliver real OTP emails to user inboxes
       - key: SPRING_MAIL_HOST
         sync: false
       - key: SPRING_MAIL_PORT
@@ -32,7 +41,7 @@ services:
       - key: SPRING_MAIL_PASSWORD
         sync: false
 
-  # ── Vetalya React Frontend ──
+  # ── 2. Vetalya React Frontend Static Site ──
   - type: web
     name: vetalya-frontend
     runtime: static
@@ -41,6 +50,7 @@ services:
     rootDir: Vetalaya_frontend
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
+    autoDeploy: true
     routes:
       - type: rewrite
         source: /*

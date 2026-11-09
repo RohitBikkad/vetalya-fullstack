@@ -104,3 +104,4 @@ public class EmailService {
         log.info("📲 [EmailService Simulated] OTP Code [{}] for [{}] (Purpose: {})", otpCode, toEmail, cleanPurpose);
     }
 }
+

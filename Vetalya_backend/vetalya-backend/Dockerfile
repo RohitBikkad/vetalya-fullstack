@@ -32,3 +32,4 @@ ENV SPRING_PROFILES_ACTIVE=prod
 ENV MANAGEMENT_PORT=8080
 
 ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
+
