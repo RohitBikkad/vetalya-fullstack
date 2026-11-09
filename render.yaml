@@ -1,6 +1,8 @@
 # ============================================================
 # Render Blueprint Specification for Vetalya Fullstack Platform
 # Deploy directly from Render Dashboard: New + -> Blueprint
+# All sensitive secrets are marked with `sync: false` so you
+# can enter them directly in the Render UI without pushing to Git.
 # ============================================================
 
 services:
@@ -10,28 +12,33 @@ services:
     runtime: docker
     dockerfilePath: ./Vetalya_backend/vetalya-backend/Dockerfile
     dockerContext: ./Vetalya_backend/vetalya-backend
-    plan: free # Change to starter/standard for 24/7 dedicated compute
-    region: singapore # Options: oregon, frankfurt, singapore, ohio
+    plan: free # Change to starter for 24/7 dedicated compute
+    region: singapore # Options: singapore, oregon, frankfurt, ohio
     healthCheckPath: /api/public/db-inspect
     autoDeploy: true
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
+      
+      # ── Database Credentials (Set securely in Render Dashboard) ──
       - key: DB_URL
         value: jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require
       - key: DB_USERNAME
         value: postgres.evkdpnhbwajlmnpxeijb
       - key: DB_PASSWORD
-        value: Vetalya@1409
+        sync: false # Render dashboard will prompt you for this password securely
+
+      # ── Google OAuth ──
       - key: GOOGLE_CLIENT_ID
-        value: 1030204623930-gbcnm72iv1tm2vpbd4mg14k38pv0g3cr.apps.googleusercontent.com
+        sync: false # Set in dashboard without committing to Git
+
+      # ── Network & CORS ──
       - key: CORS_ALLOWED_ORIGIN
         value: "*"
       - key: WEB_REDIRECT_URL
         value: https://vetalya-frontend.onrender.com
 
-      # ── Optional: Live SMTP Email Delivery (Gmail, SendGrid, Brevo, AWS SES) ──
-      # Provide credentials to deliver real OTP emails to user inboxes
+      # ── Live Email Delivery (Gmail / SendGrid / Brevo) ──
       - key: SPRING_MAIL_HOST
         sync: false
       - key: SPRING_MAIL_PORT
@@ -56,7 +63,8 @@ services:
         source: /*
         destination: /index.html
     envVars:
+      # ── Frontend API & Google Client ID (Set in Render Dashboard) ──
       - key: VITE_API_BASE_URL
-        value: https://vetalya-backend.onrender.com/api
+        sync: false # e.g. https://vetalya-backend.onrender.com/api
       - key: VITE_GOOGLE_CLIENT_ID
-        value: 1030204623930-gbcnm72iv1tm2vpbd4mg14k38pv0g3cr.apps.googleusercontent.com
+        sync: false # e.g. 1030204623930-gbcnm72iv1tm2vpbd4mg14k38pv0g3cr.apps.googleusercontent.com
