@@ -53,7 +53,6 @@ services:
     name: vetalya-frontend
     runtime: static
     plan: free
-    region: singapore
     rootDir: Vetalaya_frontend
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
