@@ -86,4 +86,7 @@ public class PetOwner {
 
     public String getCountry() { return country; }
     public void setCountry(String country) { this.country = country; }
+
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }

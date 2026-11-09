@@ -11,7 +11,7 @@ public class UserAuth {
     @Column(name = "user_id", length = 26)
     private String userId;
 
-    @Column(nullable = false, length = 30)
+    @Column(nullable = false, length = 20)
     private String role;
 
     @Column(length = 255)

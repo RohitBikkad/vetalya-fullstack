@@ -1,13 +1,22 @@
 spring:
   application:
     name: Vetalya
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
 
   # ── PostgreSQL ──
   datasource:
-    url: jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require
-    username: postgres.evkdpnhbwajlmnpxeijb
+    url: ${DB_URL:jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require}
+    username: ${DB_USERNAME:postgres.evkdpnhbwajlmnpxeijb}
     password: ${DB_PASSWORD:Vetalya@1409}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: VetalyaHikariPool
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      idle-timeout: 300000
+      connection-timeout: 20000
+      max-lifetime: 1200000
 
   # ── JPA / Hibernate ──
   jpa:
@@ -28,14 +37,13 @@ spring:
       client:
         registration:
           google:
-            client-id: ${GOOGLE_CLIENT_ID:1030204623930-gbcnm72iv1tm2vpbd4mg14k38pv0g3cr.apps.googleusercontent.com}
-            client-secret: ${GOOGLE_CLIENT_SECRET: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}
+            client-id: ${GOOGLE_CLIENT_ID:google-client-id-placeholder}
+            client-secret: ${GOOGLE_CLIENT_SECRET:google-client-secret-placeholder}
             scope: openid, profile, email
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
 
           apple:
             client-id: ${APPLE_SERVICES_ID:apple-services-id-placeholder}
-            # client-secret is generated dynamically — see AppleClientSecretGenerator
             client-secret: placeholder-replaced-at-runtime
             client-authentication-method: client_secret_post
             authorization-grant-type: authorization_code
@@ -51,28 +59,66 @@ spring:
             issuer-uri: https://appleid.apple.com
             user-name-attribute: sub
 
+# ── Actuator & Observability ──
+management:
+  server:
+    port: ${MANAGEMENT_PORT:8080}
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus, loggers, scheduledtasks
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when_authorized
+      roles: ACTUATOR_ADMIN
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState, databaseConnectivity, flywayMigration, reminderScheduler, memoryAndDisk, diskSpace
+      status:
+        order: DOWN, OUT_OF_SERVICE, DEGRADED, UP, UNKNOWN
+    prometheus:
+      enabled: true
+    loggers:
+      enabled: true
+    scheduledtasks:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name:Vetalya}
+      environment: ${spring.profiles.active:dev}
+      version: ${app.version:0.0.1}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 50ms, 100ms, 250ms, 500ms, 1000ms, 1500ms
+  tracing:
+    sampling:
+      probability: ${APP_TRACING_SAMPLING:1.0}
+
 # ── App-specific properties ──
 app:
-  # Web frontend redirect after OAuth login
+  version: 0.0.1
   web-redirect-url: ${WEB_REDIRECT_URL:http://localhost:3000}
-  # Mobile deep-link scheme
   mobile-redirect-scheme: ${MOBILE_REDIRECT_SCHEME:myvetapp}
 
-  # JWT signing keys (RSA)
   jwt:
     private-key-path: ${JWT_PRIVATE_KEY_PATH:classpath:keys/private.pem}
     public-key-path: ${JWT_PUBLIC_KEY_PATH:classpath:keys/public.pem}
-    access-token-expiry-minutes: 15
+    access-token-expiry-minutes: ${JWT_ACCESS_EXPIRY_MINUTES:1440}
     refresh-token-expiry-days: 14
 
-  # Google client IDs accepted for native token verification (web + Android + iOS)
   google:
     client-ids:
-      - ${GOOGLE_CLIENT_ID:1030204623930-gbcnm72iv1tm2vpbd4mg14k38pv0g3cr.apps.googleusercontent.com}
+      - ${GOOGLE_CLIENT_ID:google-client-id-placeholder}
       - ${GOOGLE_ANDROID_CLIENT_ID:}
       - ${GOOGLE_IOS_CLIENT_ID:}
 
-  # Apple configuration
   apple:
     team-id: ${APPLE_TEAM_ID:apple-team-id-placeholder}
     key-id: ${APPLE_KEY_ID:apple-key-id-placeholder}
@@ -80,19 +126,83 @@ app:
     bundle-id: ${APPLE_BUNDLE_ID:}
     private-key-path: ${APPLE_PRIVATE_KEY_PATH:classpath:keys/AuthKey.p8}
 
-  # CORS
   cors:
     allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:3000}
+
+  appointment:
+    slot-minutes: ${APP_APPOINTMENT_SLOT_MINUTES:30}
+    min-lead-minutes: ${APP_APPOINTMENT_MIN_LEAD_MINUTES:60}
+    cancel-cutoff-hours: ${APP_APPOINTMENT_CANCEL_CUTOFF_HOURS:2}
+    reminder-offsets-hours: [24, 1]
+
+  pet:
+    max-per-owner: ${APP_PET_MAX_PER_OWNER:20}
+
+  review:
+    edit-window-days: ${APP_REVIEW_EDIT_WINDOW_DAYS:30}
+
+  zone: ${APP_ZONE:Asia/Kolkata}
+
+  # ── MedShop Medicine Store Configuration ──
+  billing:
+    min-shelf-life-days: ${APP_BILLING_MIN_SHELF_LIFE_DAYS:30}
+  gst:
+    allowed-rates: [0.00, 5.00, 12.00, 18.00, 28.00]
+  store:
+    web-redirect-url: ${APP_STORE_WEB_REDIRECT_URL:http://localhost:3000/store}
+    mobile-redirect-scheme: ${APP_STORE_MOBILE_REDIRECT_SCHEME:medshop}
+    jwt:
+      private-key-path: ${APP_STORE_JWT_PRIVATE_KEY_PATH:classpath:keys/medshop_private.pem}
+      public-key-path: ${APP_STORE_JWT_PUBLIC_KEY_PATH:classpath:keys/medshop_public.pem}
+      access-token-expiry-minutes: ${APP_STORE_JWT_ACCESS_EXPIRY_MINUTES:15}
+      refresh-token-expiry-days: ${APP_STORE_JWT_REFRESH_EXPIRY_DAYS:30}
+    storage:
+      s3:
+        bucket: ${APP_STORE_S3_BUCKET:medshop-storage}
+        region: ${APP_STORE_S3_REGION:ap-south-1}
+
+  # ── Monitoring & Auditing Configuration ──
+  management:
+    security:
+      username: ${MANAGEMENT_SECURITY_USERNAME:actuator-admin}
+      password: ${MANAGEMENT_SECURITY_PASSWORD:ChangeMeInProd!Actuator9090}
+    allowed-ips: ${MANAGEMENT_ALLOWED_IPS:127.0.0.1,0:0:0:0:0:0:0:1}
+
+  security:
+    trusted-proxies: ${TRUSTED_PROXIES:127.0.0.1,0:0:0:0:0:0:0:1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+    brute-force-threshold: ${BRUTE_FORCE_THRESHOLD:5}
+
+  audit:
+    retention-days: ${AUDIT_RETENTION_DAYS:180}
+    batch-size: ${AUDIT_BATCH_SIZE:1000}
+    retention-cron: ${AUDIT_RETENTION_CRON:0 0 3 * * *}
+    queue-capacity: 1000
+    core-pool-size: 2
+    max-pool-size: 4
+
+  reminder:
+    interval-ms: ${REMINDER_INTERVAL_MS:60000}
+    max-stale-interval-seconds: ${REMINDER_MAX_STALE_SEC:180}
+
+  sms:
+    health:
+      window-size: 20
+      min-success-ratio: 0.8
+
+  health:
+    max-heap-percent: 85.0
+    min-disk-bytes: 524288000
+
+  logging:
+    http:
+      slow-request-threshold-ms: ${SLOW_REQUEST_THRESHOLD_MS:1000}
+      body-logging-paths: []
+      max-body-size: 1024
 
 server:
   port: 8080
 
-logging:
-  file:
-    name: target/spring-boot.log
-  level:
-    root: INFO
-    com.pet.vetalya: DEBUG
-    org.springframework.security: DEBUG
-    org.springframework.web: DEBUG
-
+# ── OTP Configuration (Fullstack addition) ──
+  otp:
+    expiry-minutes: ${OTP_EXPIRY_MINUTES:10}
+    max-attempts: ${OTP_MAX_ATTEMPTS:3}

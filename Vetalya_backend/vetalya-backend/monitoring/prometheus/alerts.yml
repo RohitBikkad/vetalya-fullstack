@@ -1,0 +1,112 @@
+groups:
+  - name: vetalya-operational-alerts
+    rules:
+      # 1. Instance Down Alert
+      - alert: VetalyaInstanceDown
+        expr: up{job="vetalya-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Vetalya application instance is down"
+          description: "Instance {{ $labels.instance }} has been unreachable for more than 1 minute."
+
+      # 2. Readiness Failing for More Than 2 Minutes
+      - alert: VetalyaReadinessFailing
+        expr: probe_success{job="vetalya-readiness"} == 0 or spring_boot_health_status{status="DOWN", group="readiness"} == 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Vetalya readiness probe failing"
+          description: "Instance {{ $labels.instance }} readiness check has failed for > 2 minutes. Traffic should be diverted."
+
+      # 3. p95 Latency Above 1.5 Seconds
+      - alert: VetalyaHighLatencyP95
+        expr: histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le)) > 1.5
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Vetalya API p95 response time > 1.5s"
+          description: "95th percentile latency is {{ $value | humanizeDuration }} over the last 5 minutes."
+
+      # 4. 5xx Error Rate Above 2 Percent
+      - alert: VetalyaHigh5xxErrorRate
+        expr: (sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) / sum(rate(http_server_requests_seconds_count[5m]))) * 100 > 2.0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP 5xx server error rate above 2%"
+          description: "HTTP 5xx error rate is currently {{ $value | humanize }}% of total traffic."
+
+      # 5. Hikari Pending Threads Greater Than 0 for 5 Minutes
+      - alert: HikariPoolStarvation
+        expr: hikaricp_connections_pending{pool="VetalyaHikariPool"} > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection pool exhaustion"
+          description: "HikariCP has threads awaiting connections for 5 consecutive minutes. Potential DB bottleneck or connection leak."
+
+      # 6. JVM Heap Memory Above 85 Percent
+      - alert: VetalyaHighJvmHeapUsage
+        expr: (jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}) * 100 > 85.0
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM Heap utilization > 85%"
+          description: "JVM Heap usage is at {{ $value | humanize }}% for instance {{ $labels.instance }}."
+
+      # 7. Reminders Overdue Above Threshold
+      - alert: OverdueRemindersBacklog
+        expr: reminders_overdue > 50
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High volume of overdue reminders"
+          description: "There are currently {{ $value }} overdue unsent reminders awaiting dispatch."
+
+      # 8. OTP Failure Ratio Spike
+      - alert: OtpFailureRatioSpike
+        expr: (sum(rate(auth_otp_verify_total{outcome="failure"}[5m])) / sum(rate(auth_otp_verify_total[5m]))) * 100 > 30.0
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Spike in OTP verification failures"
+          description: "Over 30% of OTP verification attempts failed in the last 5 minutes. Possible SMS delivery delay or brute-force attack."
+
+      # 9. Refresh Token Reuse Detected
+      - alert: RefreshTokenReuseDetected
+        expr: increase(auth_refresh_reuse_detected_total[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Security Alert: Refresh token reuse detected"
+          description: "One or more refresh token family theft attacks detected. Token family revoked."
+
+      # 10. Login Failure Spike
+      - alert: LoginFailureSpike
+        expr: sum(rate(auth_login_total{outcome="failure"}[5m])) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Abnormal surge in authentication failures"
+          description: "Login failures exceeding 10/sec over 2 minutes, signaling a potential credential stuffing campaign."
+
+      # 11. Low Disk Space Alert
+      - alert: VetalyaLowDiskSpace
+        expr: disk_free_bytes / disk_total_bytes * 100 < 15.0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Storage disk space below 15%"
+          description: "Free disk space on instance {{ $labels.instance }} is currently {{ $value | humanize }}%."
+

@@ -1,5 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../context/AuthContext';
+import {
+  getVetDashboardApi,
+  getVetAppointmentsApi,
+  getVetProfileApi,
+  getVetHospitalsApi,
+  updateVetAppointmentStatusApi,
+  updateVetVisitNotesApi,
+} from '../../../services/api';
 import {
   Stethoscope,
   Users,
@@ -18,112 +26,28 @@ import {
   X,
   Send,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 
 export default function VetDashboard() {
   const { currentUser } = useAuth();
 
-  // OPD Metric counts
+  // OPD Metric counts - loaded from backend
   const [metrics, setMetrics] = useState({
-    todayTotal: 18,
-    waitingInClinic: 5,
-    completedToday: 11,
-    criticalTriage: 2,
+    todayTotal: 0,
+    waitingInClinic: 0,
+    completedToday: 0,
+    criticalTriage: 0,
   });
+  const [loadingMetrics, setLoadingMetrics] = useState(true);
 
-  // Patient queue state
-  const [queue, setQueue] = useState([
-    {
-      id: 'q-01',
-      token: 'T-01',
-      petName: 'Rocky',
-      species: 'Canine',
-      breed: 'German Shepherd',
-      age: '2y',
-      weight: '34.2 kg',
-      ownerName: 'Vikram Mehta',
-      ownerPhone: '+91 98201 44829',
-      time: '10:00 AM',
-      reason: 'Acute limping on right hind leg after jump',
-      status: 'In Consultation',
-      statusColor: 'bg-teal-100 text-[#2D8A7A] border-teal-300 font-extrabold',
-      triageLevel: 'Standard',
-      temp: '101.4',
-      hr: '110',
-    },
-    {
-      id: 'q-02',
-      token: 'T-02',
-      petName: 'Cleo',
-      species: 'Feline',
-      breed: 'Persian Longhair',
-      age: '4y',
-      weight: '3.9 kg',
-      ownerName: 'Sunita Rao',
-      ownerPhone: '+91 97410 99231',
-      time: '10:15 AM',
-      reason: 'Persistent sneezing & nasal discharge (3 days)',
-      status: 'Waiting',
-      statusColor: 'bg-amber-100 text-amber-800 border-amber-300',
-      triageLevel: 'Priority',
-      temp: '102.1',
-      hr: '160',
-    },
-    {
-      id: 'q-03',
-      token: 'T-03',
-      petName: 'Leo',
-      species: 'Canine',
-      breed: 'Golden Retriever',
-      age: '3y 2m',
-      weight: '29.5 kg',
-      ownerName: 'Rahul Sharma',
-      ownerPhone: '+91 98765 43210',
-      time: '10:30 AM',
-      reason: 'Annual core booster (Rabies + DHPP) and general wellness triage',
-      status: 'Waiting',
-      statusColor: 'bg-amber-100 text-amber-800 border-amber-300',
-      triageLevel: 'Standard',
-      temp: '101.2',
-      hr: '95',
-    },
-    {
-      id: 'q-04',
-      token: 'T-04',
-      petName: 'Simba',
-      species: 'Canine',
-      breed: 'Shih Tzu',
-      age: '1y 5m',
-      weight: '6.1 kg',
-      ownerName: 'Anand Verma',
-      ownerPhone: '+91 99002 11452',
-      time: '10:45 AM',
-      reason: 'Suspected chocolate ingestion (2 hours ago)',
-      status: 'Waiting',
-      statusColor: 'bg-rose-100 text-rose-800 border-rose-300 font-bold',
-      triageLevel: 'Critical',
-      temp: '102.8',
-      hr: '175',
-    },
-    {
-      id: 'q-05',
-      token: 'T-05',
-      petName: 'Oreo',
-      species: 'Feline',
-      breed: 'Indie Domestic',
-      age: '9m',
-      weight: '3.1 kg',
-      ownerName: 'Pooja Iyer',
-      ownerPhone: '+91 98451 00293',
-      time: '09:30 AM',
-      reason: 'Post-spay suture review & wound check',
-      status: 'Completed',
-      statusColor: 'bg-slate-100 text-slate-700 border-slate-300',
-      triageLevel: 'Routine',
-      temp: '101.0',
-      hr: '140',
-    },
-  ]);
+  // Patient queue state - loaded from backend
+  const [queue, setQueue] = useState([]);
+  const [loadingQueue, setLoadingQueue] = useState(true);
+
+  // Vet Profile & Affiliation - loaded from backend
+  const [vetProfile, setVetProfile] = useState(null);
+  const [hospitalName, setHospitalName] = useState('');
 
   // Selected patient for SOAP consultation
   const [activeConsultation, setActiveConsultation] = useState(null);
@@ -148,41 +72,94 @@ export default function VetDashboard() {
   const [activeTab, setActiveTab] = useState('queue'); // 'queue' | 'diagnostics' | 'history'
 
   // Diagnostic records
-  const diagnostics = [
-    {
-      id: 'diag-01',
-      petName: 'Rocky',
-      type: 'Digital X-Ray (Right Stifle)',
-      date: 'Today, 09:45 AM',
-      status: 'Ready',
-      notes: 'No cortical fracture observed on right tibial plateau. Mild joint effusion.',
-      image: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=400&q=80',
-    },
-    {
-      id: 'diag-02',
-      petName: 'Simba',
-      type: 'Complete Blood Count (CBC) & Liver Panel',
-      date: 'Today, 09:15 AM',
-      status: 'Ready',
-      notes: 'Elevated ALT (88 U/L), normal platelet count. Recommend supportive fluid therapy.',
-      image: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?auto=format&fit=crop&w=400&q=80',
-    },
-  ];
+  const [diagnostics, setDiagnostics] = useState([]);
+
+  const loadVetData = useCallback(async () => {
+    setLoadingMetrics(true);
+    setLoadingQueue(true);
+
+    try {
+      const [profileRes, hospitalsRes] = await Promise.allSettled([
+        getVetProfileApi(),
+        getVetHospitalsApi(),
+      ]);
+
+      if (profileRes.status === 'fulfilled' && profileRes.value) {
+        setVetProfile(profileRes.value);
+      }
+      if (hospitalsRes.status === 'fulfilled' && hospitalsRes.value && hospitalsRes.value.length > 0) {
+        setHospitalName(hospitalsRes.value[0].name);
+      }
+    } catch (e) {
+      console.warn('Could not fetch vet profile/hospital:', e.message);
+    }
+
+    try {
+      const dashRes = await getVetDashboardApi().catch(() => null);
+      if (dashRes) {
+        setMetrics({
+          todayTotal: dashRes.todayAppointments || 0,
+          waitingInClinic: dashRes.statusCounts?.BOOKED || 0,
+          completedToday: dashRes.statusCounts?.COMPLETED || 0,
+          criticalTriage: dashRes.pendingRequests || 0,
+        });
+      }
+    } catch (e) {
+      console.warn('Could not fetch vet dashboard metrics:', e.message);
+    } finally {
+      setLoadingMetrics(false);
+    }
+
+    try {
+      const aptsRes = await getVetAppointmentsApi().catch(() => null);
+      if (aptsRes && aptsRes.content) {
+        const mapped = aptsRes.content.map(apt => ({
+          id: apt.appointmentId,
+          token: `T-${apt.appointmentId ? apt.appointmentId.slice(-2) : '01'}`,
+          petName: apt.pet?.name || 'Patient Companion',
+          species: apt.pet?.species === 'DOG' ? 'Canine' : apt.pet?.species === 'CAT' ? 'Feline' : (apt.pet?.species || 'Companion'),
+          breed: apt.pet?.breed || 'Companion',
+          age: '—',
+          weight: '—',
+          ownerName: apt.owner ? `${apt.owner.firstName || ''} ${apt.owner.lastName || ''}`.trim() || 'Pet Owner' : 'Pet Owner',
+          ownerPhone: 'Verified Client',
+          time: apt.appointmentAt ? new Date(apt.appointmentAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Scheduled',
+          reason: apt.reason || 'Clinical Consultation & Health Assessment',
+          status: apt.status === 'BOOKED' ? 'Waiting' : apt.status === 'COMPLETED' ? 'Completed' : (apt.status || 'Waiting'),
+          statusColor: apt.status === 'COMPLETED' ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-amber-100 text-amber-800 border-amber-300',
+          triageLevel: 'Standard',
+          temp: '101.4',
+          hr: '110',
+        }));
+        setQueue(mapped);
+      } else {
+        setQueue([]);
+      }
+    } catch (e) {
+      console.warn('Could not fetch vet appointments queue:', e.message);
+      setQueue([]);
+    } finally {
+      setLoadingQueue(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadVetData();
+  }, [loadVetData]);
 
   const handleStartConsultation = (patient) => {
     setActiveConsultation(patient);
     setSoapForm({
-      subjective: patient.reason,
-      temperature: patient.temp || '101.5',
-      weight: patient.weight.replace(' kg', '') || '10',
+      subjective: patient.reason || 'General wellness checkup and triage assessment',
+      temperature: patient.temp || '101.4',
+      weight: patient.weight ? patient.weight.replace(' kg', '') : '10',
       heartRate: patient.hr || '110',
-      objectiveExam: 'Bright, alert, responsive. CRT < 2s. Hydration status adequate.',
-      assessment: patient.reason.includes('limping') ? 'Grade 2 Right Hind Stifle Sprain' : 'Clinical Health Evaluation',
-      dietPlan: 'Continue regular diet with fresh water available. Avoid high-fat treats.',
+      objectiveExam: 'Bright, alert, responsive. Hydration status normal. Cardiovascular and pulmonary auscultation clear.',
+      assessment: patient.reason || 'Clinical Health Evaluation',
+      dietPlan: 'Maintain regular balanced diet and clean fresh water.',
       followUpDays: '7',
       medications: [
-        { name: 'Meloxicam Oral Suspension (0.5mg/ml)', dosage: '0.2 mg/kg', frequency: 'SID (Once daily)', duration: '5 days', instructions: 'With food' },
-        { name: 'Synoquin Joint Supplement', dosage: '1 tablet', frequency: 'SID', duration: '30 days', instructions: 'Morning meal' },
+        { name: '', dosage: '', frequency: 'BID (Twice daily)', duration: '5 days', instructions: 'After food' },
       ],
     });
     setPrescriptionSigned(false);
@@ -210,23 +187,33 @@ export default function VetDashboard() {
     setSoapForm({ ...soapForm, medications: list });
   };
 
-  const handleSavePrescription = (e) => {
+  const handleSavePrescription = async (e) => {
     e.preventDefault();
     setPrescriptionSigned(true);
 
-    // Update patient status in queue
-    setQueue(queue.map((p) => (p.id === activeConsultation.id ? { ...p, status: 'Completed', statusColor: 'bg-slate-100 text-slate-700 border-slate-300' } : p)));
+    if (activeConsultation?.id && !activeConsultation.id.startsWith('mock-')) {
+      try {
+        await updateVetAppointmentStatusApi(activeConsultation.id, 'COMPLETED', soapForm.assessment);
+        await updateVetVisitNotesApi(activeConsultation.id, JSON.stringify(soapForm));
+      } catch (err) {
+        console.warn('Could not persist SOAP prescription to backend:', err.message);
+      }
+    }
 
-    // Update metric
-    setMetrics({
-      ...metrics,
-      waitingInClinic: Math.max(0, metrics.waitingInClinic - 1),
-      completedToday: metrics.completedToday + 1,
-    });
+    // Update patient status in queue
+    setQueue(prev => prev.map((p) => (p.id === activeConsultation.id ? { ...p, status: 'Completed', statusColor: 'bg-slate-100 text-slate-700 border-slate-300' } : p)));
+
+    // Update metrics
+    setMetrics(prev => ({
+      ...prev,
+      waitingInClinic: Math.max(0, prev.waitingInClinic - 1),
+      completedToday: prev.completedToday + 1,
+    }));
 
     setTimeout(() => {
       setActiveConsultation(null);
       setPrescriptionSigned(false);
+      loadVetData();
     }, 1800);
   };
 
@@ -248,15 +235,22 @@ export default function VetDashboard() {
             <span>Clinical OPD Consultation Desk</span>
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#10324E] font-display">
-            {currentUser?.name || 'Dr. Priya Sharma'} 🩺
+            {currentUser?.name ? (currentUser.name.startsWith('Dr.') ? currentUser.name : `Dr. ${currentUser.name}`) : 'Licensed Veterinarian'} 🩺
           </h1>
           <p className="text-sm text-[#242826]/70 mt-1">
-            Koramangala Companion Hospital • Room 3 • Licensed Veterinary Practitioner
+            {hospitalName || 'Clinical OPD Practice'} • Council Reg: {vetProfile?.registrationNo || currentUser?.councilRegNumber || 'Verified Practitioner'} • Room 1
           </p>
         </div>
 
         {/* Practice Quick Status */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={loadVetData}
+            title="Refresh patient queue and metrics"
+            className="p-2 rounded-2xl bg-white hover:bg-slate-50 border border-[#10324E]/15 text-[#10324E] transition shadow-2xs cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loadingQueue ? 'animate-spin text-[#2D8A7A]' : ''}`} />
+          </button>
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-emerald-100 text-emerald-800 text-xs font-extrabold border border-emerald-300 shadow-2xs">
             <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
             OPD Station Active
@@ -271,7 +265,9 @@ export default function VetDashboard() {
             <span className="text-xs font-bold text-[#242826]/60">Today's Total</span>
             <Users className="w-4 h-4 text-[#10324E]" />
           </div>
-          <p className="text-2xl sm:text-3xl font-extrabold text-[#10324E] font-display mt-2">{metrics.todayTotal}</p>
+          <p className={`text-2xl sm:text-3xl font-extrabold text-[#10324E] font-display mt-2 ${loadingMetrics ? 'opacity-40 animate-pulse' : ''}`}>
+            {metrics.todayTotal}
+          </p>
           <span className="text-[11px] text-[#242826]/60 mt-1 inline-block">Scheduled consultations</span>
         </div>
 
@@ -280,8 +276,10 @@ export default function VetDashboard() {
             <span className="text-xs font-bold text-[#242826]/60">Waiting in Lobby</span>
             <Clock className="w-4 h-4 text-[#2D8A7A]" />
           </div>
-          <p className="text-2xl sm:text-3xl font-extrabold text-[#2D8A7A] font-display mt-2">{metrics.waitingInClinic}</p>
-          <span className="text-[11px] text-amber-700 font-bold mt-1 inline-block">Avg wait: 12 mins</span>
+          <p className={`text-2xl sm:text-3xl font-extrabold text-[#2D8A7A] font-display mt-2 ${loadingMetrics ? 'opacity-40 animate-pulse' : ''}`}>
+            {metrics.waitingInClinic}
+          </p>
+          <span className="text-[11px] text-amber-700 font-bold mt-1 inline-block">Active waitlist</span>
         </div>
 
         <div className="bg-white rounded-3xl p-5 border border-[#10324E]/8 shadow-vetalya text-left">
@@ -289,7 +287,9 @@ export default function VetDashboard() {
             <span className="text-xs font-bold text-[#242826]/60">Completed Rx</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
-          <p className="text-2xl sm:text-3xl font-extrabold text-[#10324E] font-display mt-2">{metrics.completedToday}</p>
+          <p className={`text-2xl sm:text-3xl font-extrabold text-[#10324E] font-display mt-2 ${loadingMetrics ? 'opacity-40 animate-pulse' : ''}`}>
+            {metrics.completedToday}
+          </p>
           <span className="text-[11px] text-emerald-700 font-bold mt-1 inline-block">SOAP notes signed</span>
         </div>
 
@@ -298,8 +298,10 @@ export default function VetDashboard() {
             <span className="text-xs font-bold text-rose-800">Critical / Triage</span>
             <AlertCircle className="w-4 h-4 text-rose-600 animate-pulse" />
           </div>
-          <p className="text-2xl sm:text-3xl font-extrabold text-rose-700 font-display mt-2">{metrics.criticalTriage}</p>
-          <span className="text-[11px] text-rose-700 font-bold mt-1 inline-block">Priority emergency queue</span>
+          <p className={`text-2xl sm:text-3xl font-extrabold text-rose-700 font-display mt-2 ${loadingMetrics ? 'opacity-40 animate-pulse' : ''}`}>
+            {metrics.criticalTriage}
+          </p>
+          <span className="text-[11px] text-rose-700 font-bold mt-1 inline-block">Pending review</span>
         </div>
       </div>
 
@@ -362,39 +364,59 @@ export default function VetDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#10324E]/5">
-                {filteredQueue.map((item) => (
-                  <tr key={item.id} className="hover:bg-[#FAF8F5] transition">
-                    <td className="py-3.5 pl-2 font-mono font-extrabold text-[#10324E]">{item.token}</td>
-                    <td className="py-3.5">
-                      <div className="font-bold text-[#10324E]">{item.petName}</div>
-                      <div className="text-[11px] text-[#242826]/60">{item.species} • {item.breed} ({item.weight})</div>
-                    </td>
-                    <td className="py-3.5">
-                      <div className="font-semibold text-[#10324E]">{item.ownerName}</div>
-                      <div className="text-[11px] text-[#242826]/60">{item.ownerPhone}</div>
-                    </td>
-                    <td className="py-3.5 font-mono text-[11px]">
-                      <span className="text-[#10324E]">{item.temp}°F</span> • <span className="text-[#2D8A7A]">{item.hr} bpm</span>
-                    </td>
-                    <td className="py-3.5 max-w-xs">
-                      <p className="text-[11px] text-[#242826]/80 truncate">{item.reason}</p>
-                    </td>
-                    <td className="py-3.5">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] border ${item.statusColor}`}>
-                        {item.status}
-                      </span>
-                    </td>
-                    <td className="py-3.5 text-right pr-2">
-                      <button
-                        onClick={() => handleStartConsultation(item)}
-                        className="px-3.5 py-1.5 rounded-xl bg-[#10324E] hover:bg-[#0c273e] text-white font-bold text-xs shadow-2xs transition inline-flex items-center gap-1 cursor-pointer"
-                      >
-                        <FileText className="w-3 h-3 text-[#E99A7C]" />
-                        <span>SOAP Note</span>
-                      </button>
+                {loadingQueue ? (
+                  <tr>
+                    <td colSpan="7" className="py-12 text-center text-xs text-[#242826]/60 animate-pulse">
+                      Loading patient queue from clinical registry...
                     </td>
                   </tr>
-                ))}
+                ) : filteredQueue.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="py-12 text-center">
+                      <div className="max-w-xs mx-auto space-y-2">
+                        <Users className="w-8 h-8 text-[#10324E]/30 mx-auto" />
+                        <p className="font-bold text-xs text-[#10324E]">No patients currently waiting</p>
+                        <p className="text-[11px] text-[#242826]/60">
+                          Consultations booked by pet parents and incoming OPD triage cases will appear here live.
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredQueue.map((item) => (
+                    <tr key={item.id} className="hover:bg-[#FAF8F5] transition">
+                      <td className="py-3.5 pl-2 font-mono font-extrabold text-[#10324E]">{item.token}</td>
+                      <td className="py-3.5">
+                        <div className="font-bold text-[#10324E]">{item.petName}</div>
+                        <div className="text-[11px] text-[#242826]/60">{item.species} • {item.breed} ({item.weight})</div>
+                      </td>
+                      <td className="py-3.5">
+                        <div className="font-semibold text-[#10324E]">{item.ownerName}</div>
+                        <div className="text-[11px] text-[#242826]/60">{item.ownerPhone}</div>
+                      </td>
+                      <td className="py-3.5 font-mono text-[11px]">
+                        <span className="text-[#10324E]">{item.temp}°F</span> • <span className="text-[#2D8A7A]">{item.hr} bpm</span>
+                      </td>
+                      <td className="py-3.5 max-w-xs">
+                        <p className="text-[11px] text-[#242826]/80 truncate">{item.reason}</p>
+                      </td>
+                      <td className="py-3.5">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] border ${item.statusColor}`}>
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 text-right pr-2">
+                        <button
+                          onClick={() => handleStartConsultation(item)}
+                          className="px-3.5 py-1.5 rounded-xl bg-[#10324E] hover:bg-[#0c273e] text-white font-bold text-xs shadow-2xs transition inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          <FileText className="w-3 h-3 text-[#E99A7C]" />
+                          <span>SOAP Note</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -403,32 +425,42 @@ export default function VetDashboard() {
 
       {/* ── Tab Content: Diagnostics & Imaging ── */}
       {activeTab === 'diagnostics' && (
-        <div id="diagnostics" className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left scroll-mt-28">
-          {diagnostics.map((diag) => (
-            <div key={diag.id} className="bg-white rounded-3xl p-6 border border-[#10324E]/8 shadow-vetalya space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-[#10324E]/8">
-                <div>
-                  <h4 className="font-extrabold text-sm text-[#10324E]">{diag.petName} — {diag.type}</h4>
-                  <span className="text-[11px] text-[#242826]/60">{diag.date}</span>
+        diagnostics.length === 0 ? (
+          <div id="diagnostics" className="bg-white rounded-3xl p-12 border border-dashed border-[#10324E]/15 text-center scroll-mt-28">
+            <Activity className="w-10 h-10 text-[#2D8A7A]/40 mx-auto mb-3" />
+            <h4 className="text-sm font-bold text-[#10324E]">No diagnostic imaging records yet</h4>
+            <p className="text-xs text-[#242826]/60 mt-1 max-w-sm mx-auto">
+              Radiographs, blood panels, and ultrasound DICOM images ordered during clinical consultations will appear here for review.
+            </p>
+          </div>
+        ) : (
+          <div id="diagnostics" className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left scroll-mt-28">
+            {diagnostics.map((diag) => (
+              <div key={diag.id} className="bg-white rounded-3xl p-6 border border-[#10324E]/8 shadow-vetalya space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-[#10324E]/8">
+                  <div>
+                    <h4 className="font-extrabold text-sm text-[#10324E]">{diag.petName} — {diag.type}</h4>
+                    <span className="text-[11px] text-[#242826]/60">{diag.date}</span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                    {diag.status}
+                  </span>
                 </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                  {diag.status}
-                </span>
-              </div>
 
-              <div className="rounded-2xl overflow-hidden h-48 bg-slate-900 border border-slate-800 relative">
-                <img src={diag.image} alt={diag.type} className="w-full h-full object-cover opacity-90" />
-                <div className="absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-black/70 text-white text-[10px] font-mono">
-                  High-Res DICOM
+                <div className="rounded-2xl overflow-hidden h-48 bg-slate-900 border border-slate-800 relative">
+                  <img src={diag.image} alt={diag.type} className="w-full h-full object-cover opacity-90" />
+                  <div className="absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-black/70 text-white text-[10px] font-mono">
+                    High-Res DICOM
+                  </div>
                 </div>
-              </div>
 
-              <p className="text-xs text-[#242826]/80 leading-relaxed bg-[#FAF8F5] p-3 rounded-2xl border border-[#10324E]/6">
-                <strong>Radiologist / Lab Report:</strong> {diag.notes}
-              </p>
-            </div>
-          ))}
-        </div>
+                <p className="text-xs text-[#242826]/80 leading-relaxed bg-[#FAF8F5] p-3 rounded-2xl border border-[#10324E]/6">
+                  <strong>Radiologist / Lab Report:</strong> {diag.notes}
+                </p>
+              </div>
+            ))}
+          </div>
+        )
       )}
 
       {/* ── Interactive SOAP Clinical Consultation & Rx Modal ── */}

@@ -1,0 +1,107 @@
+services:
+  app:
+    build: .
+    container_name: vetalya-app
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DB_URL=jdbc:postgresql://postgres:5432/vetalya
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=vetalya_secret
+      - MANAGEMENT_PORT=8080
+      - MANAGEMENT_SECURITY_USERNAME=actuator-admin
+      - MANAGEMENT_SECURITY_PASSWORD=ChangeMeInProd!Actuator9090
+      - MANAGEMENT_ALLOWED_IPS=*
+      - LOG_FILE_PATH=/var/log/vetalya/application.log
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - app-logs:/var/log/vetalya
+    networks:
+      - vetalya-net
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: vetalya-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=vetalya
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=vetalya_secret
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d vetalya"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - vetalya-net
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: vetalya-prometheus
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - vetalya-net
+
+  loki:
+    image: grafana/loki:3.1.1
+    container_name: vetalya-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - vetalya-net
+
+  promtail:
+    image: grafana/promtail:3.1.1
+    container_name: vetalya-promtail
+    volumes:
+      - app-logs:/var/log/vetalya:ro
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - vetalya-net
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: vetalya-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - vetalya-net
+
+volumes:
+  pgdata:
+  app-logs:
+  grafana-storage:
+
+networks:
+  vetalya-net:
+    driver: bridge
+

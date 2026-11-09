@@ -73,8 +73,16 @@ export function AuthProvider({ children }) {
     try {
       const user = await getCurrentUserApi();
       if (user) {
-        setCurrentUser(user);
-        localStorage.setItem('vetalya_auth_user', JSON.stringify(user));
+        const mappedUser = {
+          id: user.id || user.userId,
+          name: user.fullName || user.name || (user.email ? user.email.split('@')[0] : 'Vetalya User'),
+          email: user.email,
+          role: user.role,
+          phone: user.phone,
+          avatar: user.avatar || user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+        };
+        setCurrentUser(mappedUser);
+        localStorage.setItem('vetalya_auth_user', JSON.stringify(mappedUser));
       }
     } catch (err) {
       console.warn('Session check warning:', err.message);
@@ -158,10 +166,12 @@ export function AuthProvider({ children }) {
           const payload = JSON.parse(atob(token.split('.')[1]));
           const roles = payload.roles || [];
           const role = roles[0] || 'ROLE_PET_OWNER';
+          const sub = payload.sub || 'user@vetalya.local';
+          const isEmail = sub.includes('@');
           user = {
-            id: payload.sub || 'usr-jwt',
-            name: role.includes('VET') ? 'Dr. Priya Sharma' : 'Rahul Sharma',
-            email: role.includes('VET') ? 'dr.priya@koramangalavet.in' : 'pet.parent@vetalya.local',
+            id: sub,
+            name: isEmail ? sub.split('@')[0] : 'Vetalya User',
+            email: isEmail ? sub : '',
             role: role,
             authProvider: 'LOCAL / JWT',
           };
@@ -272,8 +282,10 @@ export function AuthProvider({ children }) {
     setTokenTimeRemaining(null);
     localStorage.removeItem('vetalya_auth_user');
     localStorage.removeItem('vetalya_jwt_token');
-    if (isAuto) {
+    if (isAuto === true) {
       setSessionExpiredNotice(true);
+    } else {
+      setSessionExpiredNotice(false);
     }
   };
 

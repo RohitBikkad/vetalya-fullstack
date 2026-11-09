@@ -601,7 +601,7 @@ public class AuthController {
 
         try {
             com.pet.vetalya.auth.service.OtpService.OtpResult result = otpService.sendOtp(target, purpose);
-            Map<String, Object> resp = new HashMap<>();
+            Map<String, Object> resp = new LinkedHashMap<>();
             resp.put("success", true);
             resp.put("message", result.message());
             resp.put("target", target);

@@ -1,0 +1,45 @@
+# ── Production Environment Profile ──
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+# Spring Boot 4 Built-In Structured JSON Logging
+logging:
+  structured:
+    format:
+      console: json
+      file: json
+  file:
+    name: ${LOG_FILE_PATH:/var/log/vetalya/application.log}
+  logback:
+    rollingpolicy:
+      max-history: 14
+      total-size-cap: 1GB
+      max-file-size: 50MB
+      clean-history-on-start: false
+  level:
+    root: WARN
+    com.pet.vetalya: INFO
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+
+management:
+  server:
+    port: ${MANAGEMENT_PORT:9090} # Dedicated isolated management port in production
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus, loggers
+  tracing:
+    sampling:
+      probability: ${APP_TRACING_SAMPLING:0.10} # 10% sampling in production
+
+app:
+  management:
+    allowed-ips: ${MANAGEMENT_ALLOWED_IPS:127.0.0.1,10.0.0.0/8,172.16.0.0/12} # Restricted internal networks only
+  logging:
+    http:
+      slow-request-threshold-ms: 1000
+

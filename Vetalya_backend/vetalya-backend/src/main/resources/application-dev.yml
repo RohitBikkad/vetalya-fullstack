@@ -1,0 +1,30 @@
+# ── Development / Local Environment Profile ──
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+
+logging:
+  level:
+    root: INFO
+    com.pet.vetalya: DEBUG
+    org.springframework.security: INFO
+    org.springframework.web: INFO
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}){faint} %clr(%-5level) %clr([${spring.application.name:Vetalya},trace=%X{traceId:-},req=%X{correlationId:-},user=%X{userId:-}]){magenta} %clr([%15.15t]){faint} %clr(%-38.38logger{36}){cyan} : %m%n"
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0 # 100% trace sampling in development
+
+app:
+  jwt:
+    access-token-expiry-minutes: 1440
+  management:
+    allowed-ips: "*" # Allow local workstation access in dev
+  logging:
+    http:
+      slow-request-threshold-ms: 500
+

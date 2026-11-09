@@ -62,7 +62,8 @@ public class ApiSecurityConfig {
                 ).permitAll()
                 // Role-gated endpoints
                 .requestMatchers("/api/vet/**", "/api/users/vet-portal").hasAnyAuthority("ROLE_VET", "ROLE_CLINIC_ADMIN", "ROLE_PLATFORM_ADMIN")
-                .requestMatchers("/api/pet-owner/**", "/api/users/profile", "/api/auth/me").authenticated()
+                .requestMatchers("/api/owner/**", "/api/pet-owner/**").hasAuthority("ROLE_PET_OWNER")
+                .requestMatchers("/api/users/admin-portal").hasAnyAuthority("ROLE_PLATFORM_ADMIN", "ROLE_CLINIC_ADMIN")
                 // Everything else requires authentication
                 .anyRequest().authenticated()
             )
@@ -71,7 +72,9 @@ public class ApiSecurityConfig {
                     .decoder(tokenVersionValidatingDecoder(jwtDecoder))
                     .jwtAuthenticationConverter(jwtAuthenticationConverter())
                 )
-            );
+            )
+            .addFilterAfter(new com.pet.vetalya.logging.SecurityMdcFilter(),
+                    org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class);
 
         return http.build();
     }
@@ -120,15 +123,11 @@ public class ApiSecurityConfig {
         };
     }
 
+
     /**
      * Maps the "roles" claim in the JWT to Spring Security authorities.
      * No "SCOPE_" or "ROLE_" prefix added — we already include "ROLE_" in the claim value.
      */
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
@@ -142,7 +141,12 @@ public class ApiSecurityConfig {
 
     private CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*", "https://*.onrender.com"));
+        config.setAllowedOriginPatterns(List.of(
+            "http://localhost:*",
+            "http://127.0.0.1:*",
+            "https://*.onrender.com",
+            appProperties.cors().allowedOrigin()
+        ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

@@ -1,0 +1,160 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "title": "Traffic Throughput (req/sec)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count[1m])) by (method)",
+          "legendFormat": "{{method}}"
+        }
+      ]
+    },
+    {
+      "title": "HTTP Error Rates (4xx & 5xx)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{status=~\"4..\"}[1m]))",
+          "legendFormat": "4xx Client Errors"
+        },
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\"}[1m]))",
+          "legendFormat": "5xx Server Errors"
+        }
+      ]
+    },
+    {
+      "title": "API Response Latency (p50, p95, p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50 (Median)"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "title": "JVM Heap Utilization",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "jvm_memory_used_bytes{area=\"heap\"}",
+          "legendFormat": "Used Heap"
+        },
+        {
+          "expr": "jvm_memory_max_bytes{area=\"heap\"}",
+          "legendFormat": "Max Heap"
+        }
+      ]
+    },
+    {
+      "title": "HikariCP Database Pool Connections",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+      "targets": [
+        {
+          "expr": "hikaricp_connections_active{pool=\"VetalyaHikariPool\"}",
+          "legendFormat": "Active Connections"
+        },
+        {
+          "expr": "hikaricp_connections_idle{pool=\"VetalyaHikariPool\"}",
+          "legendFormat": "Idle Connections"
+        },
+        {
+          "expr": "hikaricp_connections_pending{pool=\"VetalyaHikariPool\"}",
+          "legendFormat": "Pending Threads (Starvation)"
+        }
+      ]
+    },
+    {
+      "title": "Business Events: Appointments",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(appointments_booked_total[5m]))",
+          "legendFormat": "Booked / sec"
+        },
+        {
+          "expr": "sum(rate(appointments_cancelled_total[5m]))",
+          "legendFormat": "Cancelled / sec"
+        },
+        {
+          "expr": "sum(rate(appointment_slot_conflict_total[5m]))",
+          "legendFormat": "Slot Conflict / sec"
+        }
+      ]
+    },
+    {
+      "title": "Scheduler Health & Reminders",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "reminders_overdue",
+          "legendFormat": "Overdue Unsent Reminders (Gauge)"
+        },
+        {
+          "expr": "sum(rate(reminders_sent_total[5m]))",
+          "legendFormat": "Reminders Sent / sec"
+        },
+        {
+          "expr": "sum(rate(reminders_failed_total[5m]))",
+          "legendFormat": "Reminders Failed / sec"
+        }
+      ]
+    },
+    {
+      "title": "Security & Authentication Signals",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "sum(rate(auth_login_total{outcome=\"success\"}[5m]))",
+          "legendFormat": "Logins Success / sec"
+        },
+        {
+          "expr": "sum(rate(auth_login_total{outcome=\"failure\"}[5m]))",
+          "legendFormat": "Logins Failure / sec"
+        },
+        {
+          "expr": "sum(rate(auth_refresh_reuse_detected_total[5m]))",
+          "legendFormat": "Token Reuse Detected (Theft)"
+        },
+        {
+          "expr": "sum(rate(auth_bruteforce_signals_total[5m]))",
+          "legendFormat": "Brute-Force Signals"
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["vetalya", "observability", "spring-boot"],
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Vetalya Platform Overview",
+  "uid": "vetalya-main-overview"
+}
+

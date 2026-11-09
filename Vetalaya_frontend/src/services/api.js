@@ -113,7 +113,77 @@ export async function demoLoginApi(role = 'PET_PARENT') {
 }
 
 export async function getCurrentUserApi() {
-  return request('/auth/me', {
-    method: 'GET',
+  try {
+    return await request('/users/profile', { method: 'GET' });
+  } catch {
+    return await request('/auth/me', { method: 'GET' });
+  }
+}
+
+export async function getPetsApi(page = 0, size = 20) {
+  return request(`/owner/pets?page=${page}&size=${size}`);
+}
+
+export async function createPetApi(petData) {
+  return request('/owner/pets', {
+    method: 'POST',
+    body: JSON.stringify(petData),
+  });
+}
+
+export async function getOwnerDashboardApi() {
+  return request('/owner/dashboard');
+}
+
+export async function getOwnerAppointmentsApi(page = 0, size = 20) {
+  return request(`/owner/appointments?page=${page}&size=${size}`);
+}
+
+export async function bookOwnerAppointmentApi(bookingData) {
+  return request('/owner/appointments', {
+    method: 'POST',
+    body: JSON.stringify(bookingData),
+  });
+}
+
+export async function searchVetsApi(pincode = '') {
+  return request(`/vets/search${pincode ? `?pincode=${encodeURIComponent(pincode)}` : ''}`);
+}
+
+export async function getDueVaccinationsApi(days = 30) {
+  return request(`/owner/vaccinations/due?days=${days}`);
+}
+
+export async function getPetVaccinationsApi(petId) {
+  return request(`/owner/pets/${petId}/vaccinations`);
+}
+
+export async function getVetAppointmentsApi(page = 0, size = 20) {
+  return request(`/vet/appointments?page=${page}&size=${size}`);
+}
+
+export async function getVetDashboardApi() {
+  return request('/vet/dashboard');
+}
+
+export async function getVetProfileApi() {
+  return request('/vet/profile');
+}
+
+export async function getVetHospitalsApi() {
+  return request('/vet/hospitals');
+}
+
+export async function updateVetAppointmentStatusApi(appointmentId, status, notes = '') {
+  return request(`/vet/appointments/${appointmentId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, notes }),
+  });
+}
+
+export async function updateVetVisitNotesApi(appointmentId, visitNotes) {
+  return request(`/vet/appointments/${appointmentId}/notes`, {
+    method: 'PUT',
+    body: JSON.stringify({ visitNotes }),
   });
 }

@@ -27,7 +27,9 @@ public class AppleTokenRevocationService {
                                       AppleClientSecretGenerator secretGenerator) {
         this.appProperties = appProperties;
         this.secretGenerator = secretGenerator;
-        this.restClient = RestClient.create();
+        this.restClient = RestClient.builder()
+                .requestFactory(new org.springframework.http.client.SimpleClientHttpRequestFactory())
+                .build();
     }
 
     /**

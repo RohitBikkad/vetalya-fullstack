@@ -62,11 +62,19 @@ export default function DashboardShell({ children }) {
         { label: 'Digital Prescriptions', href: '#prescriptions' },
       ];
 
-  const notifications = [
-    { id: 1, title: 'Vaccine Reminder', time: '10m ago', text: "Leo's DHPP Booster is scheduled for Nov 10 at Koramangala Clinic.", icon: Heart },
-    { id: 2, title: 'Prescription Ready', time: '1h ago', text: 'Dr. Priya signed the digital SOAP prescription for Bella.', icon: Stethoscope },
-    { id: 3, title: 'Clinic Triage Queue', time: '3h ago', text: '2 new patient check-ins entered the OPD waiting room.', icon: Clock },
-  ];
+  const notifications = isVet
+    ? [
+        { id: 1, title: 'OPD Queue Active', time: 'Just now', text: 'Live consultation queue is initialized and ready for check-ins.', icon: Clock },
+        { id: 2, title: 'SOAP Records Synchronized', time: '1h ago', text: 'Digital prescription templates and drug formularies loaded.', icon: Stethoscope },
+      ]
+    : isAdmin
+    ? [
+        { id: 1, title: 'Security Audit Active', time: 'Active', text: 'OAuth2 exchange codes and JWT rotation monitors running.', icon: ShieldCheck },
+      ]
+    : [
+        { id: 1, title: 'Welcome to Vetalya', time: 'Just now', text: 'Your pet parent health portal is ready. Register your companion to track health passports and vaccines.', icon: Heart },
+        { id: 2, title: 'Veterinary Network', time: 'Active', text: 'Access 24/7 emergency telephone triage and book clinic consultations.', icon: Stethoscope },
+      ];
 
   const handleFetchDb = async () => {
     setLoadingDb(true);
@@ -240,7 +248,7 @@ export default function DashboardShell({ children }) {
                     <hr className="my-1 border-[#10324E]/8" />
 
                     <button
-                      onClick={logout}
+                      onClick={() => logout()}
                       className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 rounded-xl transition cursor-pointer text-left"
                     >
                       <LogOut className="w-3.5 h-3.5 text-rose-600" />

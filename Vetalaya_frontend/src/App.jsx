@@ -68,7 +68,7 @@ function AuthenticatedProfileView() {
       <header className="max-w-4xl w-full mx-auto flex items-center justify-between pb-8 border-b border-[#10324E]/10">
         <VetalyaBrandLogo />
         <button
-          onClick={logout}
+          onClick={() => logout()}
           className="flex items-center space-x-2 px-4 py-2.5 rounded-2xl bg-white hover:bg-slate-50 border border-[#10324E]/15 text-xs font-bold text-[#10324E] shadow-2xs transition-all cursor-pointer"
         >
           <LogOut className="w-4 h-4" />
@@ -215,7 +215,7 @@ function AuthenticatedProfileView() {
         </div>
 
         <button
-          onClick={logout}
+          onClick={() => logout()}
           className="w-full py-3.5 rounded-2xl bg-[#10324E] hover:bg-[#0c273e] text-white font-bold text-xs shadow-md transition-all cursor-pointer"
         >
           Sign Out &amp; Return to Auth Page

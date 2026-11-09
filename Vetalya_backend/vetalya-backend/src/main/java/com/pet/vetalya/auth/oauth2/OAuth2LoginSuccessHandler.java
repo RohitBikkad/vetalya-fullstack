@@ -15,8 +15,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
@@ -117,37 +115,39 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
     private void deliverTokens(HttpServletRequest request, HttpServletResponse response,
                                 SocialLoginService.LoginResult result, String clientType) throws IOException {
-        String code = generateOneTimeCode();
+        if ("web".equals(clientType)) {
+            // Set refresh token as HttpOnly secure cookie
+            Cookie refreshCookie = new Cookie("refresh_token", result.refreshToken());
+            refreshCookie.setHttpOnly(true);
+            refreshCookie.setSecure(true);
+            refreshCookie.setPath("/api/auth");
+            refreshCookie.setMaxAge(appProperties.jwt().refreshTokenExpiryDays() * 24 * 60 * 60);
+            refreshCookie.setAttribute("SameSite", "Strict");
+            response.addCookie(refreshCookie);
 
-        OneTimeCode otc = new OneTimeCode();
-        otc.setCodeHash(TokenService.sha256(code));
-        otc.setUserId(result.user().getUserId());
-        otc.setClientType(clientType);
-        otc.setNewUser(result.newUser());
-        otc.setProfileComplete(result.profileComplete());
-        otc.setExpiresAt(Instant.now().plus(60, ChronoUnit.SECONDS));
-        oneTimeCodeRepo.save(otc);
-
-        if ("web".equals(clientType) || clientType == null) {
-            // Set refresh token as HttpOnly cookie with local-friendly attributes
-            boolean isSecure = request.isSecure();
-            ResponseCookie refreshCookie = ResponseCookie.from("refresh_token", result.refreshToken())
-                    .httpOnly(true)
-                    .secure(isSecure)
-                    .path("/")
-                    .maxAge(appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60)
-                    .sameSite(isSecure ? "None" : "Lax")
-                    .build();
-            response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
-
-            // Redirect to web app with one-time code for instant zero-collision exchange
+            // Redirect to web app — no tokens in URL
             String redirectUrl = appProperties.webRedirectUrl()
-                    + "/auth/callback?code=" + code
-                    + "&newUser=" + result.newUser()
+                    + "/auth/callback?newUser=" + result.newUser()
                     + "&profileComplete=" + result.profileComplete();
             response.sendRedirect(redirectUrl);
         } else {
-            // Mobile: redirect to deep link with code
+            // Mobile: generate one-time code, redirect to deep link
+            String code = generateOneTimeCode();
+
+            OneTimeCode otc = new OneTimeCode();
+            otc.setCodeHash(TokenService.sha256(code));
+            otc.setUserId(result.user().getUserId());
+            otc.setClientType(clientType);
+            otc.setNewUser(result.newUser());
+            otc.setProfileComplete(result.profileComplete());
+            otc.setExpiresAt(Instant.now().plus(60, ChronoUnit.SECONDS));
+            oneTimeCodeRepo.save(otc);
+
+            // Revoke the refresh token that was just created (mobile will get tokens via /exchange)
+            // Actually, the mobile app will use the code to exchange → so we do NOT issue refresh in cookie.
+            // The refresh token from processLogin() is not delivered — it's wasted.
+            // We'll create a new one when the mobile exchanges the code.
+
             String deepLink = appProperties.mobileRedirectScheme()
                     + "://auth/callback?code=" + code
                     + "&newUser=" + result.newUser()

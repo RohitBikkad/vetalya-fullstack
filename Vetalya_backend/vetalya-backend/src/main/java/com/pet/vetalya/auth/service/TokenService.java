@@ -31,16 +31,30 @@ public class TokenService {
     private final AppProperties appProperties;
     private final RefreshTokenRepository refreshTokenRepo;
     private final UserAuthRepository userAuthRepo;
+    private final com.pet.vetalya.audit.service.AuditService auditService;
+    private final com.pet.vetalya.metrics.AppMetrics appMetrics;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public TokenService(JwtEncoder jwtEncoder,
                         AppProperties appProperties,
                         RefreshTokenRepository refreshTokenRepo,
                         UserAuthRepository userAuthRepo) {
+        this(jwtEncoder, appProperties, refreshTokenRepo, userAuthRepo, null, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public TokenService(JwtEncoder jwtEncoder,
+                        AppProperties appProperties,
+                        RefreshTokenRepository refreshTokenRepo,
+                        UserAuthRepository userAuthRepo,
+                        com.pet.vetalya.audit.service.AuditService auditService,
+                        com.pet.vetalya.metrics.AppMetrics appMetrics) {
         this.jwtEncoder = jwtEncoder;
         this.appProperties = appProperties;
         this.refreshTokenRepo = refreshTokenRepo;
         this.userAuthRepo = userAuthRepo;
+        this.auditService = auditService;
+        this.appMetrics = appMetrics;
     }
 
     /** Issue a JWT access token with RS256. */
@@ -83,7 +97,7 @@ public class TokenService {
      * Rotate a refresh token: mark old as used, issue a new one in the same family.
      * If the old token was already used (reuse detected), revoke the entire family.
      */
-    @Transactional(noRollbackFor = InvalidTokenException.class)
+    @Transactional
     public RotationResult rotateRefreshToken(String rawOldToken, String ipAddress) {
         String hash = sha256(rawOldToken);
         RefreshToken old = refreshTokenRepo.findByTokenHash(hash)
@@ -101,6 +115,15 @@ public class TokenService {
         if (old.getUsedAt() != null) {
             log.warn("Refresh token reuse detected for user {}. Revoking family {}", old.getUserId(), old.getFamilyId());
             refreshTokenRepo.revokeFamily(old.getFamilyId());
+            if (auditService != null) {
+                auditService.recordEvent("REFRESH_TOKEN_REUSE_DETECTED", old.getUserId(), null, null,
+                        "FAILURE", "Refresh token reuse detected — family revoked", old.getClientType(),
+                        old.getDeviceId(), ipAddress, null, java.util.Map.of("familyId", old.getFamilyId().toString()));
+            }
+            if (appMetrics != null) {
+                appMetrics.recordTokenReuseDetected();
+                appMetrics.recordTokenRefresh("failure");
+            }
             throw new InvalidTokenException("Refresh token reuse detected — all tokens in this family revoked");
         }
 
@@ -111,6 +134,9 @@ public class TokenService {
                 .orElseThrow(() -> new InvalidTokenException("User not found"));
 
         if (!"ACTIVE".equals(user.getStatus())) {
+            if (appMetrics != null) {
+                appMetrics.recordTokenRefresh("failure");
+            }
             throw new InvalidTokenException("Account is " + user.getStatus().toLowerCase());
         }
 
@@ -127,6 +153,16 @@ public class TokenService {
         refreshTokenRepo.save(newEntity);
 
         String accessToken = createAccessToken(user);
+
+        if (auditService != null) {
+            auditService.recordEvent("TOKEN_REFRESH", user.getUserId(), user.getRole(), null,
+                    "SUCCESS", null, old.getClientType(), old.getDeviceId(), ipAddress, null,
+                    java.util.Map.of("familyId", old.getFamilyId().toString()));
+        }
+        if (appMetrics != null) {
+            appMetrics.recordTokenRefresh("success");
+        }
+
         return new RotationResult(accessToken, newRawToken, user);
     }
 

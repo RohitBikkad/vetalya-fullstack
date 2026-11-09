@@ -11,8 +11,27 @@ public record AppProperties(
         Jwt jwt,
         Google google,
         Apple apple,
-        Cors cors
+        Cors cors,
+        Appointment appointment,
+        Pet pet,
+        Review review,
+        String zone
 ) {
+    public AppProperties {
+        if (zone == null || zone.isBlank()) {
+            zone = "Asia/Kolkata";
+        }
+        if (appointment == null) {
+            appointment = new Appointment(30, 60, 2, List.of(24, 1));
+        }
+        if (pet == null) {
+            pet = new Pet(20);
+        }
+        if (review == null) {
+            review = new Review(30);
+        }
+    }
+
     public record Jwt(
             String privateKeyPath,
             String publicKeyPath,
@@ -35,4 +54,36 @@ public record AppProperties(
     public record Cors(
             String allowedOrigin
     ) {}
+
+    public record Appointment(
+            int slotMinutes,
+            int minLeadMinutes,
+            int cancelCutoffHours,
+            List<Integer> reminderOffsetsHours
+    ) {
+        public Appointment {
+            if (slotMinutes <= 0) slotMinutes = 30;
+            if (minLeadMinutes <= 0) minLeadMinutes = 60;
+            if (cancelCutoffHours <= 0) cancelCutoffHours = 2;
+            if (reminderOffsetsHours == null || reminderOffsetsHours.isEmpty()) {
+                reminderOffsetsHours = List.of(24, 1);
+            }
+        }
+    }
+
+    public record Pet(
+            int maxPerOwner
+    ) {
+        public Pet {
+            if (maxPerOwner <= 0) maxPerOwner = 20;
+        }
+    }
+
+    public record Review(
+            int editWindowDays
+    ) {
+        public Review {
+            if (editWindowDays <= 0) editWindowDays = 30;
+        }
+    }
 }

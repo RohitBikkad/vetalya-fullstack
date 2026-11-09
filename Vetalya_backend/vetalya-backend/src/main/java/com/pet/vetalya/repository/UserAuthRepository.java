@@ -9,5 +9,4 @@ public interface UserAuthRepository extends JpaRepository<UserAuth, String> {
     Optional<UserAuth> findByEmailAndEmailVerified(String email, boolean emailVerified);
     Optional<UserAuth> findByEmail(String email);
     Optional<UserAuth> findByPhone(String phone);
-    Optional<UserAuth> findByEmailOrPhone(String email, String phone);
 }
