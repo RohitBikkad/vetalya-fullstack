@@ -558,6 +558,7 @@ public class AuthController {
                 }
                 v.setFirstName(firstName);
                 v.setLastName(lastName);
+                v.setVerified(true);
                 vetRepo.save(v);
             });
         } else {

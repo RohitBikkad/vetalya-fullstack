@@ -2,11 +2,15 @@ package com.pet.vetalya.config;
 
 import com.github.f4b6a3.ulid.UlidCreator;
 import com.pet.vetalya.entity.AuthProvider;
+import com.pet.vetalya.entity.Hospital;
 import com.pet.vetalya.entity.PetOwner;
 import com.pet.vetalya.entity.UserAuth;
+import com.pet.vetalya.entity.Vet;
 import com.pet.vetalya.repository.AuthProviderRepository;
+import com.pet.vetalya.repository.HospitalRepository;
 import com.pet.vetalya.repository.PetOwnerRepository;
 import com.pet.vetalya.repository.UserAuthRepository;
+import com.pet.vetalya.repository.VetRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -22,17 +26,23 @@ public class DataInitializer implements CommandLineRunner {
     private final UserAuthRepository userAuthRepo;
     private final AuthProviderRepository authProviderRepo;
     private final PetOwnerRepository petOwnerRepo;
+    private final VetRepository vetRepo;
+    private final HospitalRepository hospitalRepo;
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
 
     public DataInitializer(UserAuthRepository userAuthRepo,
                            AuthProviderRepository authProviderRepo,
                            PetOwnerRepository petOwnerRepo,
+                           VetRepository vetRepo,
+                           HospitalRepository hospitalRepo,
                            PasswordEncoder passwordEncoder,
                            JdbcTemplate jdbcTemplate) {
         this.userAuthRepo = userAuthRepo;
         this.authProviderRepo = authProviderRepo;
         this.petOwnerRepo = petOwnerRepo;
+        this.vetRepo = vetRepo;
+        this.hospitalRepo = hospitalRepo;
         this.passwordEncoder = passwordEncoder;
         this.jdbcTemplate = jdbcTemplate;
     }
@@ -42,6 +52,7 @@ public class DataInitializer implements CommandLineRunner {
         createOtpTable();
         upgradeRoleConstraint();
         seedAdminUser();
+        seedVetAndHospital();
     }
 
     private void createOtpTable() {
@@ -119,6 +130,75 @@ public class DataInitializer implements CommandLineRunner {
             }
         } catch (Exception e) {
             log.warn("Admin seeding notice: {}", e.getMessage());
+        }
+    }
+
+    private void seedVetAndHospital() {
+        String vetEmail = "dr.priya@vetalya.com";
+        try {
+            var existing = userAuthRepo.findByEmail(vetEmail);
+            String vetUserId;
+            if (existing.isEmpty()) {
+                vetUserId = UlidCreator.getMonotonicUlid().toString();
+
+                UserAuth vetUser = new UserAuth();
+                vetUser.setUserId(vetUserId);
+                vetUser.setEmail(vetEmail);
+                vetUser.setEmailVerified(true);
+                vetUser.setPhone("+91 98450 12345");
+                vetUser.setPhoneVerified(true);
+                vetUser.setRole("ROLE_VET");
+                vetUser.setStatus("ACTIVE");
+                vetUser.setPasswordHash(passwordEncoder.encode("Priya@Vetalya2026!"));
+                vetUser.setTokenVersion(0);
+                userAuthRepo.save(vetUser);
+
+                AuthProvider ap = new AuthProvider();
+                ap.setUserId(vetUserId);
+                ap.setProvider("GOOGLE");
+                ap.setProviderUserId("vet-priya-sharma");
+                ap.setProviderEmail(vetEmail);
+                authProviderRepo.save(ap);
+
+                Vet vet = new Vet();
+                vet.setUserId(vetUserId);
+                vet.setFirstName("Priya");
+                vet.setLastName("Sharma");
+                vet.setRegistrationNo("KVC-2022-8192");
+                vet.setVerified(true);
+                vet.setPhotoUrl("https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=200&q=80");
+                vetRepo.save(vet);
+
+                log.info("✅ Pre-seeded Verified Veterinarian account: {} (Password: Priya@Vetalya2026!)", vetEmail);
+            } else {
+                vetUserId = existing.get().getUserId();
+                vetRepo.findById(vetUserId).ifPresent(v -> {
+                    v.setVerified(true);
+                    vetRepo.save(v);
+                });
+            }
+
+            // Seed hospital clinic if not present
+            var hospitals = hospitalRepo.findAllByVetUserId(vetUserId);
+            if (hospitals.isEmpty()) {
+                Hospital h = new Hospital();
+                h.setHospitalId(UlidCreator.getMonotonicUlid().toString());
+                h.setVetUserId(vetUserId);
+                h.setName("Koramangala Companion Hospital");
+                h.setAddress1("80 Feet Road, 4th Block, Koramangala");
+                h.setCity("Bengaluru");
+                h.setState("Karnataka");
+                h.setPincode("560034");
+                h.setCountry("INDIA");
+                h.setMobile("+91 80 4719 2200");
+                h.setEmail("contact@koramangalavet.in");
+                h.setIs24x7(true);
+                h.setActive(true);
+                hospitalRepo.save(h);
+                log.info("✅ Pre-seeded Hospital Clinic: Koramangala Companion Hospital");
+            }
+        } catch (Exception e) {
+            log.warn("Vet/Hospital seeding notice: {}", e.getMessage());
         }
     }
 }
