@@ -22,7 +22,7 @@ services:
       - key: DB_URL
         value: jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require&sslfactory=org.postgresql.ssl.NonValidatingFactory
       - key: DB_USERNAME
-        value: postgres.evkdpnhbwajlmnpxeijb
+        value: postgres.lihsmcgfxjuldjenjdti
       - key: DB_PASSWORD
         sync: false # Render dashboard will prompt you for this password securely
 
