@@ -498,56 +498,95 @@ public class AuthController {
         }
         String email = (String) request.get("email");
         String password = (String) request.get("password");
+        String phone = (String) request.get("phone");
         String roleParam = (String) request.get("role");
 
+        if (fullName == null || fullName.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Full name is required"));
+        }
         if (email == null || email.isBlank() || password == null || password.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Email and password are required"));
         }
+        if (phone == null || phone.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Mobile phone number is required"));
+        }
 
         email = email.trim().toLowerCase();
+        phone = phone.trim();
+
         if (userAuthRepo.findByEmail(email).isPresent()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "An account with this email already exists"));
+            return ResponseEntity.badRequest().body(Map.of("message", "An account with this email address already exists"));
+        }
+
+        if (userAuthRepo.findFirstByPhone(phone).isPresent()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "An account with this mobile phone number already exists"));
+        }
+
+        // OTP verification for both Email and Mobile Phone
+        String emailOtp = (String) request.get("emailOtp");
+        if (emailOtp == null) emailOtp = (String) request.get("emailCode");
+        String phoneOtp = (String) request.get("phoneOtp");
+        if (phoneOtp == null) phoneOtp = (String) request.get("phoneCode");
+        String singleOtp = (String) request.get("otp");
+
+        if (emailOtp == null && singleOtp != null && !singleOtp.isBlank()) {
+            emailOtp = singleOtp;
+        }
+        if (phoneOtp == null && singleOtp != null && !singleOtp.isBlank()) {
+            phoneOtp = singleOtp;
+        }
+
+        // 1. Verify Email OTP
+        boolean emailVerified = false;
+        if (emailOtp != null && !emailOtp.isBlank()) {
+            emailVerified = otpService.verifyOtp(email, emailOtp, "REGISTRATION")
+                         || otpService.verifyOtp(email, emailOtp, "VERIFICATION");
+        }
+        if (!emailVerified) {
+            emailVerified = otpService.isTargetVerifiedRecently(email, "REGISTRATION")
+                         || otpService.isTargetVerifiedRecently(email, "VERIFICATION");
+        }
+        if (!emailVerified) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "email_verification_failed",
+                    "message", "Email verification required. Please verify the 6-digit OTP sent to " + email
+            ));
+        }
+
+        // 2. Verify Phone OTP
+        boolean phoneVerified = false;
+        if (phoneOtp != null && !phoneOtp.isBlank()) {
+            phoneVerified = otpService.verifyOtp(phone, phoneOtp, "REGISTRATION")
+                         || otpService.verifyOtp(phone, phoneOtp, "VERIFICATION");
+        }
+        if (!phoneVerified) {
+            phoneVerified = otpService.isTargetVerifiedRecently(phone, "REGISTRATION")
+                         || otpService.isTargetVerifiedRecently(phone, "VERIFICATION");
+        }
+        if (!phoneVerified) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "phone_verification_failed",
+                    "message", "Mobile number verification required. Please verify the 6-digit OTP sent to " + phone
+            ));
         }
 
         String role = (roleParam != null && (roleParam.equalsIgnoreCase("VETERINARIAN") || roleParam.equalsIgnoreCase("ROLE_VET")))
                 ? "ROLE_VET" : "ROLE_PET_OWNER";
 
-        String firstName = fullName != null && fullName.contains(" ") ? fullName.substring(0, fullName.indexOf(' ')) : (fullName != null ? fullName : "User");
-        String lastName = fullName != null && fullName.contains(" ") ? fullName.substring(fullName.indexOf(' ') + 1) : "";
+        String firstName = fullName.contains(" ") ? fullName.substring(0, fullName.indexOf(' ')) : fullName;
+        String lastName = fullName.contains(" ") ? fullName.substring(fullName.indexOf(' ') + 1) : "";
 
         ProviderUserInfo info = new ProviderUserInfo("GOOGLE", "reg-" + email, email, true, firstName, lastName, null);
         SocialLoginService.LoginResult lr = socialLoginService.processLogin(info, role, "web", null, httpRequest.getRemoteAddr());
 
-        String phone = (String) request.get("phone");
         String councilReg = (String) request.get("councilRegNumber");
         if (councilReg == null) councilReg = (String) request.get("registrationNo");
-        String otp = (String) request.get("otp");
 
         UserAuth user = lr.user();
         user.setPasswordHash(passwordEncoder.encode(password));
-        if (phone != null && !phone.isBlank()) {
-            user.setPhone(phone.trim());
-        }
-
-        // Verify OTP if provided or previously verified
-        if (otp != null && !otp.isBlank()) {
-            String target = (phone != null && !phone.isBlank()) ? phone.trim() : email;
-            boolean valid = otpService.verifyOtp(target, otp, "REGISTRATION");
-            if (!valid) {
-                valid = otpService.verifyOtp(target, otp, "VERIFICATION");
-            }
-            if (valid) {
-                user.setPhoneVerified(true);
-                user.setEmailVerified(true);
-            }
-        } else if (phone != null && otpService.isTargetVerifiedRecently(phone.trim(), "REGISTRATION")) {
-            user.setPhoneVerified(true);
-            user.setEmailVerified(true);
-        } else if (otpService.isTargetVerifiedRecently(email, "REGISTRATION")) {
-            user.setPhoneVerified(true);
-            user.setEmailVerified(true);
-        }
-
+        user.setPhone(phone);
+        user.setEmailVerified(true);
+        user.setPhoneVerified(true);
         userAuthRepo.save(user);
 
         if ("ROLE_VET".equals(role)) {
@@ -674,7 +713,7 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid or expired OTP code"));
         }
 
-        UserAuth user = userAuthRepo.findByPhone(phone).orElse(null);
+        UserAuth user = userAuthRepo.findFirstByPhone(phone).orElse(null);
         if (user == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                     "message", "No account registered with phone " + phone + ". Please create an account first."

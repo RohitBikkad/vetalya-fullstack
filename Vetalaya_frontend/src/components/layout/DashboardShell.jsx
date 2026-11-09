@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { getDatabaseInspectionApi } from '../../services/api';
 import VetalyaBrandLogo from '../auth/VetalyaBrandLogo';
 import {
   Bell,
@@ -79,8 +80,7 @@ export default function DashboardShell({ children }) {
   const handleFetchDb = async () => {
     setLoadingDb(true);
     try {
-      const res = await fetch('/api/public/db-inspect');
-      const data = await res.json();
+      const data = await getDatabaseInspectionApi();
       setDbData(data);
     } catch (e) {
       setDbData({ error: 'Failed to inspect live DB: ' + e.message });

@@ -63,7 +63,7 @@ public class ApiSecurityConfig {
                 // Role-gated endpoints
                 .requestMatchers("/api/vet/**", "/api/users/vet-portal").hasAnyAuthority("ROLE_VET", "ROLE_CLINIC_ADMIN", "ROLE_PLATFORM_ADMIN")
                 .requestMatchers("/api/owner/**", "/api/pet-owner/**").hasAuthority("ROLE_PET_OWNER")
-                .requestMatchers("/api/users/admin-portal").hasAnyAuthority("ROLE_PLATFORM_ADMIN", "ROLE_CLINIC_ADMIN")
+                .requestMatchers("/api/admin/**", "/api/users/admin-portal").hasAnyAuthority("ROLE_PLATFORM_ADMIN", "ROLE_CLINIC_ADMIN")
                 // Everything else requires authentication
                 .anyRequest().authenticated()
             )
@@ -145,15 +145,17 @@ public class ApiSecurityConfig {
             "http://localhost:*",
             "http://127.0.0.1:*",
             "https://*.onrender.com",
-            appProperties.cors().allowedOrigin()
+            "https://*.vercel.app",
+            "https://*.netlify.app",
+            appProperties.cors().allowedOrigin() != null ? appProperties.cors().allowedOrigin() : "*"
         ));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", config);
+        source.registerCorsConfiguration("/**", config);
         return source;
     }
 }

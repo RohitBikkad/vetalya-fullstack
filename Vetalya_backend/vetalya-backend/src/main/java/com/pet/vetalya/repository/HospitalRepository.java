@@ -19,6 +19,8 @@ public interface HospitalRepository extends JpaRepository<Hospital, String> {
 
     long countByVetUserIdAndActiveTrue(String vetUserId);
 
+    long countByActiveTrue();
+
     @Query("SELECT h FROM Hospital h WHERE h.vetUserId = :vetUserId AND h.hospitalId IN :ids")
     List<Hospital> findAllByVetUserIdAndHospitalIdIn(String vetUserId, List<String> ids);
 }

@@ -68,6 +68,8 @@ export default function VetDashboard() {
   });
 
   const [prescriptionSigned, setPrescriptionSigned] = useState(false);
+  const [submittingSoap, setSubmittingSoap] = useState(false);
+  const [soapError, setSoapError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('queue'); // 'queue' | 'diagnostics' | 'history'
 
@@ -113,24 +115,35 @@ export default function VetDashboard() {
     try {
       const aptsRes = await getVetAppointmentsApi().catch(() => null);
       if (aptsRes && aptsRes.content) {
-        const mapped = aptsRes.content.map(apt => ({
-          id: apt.appointmentId,
-          token: `T-${apt.appointmentId ? apt.appointmentId.slice(-2) : '01'}`,
-          petName: apt.pet?.name || 'Patient Companion',
-          species: apt.pet?.species === 'DOG' ? 'Canine' : apt.pet?.species === 'CAT' ? 'Feline' : (apt.pet?.species || 'Companion'),
-          breed: apt.pet?.breed || 'Companion',
-          age: '—',
-          weight: '—',
-          ownerName: apt.owner ? `${apt.owner.firstName || ''} ${apt.owner.lastName || ''}`.trim() || 'Pet Owner' : 'Pet Owner',
-          ownerPhone: 'Verified Client',
-          time: apt.appointmentAt ? new Date(apt.appointmentAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Scheduled',
-          reason: apt.reason || 'Clinical Consultation & Health Assessment',
-          status: apt.status === 'BOOKED' ? 'Waiting' : apt.status === 'COMPLETED' ? 'Completed' : (apt.status || 'Waiting'),
-          statusColor: apt.status === 'COMPLETED' ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-amber-100 text-amber-800 border-amber-300',
-          triageLevel: 'Standard',
-          temp: '101.4',
-          hr: '110',
-        }));
+        const mapped = aptsRes.content.map(apt => {
+          let parsedNotes = null;
+          if (apt.visitNotes) {
+            try {
+              parsedNotes = typeof apt.visitNotes === 'string' ? JSON.parse(apt.visitNotes) : apt.visitNotes;
+            } catch (e) {
+              // Plain text or unparsed
+            }
+          }
+          return {
+            id: apt.appointmentId,
+            token: `T-${apt.appointmentId ? apt.appointmentId.slice(-2) : '01'}`,
+            petName: apt.pet?.name || 'Patient Companion',
+            species: apt.pet?.species === 'DOG' ? 'Canine' : apt.pet?.species === 'CAT' ? 'Feline' : (apt.pet?.species || 'Companion'),
+            breed: apt.pet?.breed || 'Companion',
+            age: '—',
+            weight: parsedNotes?.weight ? `${parsedNotes.weight} kg` : '—',
+            ownerName: apt.owner ? `${apt.owner.firstName || ''} ${apt.owner.lastName || ''}`.trim() || 'Pet Owner' : 'Pet Owner',
+            ownerPhone: 'Verified Client',
+            time: apt.appointmentAt ? new Date(apt.appointmentAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Scheduled',
+            reason: apt.reason || 'Clinical Consultation & Health Assessment',
+            status: apt.status === 'BOOKED' ? 'Waiting' : apt.status === 'COMPLETED' ? 'Completed' : (apt.status || 'Waiting'),
+            statusColor: apt.status === 'COMPLETED' ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-amber-100 text-amber-800 border-amber-300',
+            triageLevel: 'Standard',
+            temp: parsedNotes?.temperature || '—',
+            hr: parsedNotes?.heartRate || '—',
+            visitNotes: apt.visitNotes,
+          };
+        });
         setQueue(mapped);
       } else {
         setQueue([]);
@@ -149,18 +162,29 @@ export default function VetDashboard() {
 
   const handleStartConsultation = (patient) => {
     setActiveConsultation(patient);
+    setSoapError(null);
+
+    let parsedNotes = null;
+    if (patient.visitNotes) {
+      try {
+        parsedNotes = typeof patient.visitNotes === 'string' ? JSON.parse(patient.visitNotes) : patient.visitNotes;
+      } catch (e) {
+        // Ignored
+      }
+    }
+
     setSoapForm({
-      subjective: patient.reason || 'General wellness checkup and triage assessment',
-      temperature: patient.temp || '101.4',
-      weight: patient.weight ? patient.weight.replace(' kg', '') : '10',
-      heartRate: patient.hr || '110',
-      objectiveExam: 'Bright, alert, responsive. Hydration status normal. Cardiovascular and pulmonary auscultation clear.',
-      assessment: patient.reason || 'Clinical Health Evaluation',
-      dietPlan: 'Maintain regular balanced diet and clean fresh water.',
-      followUpDays: '7',
-      medications: [
-        { name: '', dosage: '', frequency: 'BID (Twice daily)', duration: '5 days', instructions: 'After food' },
-      ],
+      subjective: parsedNotes?.subjective || patient.reason || '',
+      temperature: parsedNotes?.temperature || (patient.temp !== '—' ? patient.temp : ''),
+      weight: parsedNotes?.weight || (patient.weight !== '—' ? patient.weight.replace(' kg', '') : ''),
+      heartRate: parsedNotes?.heartRate || (patient.hr !== '—' ? patient.hr : ''),
+      objectiveExam: parsedNotes?.objectiveExam || '',
+      assessment: parsedNotes?.assessment || patient.reason || '',
+      dietPlan: parsedNotes?.dietPlan || 'Maintain fresh clean water and prescribed diet.',
+      followUpDays: parsedNotes?.followUpDays || '7',
+      medications: parsedNotes?.medications && parsedNotes.medications.length > 0
+        ? parsedNotes.medications
+        : [{ name: '', dosage: '', frequency: 'BID (Twice daily)', duration: '5 days', instructions: 'After food' }],
     });
     setPrescriptionSigned(false);
   };
@@ -189,32 +213,67 @@ export default function VetDashboard() {
 
   const handleSavePrescription = async (e) => {
     e.preventDefault();
-    setPrescriptionSigned(true);
+    setSoapError(null);
 
-    if (activeConsultation?.id && !activeConsultation.id.startsWith('mock-')) {
-      try {
-        await updateVetAppointmentStatusApi(activeConsultation.id, 'COMPLETED', soapForm.assessment);
-        await updateVetVisitNotesApi(activeConsultation.id, JSON.stringify(soapForm));
-      } catch (err) {
-        console.warn('Could not persist SOAP prescription to backend:', err.message);
+    // Validation checks
+    if (!soapForm.assessment.trim()) {
+      setSoapError('Primary Clinical Assessment / Diagnosis is required before signing prescription.');
+      return;
+    }
+
+    if (soapForm.temperature.trim()) {
+      const tempVal = parseFloat(soapForm.temperature);
+      if (isNaN(tempVal) || tempVal < 90 || tempVal > 112) {
+        setSoapError('Body temperature must be a realistic numeric reading between 90°F and 112°F.');
+        return;
       }
     }
 
-    // Update patient status in queue
-    setQueue(prev => prev.map((p) => (p.id === activeConsultation.id ? { ...p, status: 'Completed', statusColor: 'bg-slate-100 text-slate-700 border-slate-300' } : p)));
+    if (soapForm.weight.trim()) {
+      const wtVal = parseFloat(soapForm.weight);
+      if (isNaN(wtVal) || wtVal <= 0 || wtVal > 300) {
+        setSoapError('Patient weight must be a valid positive number in kilograms.');
+        return;
+      }
+    }
 
-    // Update metrics
-    setMetrics(prev => ({
-      ...prev,
-      waitingInClinic: Math.max(0, prev.waitingInClinic - 1),
-      completedToday: prev.completedToday + 1,
-    }));
+    if (soapForm.heartRate.trim()) {
+      const hrVal = parseInt(soapForm.heartRate, 10);
+      if (isNaN(hrVal) || hrVal < 20 || hrVal > 350) {
+        setSoapError('Heart rate must be an integer between 20 and 350 bpm.');
+        return;
+      }
+    }
 
-    setTimeout(() => {
-      setActiveConsultation(null);
-      setPrescriptionSigned(false);
-      loadVetData();
-    }, 1800);
+    // Validate medication rows
+    for (let i = 0; i < soapForm.medications.length; i++) {
+      const med = soapForm.medications[i];
+      if (med.name.trim() && !med.dosage.trim()) {
+        setSoapError(`Please specify the dosage for medication "${med.name}".`);
+        return;
+      }
+    }
+
+    setSubmittingSoap(true);
+
+    try {
+      if (activeConsultation?.id) {
+        await updateVetAppointmentStatusApi(activeConsultation.id, 'COMPLETED', soapForm.assessment.trim());
+        await updateVetVisitNotesApi(activeConsultation.id, JSON.stringify(soapForm));
+      }
+
+      setPrescriptionSigned(true);
+      await loadVetData();
+
+      setTimeout(() => {
+        setActiveConsultation(null);
+        setPrescriptionSigned(false);
+        setSubmittingSoap(false);
+      }, 1500);
+    } catch (err) {
+      setSubmittingSoap(false);
+      setSoapError(err.message || 'Failed to persist clinical consultation to database. Please retry.');
+    }
   };
 
   const filteredQueue = queue.filter(
@@ -494,6 +553,16 @@ export default function VetDashboard() {
             {/* SOAP Form Scrollable Body */}
             <form onSubmit={handleSavePrescription} className="overflow-y-auto py-4 space-y-5 text-xs flex-1 pr-1">
               
+              {soapError && (
+                <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{soapError}</span>
+                  </div>
+                  <button type="button" onClick={() => setSoapError(null)} className="text-rose-600 hover:text-rose-900 font-extrabold">✕</button>
+                </div>
+              )}
+              
               {/* S: Subjective */}
               <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#10324E]/8 space-y-2">
                 <div className="font-extrabold text-[#10324E] uppercase tracking-wider text-[11px] flex items-center gap-1.5">
@@ -679,10 +748,17 @@ export default function VetDashboard() {
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 rounded-xl bg-[#2D8A7A] hover:bg-[#236e61] text-white text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer"
+                    disabled={submittingSoap}
+                    className="px-5 py-2.5 rounded-xl bg-[#2D8A7A] hover:bg-[#236e61] text-white text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    <span>{prescriptionSigned ? 'Prescription Signed!' : 'Sign & Complete Consultation'}</span>
+                    <span>
+                      {submittingSoap
+                        ? 'Persisting to DB...'
+                        : prescriptionSigned
+                        ? 'Prescription Signed!'
+                        : 'Sign & Complete Consultation'}
+                    </span>
                   </button>
                 </div>
               </div>

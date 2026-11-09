@@ -16,7 +16,7 @@ import java.util.Set;
 public class SocialLoginService {
 
     private static final Logger log = LoggerFactory.getLogger(SocialLoginService.class);
-    private static final Set<String> ALLOWED_ROLES = Set.of("ROLE_VET", "ROLE_PET_OWNER");
+    private static final Set<String> ALLOWED_ROLES = Set.of("ROLE_VET", "ROLE_PET_OWNER", "ROLE_PLATFORM_ADMIN", "ROLE_CLINIC_ADMIN");
 
     private final UserAuthRepository userAuthRepo;
     private final AuthProviderRepository authProviderRepo;
@@ -146,7 +146,7 @@ public class SocialLoginService {
 
     private void validateRole(String role) {
         if (role == null || !ALLOWED_ROLES.contains(role)) {
-            throw new IllegalArgumentException("Invalid role: " + role + ". Must be ROLE_VET or ROLE_PET_OWNER");
+            throw new IllegalArgumentException("Invalid role: " + role + ". Must be one of: " + ALLOWED_ROLES);
         }
     }
 

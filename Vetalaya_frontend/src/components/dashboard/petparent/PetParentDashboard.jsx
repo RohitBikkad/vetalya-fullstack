@@ -94,18 +94,52 @@ export default function PetParentDashboard() {
           date: apt.appointmentAt ? new Date(apt.appointmentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' }) : 'Scheduled',
           time: apt.appointmentAt ? new Date(apt.appointmentAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '10:00 AM',
           clinic: apt.hospital?.name || 'Vetalya Partner Clinic',
-          vetName: apt.vet ? `Dr. ${apt.vet.firstName} ${apt.vet.lastName || ''}`.trim() : 'Attending Veterinarian',
+          vetName: apt.vet ? `Dr. ${apt.vet.firstName || ''} ${apt.vet.lastName || ''}`.trim() : 'Attending Veterinarian',
           status: apt.status || 'Confirmed',
           reason: apt.reason || apt.notes || 'Routine Consultation',
           token: `T-${apt.appointmentId ? apt.appointmentId.slice(-2) : '01'}`,
+          visitNotes: apt.visitNotes,
         }));
         setAppointments(mapped);
+
+        // Extract real digital prescriptions from completed database visits
+        const rxList = [];
+        res.content.forEach(apt => {
+          if (apt.visitNotes && (apt.status === 'COMPLETED' || apt.status === 'Completed')) {
+            try {
+              const parsed = typeof apt.visitNotes === 'string' ? JSON.parse(apt.visitNotes) : apt.visitNotes;
+              rxList.push({
+                id: `RX-${apt.appointmentId ? apt.appointmentId.slice(-6).toUpperCase() : '001'}`,
+                appointmentId: apt.appointmentId,
+                petName: apt.pet?.name || 'Companion',
+                doctor: apt.vet ? `Dr. ${apt.vet.firstName || ''} ${apt.vet.lastName || ''}`.trim() : 'Attending Veterinarian',
+                date: apt.appointmentAt ? new Date(apt.appointmentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
+                diagnosis: parsed.assessment || apt.reason || 'Clinical Consultation',
+                medications: parsed.medications || [],
+                dietPlan: parsed.dietPlan || 'Standard balanced diet',
+                followUpDays: parsed.followUpDays || '7',
+                vitals: {
+                  temp: parsed.temperature,
+                  weight: parsed.weight,
+                  hr: parsed.heartRate,
+                },
+                subjective: parsed.subjective,
+                objectiveExam: parsed.objectiveExam,
+              });
+            } catch (e) {
+              // Non-JSON notes
+            }
+          }
+        });
+        setPrescriptions(rxList);
       } else {
         setAppointments([]);
+        setPrescriptions([]);
       }
     } catch (err) {
       console.warn('Could not fetch appointments from API:', err.message);
       setAppointments([]);
+      setPrescriptions([]);
     } finally {
       setLoadingAppointments(false);
     }
@@ -136,8 +170,15 @@ export default function PetParentDashboard() {
   }, [loadPets, loadAppointments, loadVaccinations]);
 
   // Form states for booking
+  const [availableVets, setAvailableVets] = useState([]);
+  const [loadingVets, setLoadingVets] = useState(false);
+  const [bookError, setBookError] = useState(null);
+  const [submittingBook, setSubmittingBook] = useState(false);
+
   const [bookForm, setBookForm] = useState({
     petId: '',
+    vetUserId: '',
+    hospitalId: '',
     date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
     time: '11:00 AM',
     reason: 'Routine Health Checkup',
@@ -150,126 +191,158 @@ export default function PetParentDashboard() {
     }
   }, [pets, bookForm.petId]);
 
+  // Fetch available veterinarians when booking modal opens
+  useEffect(() => {
+    if (showBookModal) {
+      setBookError(null);
+      setLoadingVets(true);
+      searchVetsApi()
+        .then((vets) => {
+          if (Array.isArray(vets) && vets.length > 0) {
+            setAvailableVets(vets);
+            setBookForm(prev => ({
+              ...prev,
+              vetUserId: prev.vetUserId || vets[0].vetUserId,
+              hospitalId: prev.hospitalId || (vets[0].hospitals?.[0]?.hospitalId || ''),
+            }));
+          }
+        })
+        .catch((err) => {
+          console.warn('Could not load vets for booking:', err);
+        })
+        .finally(() => {
+          setLoadingVets(false);
+        });
+    }
+  }, [showBookModal]);
+
   // Form states for adding pet
+  const [addPetError, setAddPetError] = useState(null);
+  const [submittingPet, setSubmittingPet] = useState(false);
   const [newPetForm, setNewPetForm] = useState({
     name: '',
     species: 'Canine',
+    gender: 'MALE',
     breed: '',
     age: '',
+    dob: '',
     weight: '',
     microchip: '',
   });
 
   const handleBookSubmit = async (e) => {
     e.preventDefault();
+    setBookError(null);
+
     const pet = pets.find((p) => p.id === bookForm.petId) || pets[0];
     if (!pet) {
-      alert('Please register a companion first before booking an appointment.');
-      setShowBookModal(false);
+      setBookError('Please register a companion profile before booking an appointment.');
       return;
     }
 
-    try {
-      const vets = await searchVetsApi().catch(() => []);
-      const vet = vets && vets.length > 0 ? vets[0] : null;
-
-      const timeParts = (bookForm.time || '10:00 AM').split(' ');
-      const [hoursStr, minsStr] = (timeParts[0] || '10:00').split(':');
-      let h = parseInt(hoursStr, 10);
-      if (timeParts[1] === 'PM' && h < 12) h += 12;
-      if (timeParts[1] === 'AM' && h === 12) h = 0;
-      const appDate = new Date(bookForm.date || Date.now() + 86400000);
-      appDate.setHours(h, parseInt(minsStr, 10) || 0, 0, 0);
-
-      if (vet) {
-        await bookOwnerAppointmentApi({
-          petId: pet.id,
-          vetUserId: vet.vetUserId,
-          hospitalId: vet.hospitals?.[0]?.hospitalId || null,
-          appointmentAt: appDate.toISOString(),
-          notes: bookForm.reason || 'Routine Consultation',
-        });
-        await loadAppointments();
-      } else {
-        const newApt = {
-          id: `apt-${Date.now()}`,
-          petName: pet.name,
-          petAvatar: pet.avatar,
-          date: bookForm.date,
-          time: bookForm.time,
-          clinic: 'Koramangala Companion Hospital',
-          vetName: 'Attending Veterinarian',
-          status: 'Confirmed',
-          reason: bookForm.reason || 'Routine Consultation',
-          token: `T-${Math.floor(Math.random() * 20) + 1}`,
-        };
-        setAppointments(prev => [newApt, ...prev]);
-      }
-    } catch (err) {
-      console.warn('Booking API returned error, creating appointment locally:', err.message);
-      const newApt = {
-        id: `apt-${Date.now()}`,
-        petName: pet.name,
-        petAvatar: pet.avatar,
-        date: bookForm.date,
-        time: bookForm.time,
-        clinic: 'Koramangala Companion Hospital',
-        vetName: 'Attending Veterinarian',
-        status: 'Confirmed',
-        reason: bookForm.reason || 'Routine Consultation',
-        token: `T-${Math.floor(Math.random() * 20) + 1}`,
-      };
-      setAppointments(prev => [newApt, ...prev]);
+    if (!bookForm.vetUserId) {
+      setBookError('Please select a veterinarian from the available registry.');
+      return;
     }
 
-    setShowBookModal(false);
+    if (!bookForm.reason.trim() || bookForm.reason.trim().length < 3) {
+      setBookError('Please enter a reason for the consultation (minimum 3 characters).');
+      return;
+    }
+
+    const timeParts = (bookForm.time || '10:00 AM').split(' ');
+    const [hoursStr, minsStr] = (timeParts[0] || '10:00').split(':');
+    let h = parseInt(hoursStr, 10);
+    if (timeParts[1] === 'PM' && h < 12) h += 12;
+    if (timeParts[1] === 'AM' && h === 12) h = 0;
+    const appDate = new Date(bookForm.date || Date.now() + 86400000);
+    appDate.setHours(h, parseInt(minsStr, 10) || 0, 0, 0);
+
+    if (appDate.getTime() < Date.now()) {
+      setBookError('Appointment date and time must be set in the future.');
+      return;
+    }
+
+    setSubmittingBook(true);
+
+    try {
+      const selectedVet = availableVets.find(v => v.vetUserId === bookForm.vetUserId);
+      const hospitalId = bookForm.hospitalId || (selectedVet?.hospitals?.[0]?.hospitalId || null);
+
+      await bookOwnerAppointmentApi({
+        petId: pet.id,
+        vetUserId: bookForm.vetUserId,
+        hospitalId: hospitalId,
+        appointmentAt: appDate.toISOString(),
+        notes: bookForm.reason.trim(),
+      });
+
+      await loadAppointments();
+      setShowBookModal(false);
+      setSubmittingBook(false);
+    } catch (err) {
+      setSubmittingBook(false);
+      setBookError(err.message || 'Failed to book appointment in database. Please check slot availability.');
+    }
   };
 
   const handleAddPetSubmit = async (e) => {
     e.preventDefault();
-    if (!newPetForm.name.trim()) return;
+    setAddPetError(null);
+
+    if (!newPetForm.name.trim()) {
+      setAddPetError('Pet name is required.');
+      return;
+    }
 
     const speciesMap = {
       'Canine': 'DOG',
       'Feline': 'CAT',
       'Avian': 'BIRD',
       'Small Mammal': 'RABBIT',
+      'Other': 'OTHER',
     };
+
+    let regNo = newPetForm.microchip?.trim() || null;
+    if (regNo) {
+      const regRegex = /^PET-\d{4}-[A-Z0-9]{6}$/;
+      if (!regRegex.test(regNo)) {
+        setAddPetError('Microchip / Registration number must follow format PET-YYYY-XXXXXX (e.g. PET-2026-A1B2C3), or leave blank if not yet registered.');
+        return;
+      }
+    }
+
+    if (newPetForm.weight) {
+      const wt = parseFloat(newPetForm.weight);
+      if (isNaN(wt) || wt <= 0 || wt > 300) {
+        setAddPetError('Weight must be a valid positive number in kilograms.');
+        return;
+      }
+    }
 
     const payload = {
       name: newPetForm.name.trim(),
       species: speciesMap[newPetForm.species] || 'DOG',
       gender: newPetForm.gender || 'UNKNOWN',
       breed: newPetForm.breed?.trim() || null,
+      dob: newPetForm.dob || null,
       photoUrl: newPetForm.species === 'Feline'
         ? 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=300&q=80'
         : 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=300&q=80',
-      registrationNo: newPetForm.microchip?.trim() || null,
+      registrationNo: regNo,
     };
+
+    setSubmittingPet(true);
 
     try {
       await createPetApi(payload);
       await loadPets();
       setShowAddPetModal(false);
-      setNewPetForm({ name: '', species: 'Canine', breed: '', age: '', weight: '', microchip: '' });
+      setNewPetForm({ name: '', species: 'Canine', gender: 'MALE', breed: '', age: '', dob: '', weight: '', microchip: '' });
+      setSubmittingPet(false);
     } catch (err) {
-      console.error('Failed to create pet via API, adding to view:', err);
-      const fallbackPet = {
-        id: `pet-${Date.now()}`,
-        name: newPetForm.name,
-        species: newPetForm.species,
-        breed: newPetForm.breed || 'Companion',
-        age: newPetForm.age || '1 yr',
-        weight: newPetForm.weight ? `${newPetForm.weight} kg` : '—',
-        avatar: payload.photoUrl,
-        microchip: newPetForm.microchip || 'Pending',
-        status: 'Active',
-        statusColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-        vaccines: [],
-      };
-      setPets(prev => [...prev, fallbackPet]);
-      setShowAddPetModal(false);
-      setNewPetForm({ name: '', species: 'Canine', breed: '', age: '', weight: '', microchip: '' });
+      setSubmittingPet(false);
+      setAddPetError(err.message || 'Failed to create pet passport in database.');
     }
   };
 
@@ -630,14 +703,21 @@ export default function PetParentDashboard() {
                 <Calendar className="w-5 h-5 text-[#2D8A7A]" />
                 <h3 className="text-lg font-extrabold text-[#10324E]">Book Clinic Consultation</h3>
               </div>
-              <button onClick={() => setShowBookModal(false)} className="p-1 rounded-lg text-[#242826]/60 hover:bg-slate-100">
+              <button onClick={() => setShowBookModal(false)} className="p-1 rounded-lg text-[#242826]/60 hover:bg-slate-100 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
+            {bookError && (
+              <div className="mt-4 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center justify-between">
+                <span>{bookError}</span>
+                <button type="button" onClick={() => setBookError(null)} className="text-rose-600 font-extrabold ml-2">✕</button>
+              </div>
+            )}
+
             <form onSubmit={handleBookSubmit} className="mt-5 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-[#10324E] mb-1">Select Companion</label>
+                <label className="block text-xs font-bold text-[#10324E] mb-1">Select Companion *</label>
                 {pets.length === 0 ? (
                   <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
                     You have no companions registered yet. Please add a pet before booking an appointment.
@@ -655,18 +735,51 @@ export default function PetParentDashboard() {
                 )}
               </div>
 
+              <div>
+                <label className="block text-xs font-bold text-[#10324E] mb-1">Select Attending Veterinarian *</label>
+                {loadingVets ? (
+                  <div className="text-xs text-[#242826]/60 p-2 animate-pulse">Loading verified practitioners from database...</div>
+                ) : availableVets.length === 0 ? (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+                    No verified veterinarians currently listed in registry.
+                  </div>
+                ) : (
+                  <select
+                    value={bookForm.vetUserId}
+                    onChange={(e) => {
+                      const vId = e.target.value;
+                      const selectedV = availableVets.find(x => x.vetUserId === vId);
+                      setBookForm({
+                        ...bookForm,
+                        vetUserId: vId,
+                        hospitalId: selectedV?.hospitals?.[0]?.hospitalId || '',
+                      });
+                    }}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/15 text-xs font-bold text-[#10324E]"
+                  >
+                    {availableVets.map((v) => (
+                      <option key={v.vetUserId} value={v.vetUserId}>
+                        Dr. {v.firstName} {v.lastName} — {v.hospitals?.[0]?.name || 'Clinical Practice'} ({v.registrationNo})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-[#10324E] mb-1">Preferred Date</label>
+                  <label className="block text-xs font-bold text-[#10324E] mb-1">Preferred Date *</label>
                   <input
                     type="date"
+                    required
+                    min={new Date().toISOString().split('T')[0]}
                     value={bookForm.date}
                     onChange={(e) => setBookForm({ ...bookForm, date: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-[#FAF8F5] border border-[#10324E]/15 text-xs text-[#10324E]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[#10324E] mb-1">Time Slot</label>
+                  <label className="block text-xs font-bold text-[#10324E] mb-1">Time Slot *</label>
                   <select
                     value={bookForm.time}
                     onChange={(e) => setBookForm({ ...bookForm, time: e.target.value })}
@@ -674,6 +787,7 @@ export default function PetParentDashboard() {
                   >
                     <option value="10:00 AM">10:00 AM (Morning)</option>
                     <option value="11:30 AM">11:30 AM (Morning)</option>
+                    <option value="02:30 PM">02:30 PM (Afternoon)</option>
                     <option value="04:00 PM">04:00 PM (Evening)</option>
                     <option value="05:30 PM">05:30 PM (Evening)</option>
                   </select>
@@ -681,12 +795,13 @@ export default function PetParentDashboard() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#10324E] mb-1">Reason for Visit</label>
+                <label className="block text-xs font-bold text-[#10324E] mb-1">Reason for Visit *</label>
                 <input
                   type="text"
+                  required
                   value={bookForm.reason}
                   onChange={(e) => setBookForm({ ...bookForm, reason: e.target.value })}
-                  placeholder="e.g. Annual booster, itching ears, limping"
+                  placeholder="e.g. Annual booster, itching ears, limping, fever"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/15 text-xs text-[#10324E]"
                 />
               </div>
@@ -695,18 +810,18 @@ export default function PetParentDashboard() {
                 <button
                   type="button"
                   onClick={() => setShowBookModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-[#10324E]/15 text-xs font-bold text-[#10324E]"
+                  className="px-4 py-2.5 rounded-xl border border-[#10324E]/15 text-xs font-bold text-[#10324E] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={pets.length === 0}
-                  className={`px-5 py-2.5 rounded-xl text-white text-xs font-bold shadow-md ${
+                  disabled={pets.length === 0 || submittingBook || availableVets.length === 0}
+                  className={`px-5 py-2.5 rounded-xl text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-50 ${
                     pets.length === 0 ? 'bg-slate-300 cursor-not-allowed' : 'bg-[#10324E] hover:bg-[#0c273e]'
                   }`}
                 >
-                  Confirm Appointment
+                  {submittingBook ? 'Booking with Database...' : 'Confirm Appointment'}
                 </button>
               </div>
             </form>
@@ -723,10 +838,17 @@ export default function PetParentDashboard() {
                 <Plus className="w-5 h-5 text-[#2D8A7A]" />
                 <h3 className="text-lg font-extrabold text-[#10324E]">Register New Companion</h3>
               </div>
-              <button onClick={() => setShowAddPetModal(false)} className="p-1 rounded-lg text-[#242826]/60 hover:bg-slate-100">
+              <button onClick={() => setShowAddPetModal(false)} className="p-1 rounded-lg text-[#242826]/60 hover:bg-slate-100 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {addPetError && (
+              <div className="mt-4 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center justify-between">
+                <span>{addPetError}</span>
+                <button type="button" onClick={() => setAddPetError(null)} className="text-rose-600 font-extrabold ml-2">✕</button>
+              </div>
+            )}
 
             <form onSubmit={handleAddPetSubmit} className="mt-5 space-y-3.5">
               <div className="grid grid-cols-2 gap-3">
@@ -752,13 +874,26 @@ export default function PetParentDashboard() {
                     <option value="Feline">Feline (Cat)</option>
                     <option value="Avian">Avian (Bird)</option>
                     <option value="Small Mammal">Small Mammal (Rabbit/Hamster)</option>
+                    <option value="Other">Other Species</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-[#10324E] mb-1">Breed</label>
+                  <label className="block text-xs font-bold text-[#10324E] mb-1">Gender *</label>
+                  <select
+                    value={newPetForm.gender}
+                    onChange={(e) => setNewPetForm({ ...newPetForm, gender: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-[#FAF8F5] border border-[#10324E]/15 text-xs text-[#10324E]"
+                  >
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="UNKNOWN">Unknown / Not specified</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#10324E] mb-1">Breed (Optional)</label>
                   <input
                     type="text"
                     value={newPetForm.breed}
@@ -767,55 +902,62 @@ export default function PetParentDashboard() {
                     className="w-full px-3 py-2 rounded-xl bg-[#FAF8F5] border border-[#10324E]/15 text-xs text-[#10324E]"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#10324E] mb-1">Age</label>
-                  <input
-                    type="text"
-                    value={newPetForm.age}
-                    onChange={(e) => setNewPetForm({ ...newPetForm, age: e.target.value })}
-                    placeholder="e.g. 2 yrs 4 mos"
-                    className="w-full px-3 py-2 rounded-xl bg-[#FAF8F5] border border-[#10324E]/15 text-xs text-[#10324E]"
-                  />
-                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#10324E] mb-1">Date of Birth (Optional)</label>
+                  <input
+                    type="date"
+                    max={new Date().toISOString().split('T')[0]}
+                    value={newPetForm.dob}
+                    onChange={(e) => setNewPetForm({ ...newPetForm, dob: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-[#FAF8F5] border border-[#10324E]/15 text-xs text-[#10324E]"
+                  />
+                </div>
                 <div>
                   <label className="block text-xs font-bold text-[#10324E] mb-1">Weight (kg)</label>
                   <input
                     type="number"
                     step="0.1"
+                    min="0.1"
+                    max="300"
                     value={newPetForm.weight}
                     onChange={(e) => setNewPetForm({ ...newPetForm, weight: e.target.value })}
                     placeholder="e.g. 15.4"
                     className="w-full px-3 py-2 rounded-xl bg-[#FAF8F5] border border-[#10324E]/15 text-xs text-[#10324E]"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#10324E] mb-1">Microchip ID (Optional)</label>
-                  <input
-                    type="text"
-                    value={newPetForm.microchip}
-                    onChange={(e) => setNewPetForm({ ...newPetForm, microchip: e.target.value })}
-                    placeholder="15-digit ISO chip"
-                    className="w-full px-3 py-2 rounded-xl bg-[#FAF8F5] border border-[#10324E]/15 text-xs text-[#10324E]"
-                  />
-                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#10324E] mb-1">
+                  Registration / Microchip ID (Format: PET-YYYY-XXXXXX, or blank)
+                </label>
+                <input
+                  type="text"
+                  value={newPetForm.microchip}
+                  onChange={(e) => setNewPetForm({ ...newPetForm, microchip: e.target.value })}
+                  placeholder="e.g. PET-2026-A1B2C3"
+                  className="w-full px-3 py-2 rounded-xl bg-[#FAF8F5] border border-[#10324E]/15 text-xs text-[#10324E] font-mono"
+                />
+                <span className="text-[10px] text-[#242826]/50 mt-1 block">Leave blank if pending official council RFID registration.</span>
               </div>
 
               <div className="pt-3 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowAddPetModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-[#10324E]/15 text-xs font-bold text-[#10324E]"
+                  className="px-4 py-2.5 rounded-xl border border-[#10324E]/15 text-xs font-bold text-[#10324E] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-[#2D8A7A] hover:bg-[#236e61] text-white text-xs font-bold shadow-md"
+                  disabled={submittingPet}
+                  className="px-5 py-2.5 rounded-xl bg-[#2D8A7A] hover:bg-[#236e61] text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-50"
                 >
-                  Create Pet Passport
+                  {submittingPet ? 'Saving to Database...' : 'Create Pet Passport'}
                 </button>
               </div>
             </form>

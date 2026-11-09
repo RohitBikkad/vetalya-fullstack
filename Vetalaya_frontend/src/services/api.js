@@ -98,6 +98,20 @@ export async function registerApi(data, emailArg, passwordArg, roleArg) {
   });
 }
 
+export async function sendOtpApi(target, purpose = 'REGISTRATION') {
+  return request('/auth/otp/send', {
+    method: 'POST',
+    body: JSON.stringify({ target, purpose }),
+  });
+}
+
+export async function verifyOtpApi(target, otp, purpose = 'REGISTRATION') {
+  return request('/auth/otp/verify', {
+    method: 'POST',
+    body: JSON.stringify({ target, otp, purpose }),
+  });
+}
+
 export async function googleAuthApi(idToken, role = 'PET_PARENT') {
   return request('/auth/google', {
     method: 'POST',
@@ -185,5 +199,44 @@ export async function updateVetVisitNotesApi(appointmentId, visitNotes) {
   return request(`/vet/appointments/${appointmentId}/notes`, {
     method: 'PUT',
     body: JSON.stringify({ visitNotes }),
+  });
+}
+
+// ── Admin Platform Management APIs (Live DB) ──
+
+export async function getAdminKpisApi() {
+  return request('/admin/kpis');
+}
+
+export async function getAdminVerificationsApi() {
+  return request('/admin/verifications');
+}
+
+export async function updateDoctorVerificationStatusApi(vetUserId, verified) {
+  return request(`/admin/verifications/${vetUserId}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ verified }),
+  });
+}
+
+export async function getAdminUsersApi() {
+  return request('/admin/users');
+}
+
+export async function updateUserStatusApi(userId, status) {
+  return request(`/admin/users/${userId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function getDatabaseInspectionApi() {
+  return request('/public/db-inspect');
+}
+
+export async function cancelOwnerAppointmentApi(appointmentId, reason = '') {
+  return request(`/owner/appointments/${appointmentId}/cancel`, {
+    method: 'PATCH',
+    body: JSON.stringify({ reason }),
   });
 }

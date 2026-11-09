@@ -19,9 +19,11 @@ public class OtpService {
     private static final SecureRandom random = new SecureRandom();
 
     private final OtpVerificationRepository otpRepo;
+    private final EmailService emailService;
 
-    public OtpService(OtpVerificationRepository otpRepo) {
+    public OtpService(OtpVerificationRepository otpRepo, EmailService emailService) {
         this.otpRepo = otpRepo;
+        this.emailService = emailService;
     }
 
     /**
@@ -43,7 +45,8 @@ public class OtpService {
         // Invalidate old unverified OTPs for the same target
         var existing = otpRepo.findByTargetAndPurposeAndVerifiedFalseOrderByCreatedAtDesc(cleanTarget, cleanPurpose);
         for (OtpVerification old : existing) {
-            old.setVerified(true);
+            old.setExpiresAt(Instant.now().minusSeconds(10));
+            old.setAttempts(5);
             otpRepo.save(old);
         }
 
@@ -57,6 +60,11 @@ public class OtpService {
         otpRepo.save(otp);
 
         log.info("📲 [Vetalya Gateway] Generated OTP: {} for Target: [{}] (Purpose: {})", otpCode, cleanTarget, cleanPurpose);
+
+        // If target is an email address, dispatch email
+        if (cleanTarget.contains("@")) {
+            emailService.sendOtpEmail(cleanTarget, otpCode, cleanPurpose);
+        }
 
         return new OtpResult(true, "Verification code sent to " + cleanTarget, otpCode, 600);
     }
@@ -105,13 +113,19 @@ public class OtpService {
      * Check if target has a verified OTP within the last 15 minutes.
      */
     public boolean isTargetVerifiedRecently(String target, String purpose) {
-        if (target == null) return false;
+        if (target == null || target.isBlank()) return false;
         String cleanTarget = target.trim();
-        String cleanPurpose = (purpose == null || purpose.isBlank()) ? "VERIFICATION" : purpose.trim().toUpperCase();
+        String cleanPurpose = (purpose == null || purpose.isBlank()) ? "REGISTRATION" : purpose.trim().toUpperCase();
 
         var verified = otpRepo.findTopByTargetAndPurposeAndVerifiedTrueOrderByCreatedAtDesc(cleanTarget, cleanPurpose);
-        if (verified.isEmpty()) return false;
-        return verified.get().getExpiresAt().isAfter(Instant.now());
+        if (verified.isPresent() && verified.get().getCreatedAt().isAfter(Instant.now().minus(Duration.ofMinutes(15)))) {
+            return true;
+        }
+        if (!"VERIFICATION".equals(cleanPurpose)) {
+            var fallback = otpRepo.findTopByTargetAndPurposeAndVerifiedTrueOrderByCreatedAtDesc(cleanTarget, "VERIFICATION");
+            return fallback.isPresent() && fallback.get().getCreatedAt().isAfter(Instant.now().minus(Duration.ofMinutes(15)));
+        }
+        return false;
     }
 
     public record OtpResult(boolean success, String message, String otpCode, int expiresInSeconds) {}

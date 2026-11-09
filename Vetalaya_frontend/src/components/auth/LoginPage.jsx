@@ -23,14 +23,22 @@ export default function LoginPage() {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
 
+  const [forgotError, setForgotError] = useState(null);
+
   const handleForgotSubmit = (e) => {
     e.preventDefault();
-    if (!forgotEmail.trim()) return;
+    setForgotError(null);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!forgotEmail.trim() || !emailRegex.test(forgotEmail.trim())) {
+      setForgotError('Please enter a valid registered email address.');
+      return;
+    }
     setForgotSent(true);
     setTimeout(() => {
       setShowForgot(false);
       setForgotSent(false);
       setForgotEmail('');
+      setForgotError(null);
     }, 2200);
   };
 
@@ -112,6 +120,12 @@ export default function LoginPage() {
             <p className="text-xs text-[#242826]/65 mt-1 leading-relaxed">
               Enter your registered email address and we'll send a secure password reset link.
             </p>
+
+            {forgotError && (
+              <div className="mt-3 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold">
+                {forgotError}
+              </div>
+            )}
 
             {forgotSent ? (
               <div className="mt-5 p-4 rounded-2xl bg-[#DDEBDD] text-[#173F35] text-xs font-bold flex items-center gap-2">

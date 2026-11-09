@@ -11,49 +11,6 @@ import {
 
 const AuthContext = createContext(null);
 
-export const DEMO_USERS = {
-  PET_PARENT: {
-    id: 'usr-parent-001',
-    name: 'Rahul Sharma',
-    email: 'rahul.sharma@example.com',
-    role: 'PET_PARENT',
-    phone: '+91 98765 43210',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-    petsCount: 3,
-  },
-  VETERINARIAN: {
-    id: 'usr-vet-001',
-    name: 'Dr. Priya Sharma',
-    email: 'dr.priya@koramangalavet.in',
-    role: 'VETERINARIAN',
-    phone: '+91 98450 12345',
-    avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=200&q=80',
-    qualification: 'BVSc & AH, MVSc',
-    councilRegNumber: 'KVC-2018-4829',
-  },
-  CLINIC_STAFF: {
-    id: 'usr-staff-001',
-    name: 'Ananya Deshmukh',
-    email: 'reception@koramangalavet.in',
-    role: 'CLINIC_STAFF',
-    phone: '+91 80 2553 1234',
-    designation: 'Senior Clinic Administrator',
-  },
-  CLINIC_ADMIN: {
-    id: 'usr-admin-001',
-    name: 'Dr. Rajesh Kulkarni',
-    email: 'director@koramangalavet.in',
-    role: 'CLINIC_ADMIN',
-    organization: 'Koramangala Pet Care Network',
-  },
-  PLATFORM_ADMIN: {
-    id: 'usr-platform-001',
-    name: 'Vetalya Compliance Officer',
-    email: 'regulatory@vetalya.in',
-    role: 'PLATFORM_ADMIN',
-  },
-};
-
 export function AuthProvider({ children }) {
   const [jwtToken, setJwtToken] = useState(() => localStorage.getItem('vetalya_jwt_token'));
   const [currentUser, setCurrentUser] = useState(() => {
@@ -233,14 +190,16 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Google SSO with Google ID Token
+  // Google SSO with verified Google ID Token
   const loginWithGoogle = async (idToken, role = 'PET_PARENT') => {
+    if (!idToken) {
+      throw new Error('Google credential token was not provided.');
+    }
     setIsLoading(true);
     setError(null);
 
     try {
-      const tokenToSend = idToken || `mock-google-token:google.parent@vetalya.in:Vetalya Google Parent`;
-      const response = await googleAuthApi(tokenToSend, role);
+      const response = await googleAuthApi(idToken, role);
       const user = handleAuthSuccess(response);
       setIsLoading(false);
       return user;
@@ -251,7 +210,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // 1-Click Role Login for instant role verification
+  // 1-Click Role Login for instant role verification via DB
   const loginWithDemo = async (roleKey = 'PET_PARENT') => {
     setIsLoading(true);
     setError(null);
@@ -262,12 +221,9 @@ export function AuthProvider({ children }) {
       setIsLoading(false);
       return user;
     } catch (err) {
-      console.warn('Backend demo-login unavailable, falling back to local demo user:', err.message);
-      const localUser = DEMO_USERS[roleKey] || DEMO_USERS.PET_PARENT;
-      setCurrentUser(localUser);
-      localStorage.setItem('vetalya_auth_user', JSON.stringify(localUser));
       setIsLoading(false);
-      return localUser;
+      setError(err.message || 'Demo authentication failed. Database service may be initializing.');
+      throw err;
     }
   };
 
