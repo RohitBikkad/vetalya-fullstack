@@ -48,6 +48,10 @@ public class ApiSecurityConfig {
                 // Public auth and status endpoints
                 .requestMatchers(
                     "/api/public/**",
+                    "/api/public/whatsapp/**",
+                    "/api/public/whatsapp/webhook",
+                    "/api/auth/whatsapp/**",
+                    "/api/auth/whatsapp/webhook",
                     "/api/auth/refresh",
                     "/api/auth/exchange",
                     "/api/auth/google",

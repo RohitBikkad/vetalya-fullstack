@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/public/whatsapp")
+@RequestMapping({"/api/public/whatsapp", "/api/auth/whatsapp"})
 public class WhatsAppWebhookController {
 
     private static final Logger log = LoggerFactory.getLogger(WhatsAppWebhookController.class);
@@ -49,3 +49,4 @@ public class WhatsAppWebhookController {
         return ResponseEntity.ok("EVENT_RECEIVED");
     }
 }
+
