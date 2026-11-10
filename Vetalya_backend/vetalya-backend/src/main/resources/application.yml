@@ -128,6 +128,10 @@ app:
   web-redirect-url: ${WEB_REDIRECT_URL:http://localhost:3000}
   mobile-redirect-scheme: ${MOBILE_REDIRECT_SCHEME:myvetapp}
 
+  fast2sms:
+    api-key: ${FAST2SMS_API_KEY:5FWBTq1UHXEVQklkkBsMPSNRpNXgiJJYhifxeUrqriydM9YFMOx1JTHWwTrq7kA2mPgEUPoqLFkpcIbQ}
+    enabled: ${FAST2SMS_ENABLED:true}
+
   jwt:
     private-key-path: ${JWT_PRIVATE_KEY_PATH:classpath:keys/private.pem}
     public-key-path: ${JWT_PUBLIC_KEY_PATH:classpath:keys/public.pem}

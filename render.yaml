@@ -46,6 +46,12 @@ services:
       - key: SPRING_MAIL_PASSWORD
         sync: false
 
+      # ── Fast2SMS Mobile Phone OTP ──
+      - key: FAST2SMS_API_KEY
+        value: 5FWBTq1UHXEVQklkkBsMPSNRpNXgiJJYhifxeUrqriydM9YFMOx1JTHWwTrq7kA2mPgEUPoqLFkpcIbQ
+      - key: FAST2SMS_ENABLED
+        value: "true"
+
   # ── 2. Vetalya React Frontend Static Site ──
   - type: web
     name: vetalya-frontend
