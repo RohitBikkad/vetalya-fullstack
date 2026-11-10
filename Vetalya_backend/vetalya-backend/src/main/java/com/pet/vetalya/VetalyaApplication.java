@@ -65,10 +65,42 @@ public class VetalyaApplication {
 
 			String activeUrl = env.getProperty("spring.datasource.url");
 			String activeUser = env.getProperty("spring.datasource.username");
+			String activePass = env.getProperty("spring.datasource.password", "Vetalya@1409");
+
+			// Detect container outbound public IP for Supabase network allowlist / ban checks
+			String publicIp = "unknown";
+			try {
+				java.net.URI uri = java.net.URI.create("https://api.ipify.org");
+				java.net.HttpURLConnection conn = (java.net.HttpURLConnection) uri.toURL().openConnection();
+				conn.setConnectTimeout(2500);
+				conn.setReadTimeout(2500);
+				try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(conn.getInputStream()))) {
+					publicIp = reader.readLine();
+				}
+			} catch (Exception ignored) {
+			}
+
 			System.out.println("================================================================================");
 			System.out.println(" [VETALYA DB CONFIG] Active Supabase Target:");
-			System.out.println("  -> URL:  " + activeUrl);
-			System.out.println("  -> USER: " + activeUser);
+			System.out.println("  -> URL:         " + activeUrl);
+			System.out.println("  -> USER:        " + activeUser);
+			System.out.println("  -> OUTBOUND IP: " + publicIp);
+
+			try {
+				java.util.Properties props = new java.util.Properties();
+				props.setProperty("user", activeUser);
+				props.setProperty("password", activePass);
+				try (java.sql.Connection c = java.sql.DriverManager.getConnection(activeUrl, props)) {
+					System.out.println("  -> DB PROBE:    SUCCESS! Connected to PostgreSQL " + c.getMetaData().getDatabaseProductVersion());
+				}
+			} catch (Exception e) {
+				System.err.println("  -> DB PROBE FAILED: " + e.getMessage());
+				if (e.getMessage() != null && e.getMessage().contains("handshake")) {
+					System.err.println("  [ACTION REQUIRED] Supabase edge firewall terminated SSL handshake.");
+					System.err.println("  [ACTION REQUIRED] Check Supabase Dashboard -> Database Settings -> Network Restrictions (must Allow All IPs)");
+					System.err.println("  [ACTION REQUIRED] Check Supabase Dashboard -> Database Settings -> Network Bans (unban IP: " + publicIp + ")");
+				}
+			}
 			System.out.println("================================================================================");
 		});
 		app.run(args);
