@@ -136,6 +136,11 @@ app:
   brevo:
     api-key: ${BREVO_API_KEY:}
 
+  whatsapp:
+    access-token: ${WHATSAPP_ACCESS_TOKEN:}
+    phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:1500405019813304}
+    enabled: ${WHATSAPP_ENABLED:true}
+
   jwt:
     private-key-path: ${JWT_PRIVATE_KEY_PATH:classpath:keys/private.pem}
     public-key-path: ${JWT_PUBLIC_KEY_PATH:classpath:keys/public.pem}

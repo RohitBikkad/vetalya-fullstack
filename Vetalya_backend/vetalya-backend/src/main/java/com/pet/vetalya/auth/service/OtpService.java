@@ -21,13 +21,16 @@ public class OtpService {
     private final OtpVerificationRepository otpRepo;
     private final EmailService emailService;
     private final Fast2SmsService fast2SmsService;
+    private final WhatsAppService whatsAppService;
 
     public OtpService(OtpVerificationRepository otpRepo,
                       EmailService emailService,
-                      Fast2SmsService fast2SmsService) {
+                      Fast2SmsService fast2SmsService,
+                      WhatsAppService whatsAppService) {
         this.otpRepo = otpRepo;
         this.emailService = emailService;
         this.fast2SmsService = fast2SmsService;
+        this.whatsAppService = whatsAppService;
     }
 
     /**
@@ -65,10 +68,11 @@ public class OtpService {
 
         log.info("📲 [Vetalya Gateway] Generated OTP: {} for Target: [{}] (Purpose: {})", otpCode, cleanTarget, cleanPurpose);
 
-        // If target is an email address, dispatch email; otherwise dispatch SMS via Fast2SMS
+        // If target is an email address, dispatch email; otherwise dispatch WhatsApp & SMS
         if (cleanTarget.contains("@")) {
             emailService.sendOtpEmail(cleanTarget, otpCode, cleanPurpose);
         } else {
+            whatsAppService.sendOtpWhatsApp(cleanTarget, otpCode);
             fast2SmsService.sendOtpSms(cleanTarget, otpCode);
         }
 

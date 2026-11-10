@@ -56,6 +56,14 @@ services:
       - key: FAST2SMS_ENABLED
         value: "true"
 
+      # ── Meta WhatsApp Cloud API (Free 1,000 conversations/month) ──
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        value: "1500405019813304"
+      - key: WHATSAPP_ENABLED
+        value: "true"
+
   # ── 2. Vetalya React Frontend Static Site ──
   - type: web
     name: vetalya-frontend
