@@ -43,7 +43,5 @@ ENTRYPOINT ["java", \
     "-XX:MaxRAMPercentage=75.0", \
     "-Djava.net.preferIPv4Stack=true", \
     "-Djava.net.preferIPv4Addresses=true", \
-    "-Dhttps.protocols=TLSv1.2,TLSv1.3", \
-    "-Djdk.tls.client.protocols=TLSv1.2,TLSv1.3", \
     "-jar", "app.jar"]
 

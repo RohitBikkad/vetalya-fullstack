@@ -20,7 +20,7 @@ services:
       
       # ── Database Credentials (Set securely in Render Dashboard) ──
       - key: DB_URL
-        value: jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require&sslfactory=org.postgresql.ssl.NonValidatingFactory
+        value: jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require&sslfactory=org.postgresql.ssl.NonValidatingFactory&prepareThreshold=0
       - key: DB_USERNAME
         value: postgres.lihsmcgfxjuldjenjdti
       - key: DB_PASSWORD

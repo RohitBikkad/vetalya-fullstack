@@ -31,10 +31,10 @@ public class VetalyaApplication {
 				overrides.put("spring.datasource.username", "postgres.lihsmcgfxjuldjenjdti");
 			}
 
-			// 2. Sanitize or redirect database URL to verified IPv4 Supabase pooler
+			// 2. Sanitize or redirect database URL to verified IPv4 Supabase transaction pooler on port 6543
 			String targetUrl = rawUrl;
-			if (targetUrl == null || targetUrl.isBlank() || targetUrl.contains("evkdpnhbwajlmnpxeijb") || targetUrl.contains("db.lihsmcgfxjuldjenjdti.supabase.co")) {
-				targetUrl = "jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require&sslfactory=org.postgresql.ssl.NonValidatingFactory";
+			if (targetUrl == null || targetUrl.isBlank() || targetUrl.contains("evkdpnhbwajlmnpxeijb") || targetUrl.contains("db.lihsmcgfxjuldjenjdti.supabase.co") || targetUrl.contains(":5432")) {
+				targetUrl = "jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require&sslfactory=org.postgresql.ssl.NonValidatingFactory&prepareThreshold=0";
 				overrides.put("spring.datasource.url", targetUrl);
 			} else {
 				if (!targetUrl.startsWith("jdbc:")) {
@@ -44,6 +44,11 @@ public class VetalyaApplication {
 				if (!targetUrl.contains("sslfactory=")) {
 					String separator = targetUrl.contains("?") ? "&" : "?";
 					targetUrl = targetUrl + separator + "sslfactory=org.postgresql.ssl.NonValidatingFactory";
+					overrides.put("spring.datasource.url", targetUrl);
+				}
+				if (!targetUrl.contains("prepareThreshold=")) {
+					String separator = targetUrl.contains("?") ? "&" : "?";
+					targetUrl = targetUrl + separator + "prepareThreshold=0";
 					overrides.put("spring.datasource.url", targetUrl);
 				}
 			}

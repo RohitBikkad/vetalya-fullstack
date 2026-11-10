@@ -6,7 +6,7 @@ spring:
 
   # ── PostgreSQL ──
   datasource:
-    url: ${DB_URL:${DATABASE_URL:jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require&sslfactory=org.postgresql.ssl.NonValidatingFactory}}
+    url: ${DB_URL:${DATABASE_URL:jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require&sslfactory=org.postgresql.ssl.NonValidatingFactory&prepareThreshold=0}}
     username: ${DB_USERNAME:postgres.lihsmcgfxjuldjenjdti}
     password: ${DB_PASSWORD:Vetalya@1409}
     driver-class-name: org.postgresql.Driver
@@ -20,6 +20,7 @@ spring:
       data-source-properties:
         sslmode: require
         sslfactory: org.postgresql.ssl.NonValidatingFactory
+        prepareThreshold: 0
 
   # ── JPA / Hibernate ──
   jpa:
