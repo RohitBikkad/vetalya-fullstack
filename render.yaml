@@ -46,6 +46,10 @@ services:
       - key: SPRING_MAIL_PASSWORD
         sync: false
 
+      # ── Brevo Transactional Email API (Bypasses Render SMTP port 587 block) ──
+      - key: BREVO_API_KEY
+        sync: false
+
       # ── Fast2SMS Mobile Phone OTP ──
       - key: FAST2SMS_API_KEY
         value: 5FWBTq1UHXEVQklkkBsMPSNRpNXgiJJYhifxeUrqriydM9YFMOx1JTHWwTrq7kA2mPgEUPoqLFkpcIbQ

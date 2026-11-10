@@ -133,6 +133,9 @@ app:
     api-key: ${FAST2SMS_API_KEY:5FWBTq1UHXEVQklkkBsMPSNRpNXgiJJYhifxeUrqriydM9YFMOx1JTHWwTrq7kA2mPgEUPoqLFkpcIbQ}
     enabled: ${FAST2SMS_ENABLED:true}
 
+  brevo:
+    api-key: ${BREVO_API_KEY:}
+
   jwt:
     private-key-path: ${JWT_PRIVATE_KEY_PATH:classpath:keys/private.pem}
     public-key-path: ${JWT_PUBLIC_KEY_PATH:classpath:keys/public.pem}
