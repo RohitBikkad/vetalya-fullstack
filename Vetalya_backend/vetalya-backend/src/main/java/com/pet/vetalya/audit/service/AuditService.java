@@ -68,13 +68,13 @@ public class AuditService {
         String truncatedUserAgent = truncate(userAgent, 255);
 
         AuditLog entity = new AuditLog();
-        entity.setEventType(eventType);
-        entity.setUserId(userId);
-        entity.setRole(role);
-        entity.setProvider(provider != null ? provider.toUpperCase() : null);
-        entity.setOutcome(outcome != null ? outcome.toUpperCase() : "FAILURE");
+        entity.setEventType(truncate(eventType, 50));
+        entity.setUserId(truncate(userId, 26));
+        entity.setRole(truncate(role, 100));
+        entity.setProvider(truncate(provider != null ? provider.toUpperCase() : null, 50));
+        entity.setOutcome(truncate(outcome != null ? outcome.toUpperCase() : "FAILURE", 20));
         entity.setReason(truncate(reason, 100));
-        entity.setClientType(clientType);
+        entity.setClientType(truncate(clientType, 50));
         entity.setDeviceId(truncate(deviceId, 255));
         entity.setIpAddress(ipAddress);
         entity.setUserAgent(truncatedUserAgent);

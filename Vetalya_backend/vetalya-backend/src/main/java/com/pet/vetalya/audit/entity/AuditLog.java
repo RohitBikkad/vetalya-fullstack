@@ -20,10 +20,10 @@ public class AuditLog {
     @Column(name = "user_id", length = 26)
     private String userId;
 
-    @Column(name = "role", length = 20)
+    @Column(name = "role", length = 100)
     private String role;
 
-    @Column(name = "provider", length = 10)
+    @Column(name = "provider", length = 50)
     private String provider;
 
     @Column(name = "outcome", nullable = false, length = 20)
@@ -35,7 +35,7 @@ public class AuditLog {
     @Column(name = "ip_address", length = 45)
     private String ipAddress;
 
-    @Column(name = "client_type", length = 10)
+    @Column(name = "client_type", length = 50)
     private String clientType;
 
     @Column(name = "device_id", length = 255)

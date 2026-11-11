@@ -41,9 +41,15 @@ public class SecurityAuditEventListener {
     @EventListener
     public void onAuthenticationSuccess(AuthenticationSuccessEvent event) {
         Authentication auth = event.getAuthentication();
-        String userId = null;
+        String userId;
         if (auth.getPrincipal() instanceof Jwt jwt) {
             userId = jwt.getSubject();
+            if (userId != null) {
+                appMetrics.markUserActive(userId);
+            }
+            // BearerTokenAuthenticationFilter fires on every stateless API request.
+            // Avoid flooding the database with audit writes on normal GET/POST API calls.
+            return;
         } else {
             userId = auth.getName();
         }
