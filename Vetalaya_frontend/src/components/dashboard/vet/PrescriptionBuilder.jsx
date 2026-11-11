@@ -23,8 +23,9 @@ export default function PrescriptionBuilder({
   soapData,
   doctorProfile,
   hospitalDetails,
-  onClose,
-  onFinalizePrescription
+  onClose = () => {},
+  onFinalizePrescription = () => {},
+  embedded = false,
 }) {
   const [medications, setMedications] = useState([
     {
@@ -158,12 +159,11 @@ export default function PrescriptionBuilder({
     d.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-[32px] max-w-4xl w-full p-6 sm:p-8 shadow-vetalya border border-[#10324E]/10 my-auto text-left max-h-[94vh] flex flex-col animate-in zoom-in-95">
-        
-        {/* Modal Top Bar */}
-        <div className="flex items-center justify-between pb-4 border-b border-[#10324E]/10 shrink-0">
+  const modalBody = (
+    <div className={`bg-white rounded-[32px] w-full p-6 sm:p-8 shadow-vetalya border border-[#10324E]/10 text-left flex flex-col ${embedded ? '' : 'max-w-4xl my-auto max-h-[94vh] animate-in zoom-in-95'}`}>
+      
+      {/* Modal Top Bar */}
+      <div className="flex items-center justify-between pb-4 border-b border-[#10324E]/10 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-[#E0F2EB] text-[#2D8A7A] flex items-center justify-center font-extrabold text-base">
               Rx
@@ -541,6 +541,15 @@ export default function PrescriptionBuilder({
         </div>
 
       </div>
+    );
+
+  if (embedded) {
+    return modalBody;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      {modalBody}
     </div>
   );
 }

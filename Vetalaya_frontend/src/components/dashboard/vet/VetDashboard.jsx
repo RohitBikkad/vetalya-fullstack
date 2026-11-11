@@ -337,9 +337,17 @@ export default function VetDashboard() {
       {activeTab === 'queue' && (
         <div className="space-y-6">
           <LiveQueueSection 
+            queue={queue}
             backendQueue={queue} 
             loading={loadingQueue}
+            loadingQueue={loadingQueue}
             onStartConsultation={(patient) => setActiveConsultationPet(patient)}
+            onUpdateStatus={(id, newStatus) => {
+              setQueue(prev => prev.map(p => p.id === id ? { ...p, status: newStatus } : p));
+            }}
+            onAddWalkInPatient={(newPatient) => {
+              setQueue(prev => [newPatient, ...prev]);
+            }}
           />
         </div>
       )}
@@ -350,6 +358,8 @@ export default function VetDashboard() {
           <PrescriptionBuilder 
             patient={activePrescriptionPet || (queue.length > 0 ? queue[0] : null)}
             doctorProfile={clinicConfig}
+            embedded={true}
+            onClose={() => setActiveTab('queue')}
           />
         </div>
       )}

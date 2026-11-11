@@ -24,9 +24,11 @@ export default function SoapConsultationModal({
   doctorName,
   doctorRegNo,
   clinicName,
-  onClose,
+  onClose = () => {},
   onSaveSoap,
-  onProceedToPrescription
+  onSave,
+  onProceedToPrescription,
+  onOpenRxBuilder
 }) {
   const [soapData, setSoapData] = useState({
     // S: Subjective
@@ -101,10 +103,12 @@ export default function SoapConsultationModal({
 
     setSubmitting(true);
     try {
+      const saveFn = onSaveSoap || onSave || (() => {});
+      const rxFn = onProceedToPrescription || onOpenRxBuilder || (() => {});
       if (proceedToRx) {
-        onProceedToPrescription(soapData);
+        rxFn(soapData);
       } else {
-        onSaveSoap(soapData);
+        saveFn(soapData);
       }
     } catch (err) {
       setError(err.message || 'Failed to save clinical consultation.');

@@ -455,8 +455,12 @@ export default function VaccinationPassSection({
                   <div className="w-24 h-10 border border-dashed border-slate-300 rounded-lg flex items-center justify-center text-[10px] text-slate-400 font-sans mb-1 ml-auto">
                     [Doctor Stamp]
                   </div>
-                  <div className="font-bold text-[#10324E]">Dr. {doctorProfile?.firstName || 'Priya'} {doctorProfile?.lastName || 'Sharma'}</div>
-                  <div className="text-[10px] text-slate-500">Reg No: {doctorProfile?.registrationNo || 'MSVC-2024-8891'}</div>
+                  <div className="font-bold text-[#10324E]">
+                    {doctorProfile?.doctorName || (doctorProfile?.firstName ? `Dr. ${doctorProfile.firstName} ${doctorProfile?.lastName || ''}` : 'Dr. Vivek Deshmukh')}
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    Reg No: {doctorProfile?.vciNumber || doctorProfile?.registrationNo || 'VCI/MH/2016/0491'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -487,3 +491,4 @@ export default function VaccinationPassSection({
     </div>
   );
 }
+

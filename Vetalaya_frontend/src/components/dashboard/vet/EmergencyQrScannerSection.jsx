@@ -466,3 +466,4 @@ export default function EmergencyQrScannerSection({ doctorProfile, onSelectPetFo
     </div>
   );
 }
+

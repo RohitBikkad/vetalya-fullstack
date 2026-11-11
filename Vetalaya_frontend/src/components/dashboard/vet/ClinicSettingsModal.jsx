@@ -621,3 +621,4 @@ export default function ClinicSettingsModal({ initialData, onClose, onSave }) {
     </div>
   );
 }
+
