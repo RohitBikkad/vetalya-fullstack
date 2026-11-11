@@ -47,7 +47,7 @@ public class MedShopException extends RuntimeException {
 
     public static class UnprocessableException extends MedShopException {
         public UnprocessableException(String message) {
-            super(message, HttpStatus.UNPROCESSABLE_ENTITY);
+            super(message, HttpStatus.UNPROCESSABLE_CONTENT);
         }
     }
 }

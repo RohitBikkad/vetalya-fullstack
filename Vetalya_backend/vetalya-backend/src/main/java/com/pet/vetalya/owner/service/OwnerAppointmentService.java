@@ -67,7 +67,7 @@ public class OwnerAppointmentService {
                 .filter(v -> v != null && v.isVerified())
                 .orElseThrow(() -> new BadRequestException("Vet not found or not verified"));
 
-        UserAuth vetUser = userAuthRepo.findById(request.vetUserId())
+        userAuthRepo.findById(request.vetUserId())
                 .filter(u -> "ACTIVE".equals(u.getStatus()))
                 .orElseThrow(() -> new BadRequestException("Vet is not active"));
 

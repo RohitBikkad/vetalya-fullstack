@@ -45,6 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Removed unused entity imports (`PetOwner`, `Vet`) and replaced wildcard `org.springframework.web.bind.annotation.*` with explicit imports.
     - Added `getString(request, key)` helper eliminating unchecked `(String)` type casts in `login` and `register` endpoints.
     - Synced IDE code hygiene cleanups in `StoreCookieAuthRequestRepo`, `StoreOAuth2SuccessHandler`, `StoreTokenFilter`, `AppointmentRescheduleRequest`, and `AvailabilityService`.
+    - **`OwnerAppointmentService.java`**: Removed unused local variable `vetUser` from vet active validation check.
+    - **`MedShopException.java`**: Replaced deprecated `HttpStatus.UNPROCESSABLE_ENTITY` with standard `HttpStatus.UNPROCESSABLE_CONTENT` (HTTP 422, RFC 9110).
 
 ---
 
