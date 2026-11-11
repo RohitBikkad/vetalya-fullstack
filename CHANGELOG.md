@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Added null checks across all `@RequestBody` parameters (`login`, `register`, `sendOtp`, `verifyOtp`, `loginWithOtp`, `exchange`, `nativeGoogleLogin`, `nativeAppleLogin`) to prevent `NullPointerException` on empty payloads.
     - Replaced unsafe `Map.of()` calls with `LinkedHashMap` for responses containing potentially null fields (`refreshToken`, exception messages) preventing runtime NPEs.
     - Cleaned up unimported `OtpService` references and added null guards in `getUserMap` and `extractCookie`.
+    - Added overloaded variants for `buildRefreshCookie` (`(String, long, boolean)`, `(String, int, boolean)`, and `(String, long)`) with null-guarded cookie value (`value != null ? value : ""`) to guarantee method resolution across primitive narrowing/widening and prevent IDE compiler diagnostic errors.
 
 ---
 

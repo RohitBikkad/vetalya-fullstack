@@ -881,12 +881,20 @@ public class AuthController {
     }
 
     private ResponseCookie buildRefreshCookie(String value, long maxAgeSeconds, boolean isSecure) {
-        return ResponseCookie.from(REFRESH_COOKIE_NAME, value)
+        return ResponseCookie.from(REFRESH_COOKIE_NAME, value != null ? value : "")
                 .httpOnly(true)
                 .secure(isSecure)
                 .path("/")
                 .maxAge(maxAgeSeconds)
                 .sameSite(isSecure ? "None" : "Lax")
                 .build();
+    }
+
+    private ResponseCookie buildRefreshCookie(String value, int maxAgeSeconds, boolean isSecure) {
+        return buildRefreshCookie(value, (long) maxAgeSeconds, isSecure);
+    }
+
+    private ResponseCookie buildRefreshCookie(String value, long maxAgeSeconds) {
+        return buildRefreshCookie(value, maxAgeSeconds, false);
     }
 }
