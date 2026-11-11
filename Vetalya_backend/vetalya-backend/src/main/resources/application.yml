@@ -59,8 +59,8 @@ spring:
       client:
         registration:
           google:
-            client-id: ${GOOGLE_CLIENT_ID:1030204623930-gbcnm72iv1tm2vpbd4mg14k38pv0g3cr.apps.googleusercontent.com}
-            client-secret: ${GOOGLE_CLIENT_SECRET:google-client-secret-placeholder}
+            client-id: ${GOOGLE_CLIENT_ID:1030204623930-s3t2s597p2rvf5nal0i3552vh8t10h23.apps.googleusercontent.com}
+            client-secret: ${GOOGLE_CLIENT_SECRET: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}
             scope: openid, profile, email
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
 
@@ -150,7 +150,7 @@ app:
 
   google:
     client-ids:
-      - ${GOOGLE_CLIENT_ID:1030204623930-gbcnm72iv1tm2vpbd4mg14k38pv0g3cr.apps.googleusercontent.com}
+      - ${GOOGLE_CLIENT_ID:1030204623930-s3t2s597p2rvf5nal0i3552vh8t10h23.apps.googleusercontent.com}
       - ${GOOGLE_ANDROID_CLIENT_ID:}
       - ${GOOGLE_IOS_CLIENT_ID:}
 
