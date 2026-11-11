@@ -8,3 +8,4 @@ ALTER TABLE audit_log ALTER COLUMN provider TYPE VARCHAR(50);
 
 -- Drop restrictive check constraint so JWT, GOOGLE, APPLE, OTP, FAST2SMS are all supported
 ALTER TABLE audit_log DROP CONSTRAINT IF EXISTS audit_log_provider_check;
+
