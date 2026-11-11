@@ -494,27 +494,44 @@ public class AuthController {
         if (request == null) {
             return ResponseEntity.badRequest().body(Map.of("message", "Request body is required"));
         }
-        String email = getString(request, "email");
+        String identifier = getString(request, "email");
+        if (identifier == null || identifier.isBlank()) {
+            identifier = getString(request, "phone");
+        }
+        if (identifier == null || identifier.isBlank()) {
+            identifier = getString(request, "username");
+        }
         String password = getString(request, "password");
 
-        if (email == null || email.isBlank() || password == null || password.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Email and password are required"));
+        if (identifier == null || identifier.isBlank() || password == null || password.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Email/phone and password are required"));
         }
 
-        email = email.trim().toLowerCase();
-        UserAuth user = userAuthRepo.findByEmail(email).orElse(null);
+        String rawInput = identifier.trim();
+        String lowerInput = rawInput.toLowerCase();
+
+        UserAuth user = userAuthRepo.findByEmail(lowerInput)
+                .or(() -> userAuthRepo.findFirstByPhone(rawInput))
+                .or(() -> {
+                    String cleanPhone = rawInput.replaceAll("[^0-9+]", "");
+                    return cleanPhone.isBlank() ? java.util.Optional.empty() : userAuthRepo.findFirstByPhone(cleanPhone);
+                })
+                .orElse(null);
 
         if (user == null) {
+            log.warn("Login failed: no user found for identifier '{}'", rawInput);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "Invalid email or password"));
         }
 
         if ("BLOCKED".equals(user.getStatus()) || "DELETED".equals(user.getStatus())) {
+            log.warn("Login failed: user '{}' account is {}", user.getEmail(), user.getStatus());
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("message", "Account is " + user.getStatus().toLowerCase()));
         }
 
         if (user.getPasswordHash() == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
+            log.warn("Login failed: incorrect password for user '{}'", user.getEmail());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "Invalid email or password. If you registered via Google, please use Google sign-in."));
         }

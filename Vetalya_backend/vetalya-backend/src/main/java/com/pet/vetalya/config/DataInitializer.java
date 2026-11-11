@@ -171,11 +171,20 @@ public class DataInitializer implements CommandLineRunner {
 
                 log.info("✅ Pre-seeded Verified Veterinarian account: {} (Password: Priya@Vetalya2026!)", vetEmail);
             } else {
-                vetUserId = existing.get().getUserId();
+                UserAuth vetUser = existing.get();
+                vetUser.setPasswordHash(passwordEncoder.encode("Priya@Vetalya2026!"));
+                vetUser.setRole("ROLE_VET");
+                vetUser.setStatus("ACTIVE");
+                vetUser.setEmailVerified(true);
+                vetUser.setPhoneVerified(true);
+                userAuthRepo.save(vetUser);
+
+                vetUserId = vetUser.getUserId();
                 vetRepo.findById(vetUserId).ifPresent(v -> {
                     v.setVerified(true);
                     vetRepo.save(v);
                 });
+                log.info("✅ Verified Pre-seeded Veterinarian credentials for: {}", vetEmail);
             }
 
             // Seed hospital clinic if not present
