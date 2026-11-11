@@ -12,18 +12,14 @@ import {
   CheckCircle2,
   AlertCircle,
   ShieldCheck,
-  Sparkles,
-  KeyRound,
-  RefreshCw
+  Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { sendOtpApi } from '../../services/api';
 import VetalyaBrandLogo from './VetalyaBrandLogo';
 
 export default function OwnerAuthPage({ initialMode = 'login', onNavigate }) {
   const { login, signup, loginWithGoogle, isLoading } = useAuth();
   const [mode, setMode] = useState(initialMode); // 'login' | 'register'
-  const [step, setStep] = useState('form'); // 'form' | 'otp_verify'
 
   // Form Fields
   const [fullName, setFullName] = useState('');
@@ -37,14 +33,6 @@ export default function OwnerAuthPage({ initialMode = 'login', onNavigate }) {
   const [showPassword, setShowPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
 
-  // OTP Verification States
-  const [emailOtp, setEmailOtp] = useState('');
-  const [phoneOtp, setPhoneOtp] = useState('');
-  const [emailDevOtp, setEmailDevOtp] = useState(null);
-  const [phoneDevOtp, setPhoneDevOtp] = useState(null);
-  const [isSendingOtp, setIsSendingOtp] = useState(false);
-  const [resendTimer, setResendTimer] = useState(0);
-
   // Status & Error
   const [error, setError] = useState(null);
   const [successNotice, setSuccessNotice] = useState(null);
@@ -52,17 +40,6 @@ export default function OwnerAuthPage({ initialMode = 'login', onNavigate }) {
 
   // Google SSO Button
   const googleBtnRef = useRef(null);
-
-  // Countdown timer for OTP resend
-  useEffect(() => {
-    let interval;
-    if (resendTimer > 0) {
-      interval = setInterval(() => {
-        setResendTimer((prev) => Math.max(0, prev - 1));
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [resendTimer]);
 
   useEffect(() => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -149,45 +126,7 @@ export default function OwnerAuthPage({ initialMode = 'login', onNavigate }) {
       return;
     }
 
-    // Form inputs valid -> Dispatch OTP to both Email and Phone
-    setIsSendingOtp(true);
-    try {
-      const cleanEmail = email.trim().toLowerCase();
-      const cleanPhone = phone.trim();
-
-      const [emailRes, phoneRes] = await Promise.all([
-        sendOtpApi(cleanEmail, 'REGISTRATION'),
-        sendOtpApi(cleanPhone, 'REGISTRATION'),
-      ]);
-
-      if (emailRes.devOtp) setEmailDevOtp(emailRes.devOtp);
-      if (phoneRes.devOtp) {
-        setPhoneDevOtp(phoneRes.devOtp);
-        setPhoneOtp(phoneRes.devOtp);
-      }
-
-      setEmailOtp('');
-      setResendTimer(60);
-      setStep('otp_verify');
-      setSuccessNotice(`Verification code sent to your email (${cleanEmail})! Please check your inbox.`);
-    } catch (err) {
-      setError(err.message || 'Failed to dispatch verification codes.');
-    } finally {
-      setIsSendingOtp(false);
-    }
-  };
-
-  const handleCompleteRegistration = async (e) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!emailOtp || emailOtp.trim().length !== 6) {
-      setError('Please enter the 6-digit verification code sent to your email.');
-      return;
-    }
-
-    const activePhoneOtp = phoneOtp.trim() || phoneDevOtp || '';
-
+    // Form inputs valid -> Directly register Pet Parent
     setIsSubmitting(true);
     try {
       const cleanEmail = email.trim().toLowerCase();
@@ -202,44 +141,17 @@ export default function OwnerAuthPage({ initialMode = 'login', onNavigate }) {
         petName: petName.trim(),
         petSpecies,
         petBreed: petBreed.trim() || 'Companion',
-        emailOtp: emailOtp.trim(),
-        phoneOtp: activePhoneOtp,
       });
 
-      setSuccessNotice('Pet passport account created successfully! Redirecting...');
+      setSuccessNotice('Pet Parent account created! Redirecting to passport...');
     } catch (err) {
-      setError(err.message || 'Registration failed. Please check your verification code.');
+      setError(err.message || 'Registration failed. Please check your credentials or sign in.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleResendOtp = async () => {
-    if (resendTimer > 0) return;
-    setError(null);
-    setIsSendingOtp(true);
-    try {
-      const cleanEmail = email.trim().toLowerCase();
-      const cleanPhone = phone.trim();
-      const [emailRes, phoneRes] = await Promise.all([
-        sendOtpApi(cleanEmail, 'REGISTRATION'),
-        sendOtpApi(cleanPhone, 'REGISTRATION'),
-      ]);
-      if (emailRes.devOtp) setEmailDevOtp(emailRes.devOtp);
-      if (phoneRes.devOtp) setPhoneDevOtp(phoneRes.devOtp);
-      setResendTimer(60);
-      setSuccessNotice('New verification codes dispatched!');
-    } catch (err) {
-      setError(err.message || 'Failed to resend OTP codes.');
-    } finally {
-      setIsSendingOtp(false);
-    }
-  };
 
-  const handleAutoFillDevOtp = () => {
-    if (emailDevOtp) setEmailOtp(emailDevOtp);
-    if (phoneDevOtp) setPhoneOtp(phoneDevOtp);
-  };
 
   return (
     <div className="min-h-screen bg-[#F7F5EE] flex flex-col justify-between selection:bg-[#10324E] selection:text-white relative">
@@ -336,9 +248,8 @@ export default function OwnerAuthPage({ initialMode = 'login', onNavigate }) {
             </div>
           )}
 
-          {/* ── STEP 1: Main Form ── */}
-          {step === 'form' ? (
-            <form onSubmit={handleFormSubmit} className="space-y-4">
+          {/* ── Main Form ── */}
+          <form onSubmit={handleFormSubmit} className="space-y-4">
               
               {mode === 'register' && (
                 <>
@@ -481,105 +392,6 @@ export default function OwnerAuthPage({ initialMode = 'login', onNavigate }) {
 
               <button
                 type="submit"
-                disabled={isSubmitting || isLoading || isSendingOtp}
-                className="w-full py-3.5 rounded-2xl bg-[#10324E] hover:bg-[#0c273e] text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {isSubmitting || isSendingOtp ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span>{mode === 'login' ? 'Sign In to Pet Passport' : 'Proceed to Verification (Send OTP) →'}</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </form>
-          ) : (
-            /* ── STEP 2: Dual OTP Verification Screen ── */
-            <form onSubmit={handleCompleteRegistration} className="space-y-4 animate-in fade-in">
-              <div className="flex items-center justify-between pb-2 border-b border-[#10324E]/8">
-                <button
-                  type="button"
-                  onClick={() => { setStep('form'); setError(null); }}
-                  className="flex items-center gap-1 text-xs font-bold text-[#10324E] hover:underline cursor-pointer"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Back to Edit Details</span>
-                </button>
-                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                  Step 2 of 2
-                </span>
-              </div>
-
-              {/* Dev Helper Callout */}
-              {(emailDevOtp || phoneDevOtp) && (
-                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between">
-                  <div className="space-y-0.5 text-[11px]">
-                    <span className="font-bold block">Development Test OTPs:</span>
-                    <span>Email OTP: <strong>{emailDevOtp || '123456'}</strong> • Phone OTP: <strong>{phoneDevOtp || '123456'}</strong></span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleAutoFillDevOtp}
-                    className="px-2.5 py-1 rounded-lg bg-amber-600 text-white font-bold text-[10px] cursor-pointer hover:bg-amber-700"
-                  >
-                    Auto-fill
-                  </button>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-[11px] font-bold text-[#10324E] mb-1 flex items-center justify-between">
-                  <span>6-Digit OTP sent to Email: <span className="text-[#2D8A7A]">{email}</span></span>
-                  <span className="text-[10px] text-emerald-700 font-extrabold uppercase">Check Inbox</span>
-                </label>
-                <div className="relative">
-                  <KeyRound className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
-                  <input
-                    type="text"
-                    maxLength={6}
-                    value={emailOtp}
-                    onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Enter 6-digit email code"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs font-mono font-bold tracking-widest text-[#10324E] focus:outline-none focus:border-[#10324E]"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-[#10324E] mb-1 flex items-center justify-between">
-                  <span>6-Digit OTP sent to Mobile: <span className="text-[#2D8A7A]">{phone}</span></span>
-                  <span className="text-[10px] text-[#242826]/50">Auto-filled if carrier SMS is delayed</span>
-                </label>
-                <div className="relative">
-                  <KeyRound className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
-                  <input
-                    type="text"
-                    maxLength={6}
-                    value={phoneOtp}
-                    onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Enter mobile code or use auto-fill"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs font-mono font-bold tracking-widest text-[#10324E] focus:outline-none focus:border-[#10324E]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between text-xs pt-1">
-                <span className="text-[#242826]/60">Didn't receive codes?</span>
-                <button
-                  type="button"
-                  onClick={handleResendOtp}
-                  disabled={resendTimer > 0 || isSendingOtp}
-                  className="font-bold text-[#10324E] hover:underline disabled:opacity-40 cursor-pointer flex items-center gap-1"
-                >
-                  <RefreshCw className={`w-3 h-3 ${isSendingOtp ? 'animate-spin' : ''}`} />
-                  <span>{resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend OTPs'}</span>
-                </button>
-              </div>
-
-              <button
-                type="submit"
                 disabled={isSubmitting || isLoading}
                 className="w-full py-3.5 rounded-2xl bg-[#10324E] hover:bg-[#0c273e] text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
               >
@@ -587,13 +399,12 @@ export default function OwnerAuthPage({ initialMode = 'login', onNavigate }) {
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>Verify Codes &amp; Create Pet Passport</span>
+                    <span>{mode === 'login' ? 'Sign In to Pet Passport' : 'Create Pet Parent Account & Get Pet ID →'}</span>
+                    <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
             </form>
-          )}
 
           {/* Google GIS One-Tap */}
           {mode === 'login' && (
