@@ -64,7 +64,7 @@ public class MedicineController {
                 authentication.getAuthorities().stream().noneMatch(a -> a.getAuthority().equals("ROLE_OWNER") || a.getAuthority().equals("ROLE_PHARMACIST"));
 
         Page<?> result = catalogService.getMedicines(tenantId, q, categoryId, supplierId, form, scheduleH, active, pageable, isCashier);
-        return ResponseEntity.ok(PageResponse.of((Page<Object>) result));
+        return ResponseEntity.ok(PageResponse.of(result));
     }
 
     @GetMapping("/{id}")

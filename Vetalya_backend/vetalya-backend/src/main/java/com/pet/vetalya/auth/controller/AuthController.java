@@ -921,10 +921,6 @@ public class AuthController {
         return buildRefreshCookie(value, (long) maxAgeSeconds, isSecure);
     }
 
-    private ResponseCookie buildRefreshCookie(String value, long maxAgeSeconds) {
-        return buildRefreshCookie(value, maxAgeSeconds, false);
-    }
-
     private static String getString(Map<String, ?> map, String key) {
         if (map == null || key == null) return null;
         Object val = map.get(key);
