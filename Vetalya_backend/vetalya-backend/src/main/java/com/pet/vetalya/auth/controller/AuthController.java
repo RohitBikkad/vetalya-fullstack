@@ -13,9 +13,7 @@ import com.pet.vetalya.dto.RefreshRequest;
 import com.pet.vetalya.dto.TokenResponse;
 import com.pet.vetalya.entity.AuthProvider;
 import com.pet.vetalya.entity.OneTimeCode;
-import com.pet.vetalya.entity.PetOwner;
 import com.pet.vetalya.entity.UserAuth;
-import com.pet.vetalya.entity.Vet;
 import com.pet.vetalya.repository.AuthProviderRepository;
 import com.pet.vetalya.repository.OneTimeCodeRepository;
 import com.pet.vetalya.repository.PetOwnerRepository;
@@ -34,7 +32,12 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
 import java.util.Arrays;
@@ -120,7 +123,9 @@ public class AuthController {
             if (isWeb) {
                 // Set rotated refresh token back in HttpOnly cookie
                 ResponseCookie cookie = buildRefreshCookie(result.refreshToken(), appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, isSecure);
-                httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+                if (httpResponse != null) {
+                    httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+                }
                 return ResponseEntity.ok(new TokenResponse(result.accessToken(), null, expiresIn, false, true));
             } else {
                 // Mobile client receives both tokens in response body
@@ -129,7 +134,7 @@ public class AuthController {
         } catch (TokenService.InvalidTokenException e) {
             log.warn("Refresh failed: {}", e.getMessage());
             // Clear cookie on failure
-            if (isWeb) {
+            if (isWeb && httpResponse != null) {
                 httpResponse.addHeader(HttpHeaders.SET_COOKIE, buildRefreshCookie("", 0, isSecure).toString());
             }
             String errorMsg = (e.getMessage() != null && !e.getMessage().isBlank()) ? e.getMessage() : "Invalid refresh token";
@@ -145,7 +150,7 @@ public class AuthController {
     @PostMapping("/exchange")
     @Transactional
     public ResponseEntity<?> exchange(
-            @RequestBody CodeExchangeRequest request,
+            @RequestBody(required = false) CodeExchangeRequest request,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
         if (request == null || request.code() == null || request.code().isBlank()) {
@@ -185,14 +190,16 @@ public class AuthController {
         int expiresIn = appProperties.jwt().accessTokenExpiryMinutes() * 60;
 
         // Set refresh token cookie on the active domain/proxy path
-        ResponseCookie refreshCookie = ResponseCookie.from(REFRESH_COOKIE_NAME, refreshToken)
+        ResponseCookie refreshCookie = ResponseCookie.from(REFRESH_COOKIE_NAME, refreshToken != null ? refreshToken : "")
                 .httpOnly(true)
                 .secure(isSecure)
                 .path("/")
                 .maxAge(appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60)
                 .sameSite(isSecure ? "None" : "Lax")
                 .build();
-        httpResponse.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+        if (httpResponse != null) {
+            httpResponse.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+        }
 
         return ResponseEntity.ok(new TokenResponse(
                 accessToken,
@@ -209,7 +216,7 @@ public class AuthController {
      */
     @PostMapping("/google")
     public ResponseEntity<?> nativeGoogleLogin(
-            @RequestBody NativeLoginRequest request,
+            @RequestBody(required = false) NativeLoginRequest request,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
         if (request == null || request.idToken() == null || request.idToken().isBlank()) {
@@ -230,7 +237,9 @@ public class AuthController {
 
             ResponseCookie cookie = buildRefreshCookie(result.refreshToken(),
                     appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, isSecure);
-            httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+            if (httpResponse != null) {
+                httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+            }
 
             int expiresIn = appProperties.jwt().accessTokenExpiryMinutes() * 60;
             Map<String, Object> response = new LinkedHashMap<>();
@@ -261,7 +270,7 @@ public class AuthController {
      * Validates Apple identityToken cryptographically, links or registers user, issues tokens.
      */
     @PostMapping("/apple")
-    public ResponseEntity<?> nativeAppleLogin(@RequestBody NativeLoginRequest request, HttpServletRequest httpRequest) {
+    public ResponseEntity<?> nativeAppleLogin(@RequestBody(required = false) NativeLoginRequest request, HttpServletRequest httpRequest) {
         if (request == null || request.idToken() == null || request.idToken().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "missing_token", "message", "idToken is required"));
         }
@@ -311,15 +320,17 @@ public class AuthController {
 
         // Clear refresh cookie for both "/" and legacy "/api/auth" paths
         boolean isSecure = httpRequest != null && httpRequest.isSecure();
-        httpResponse.addHeader(HttpHeaders.SET_COOKIE, buildRefreshCookie("", 0, isSecure).toString());
-        ResponseCookie legacyCookie = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
-                .httpOnly(true)
-                .secure(isSecure)
-                .path("/api/auth")
-                .maxAge(0)
-                .sameSite(isSecure ? "None" : "Lax")
-                .build();
-        httpResponse.addHeader(HttpHeaders.SET_COOKIE, legacyCookie.toString());
+        if (httpResponse != null) {
+            httpResponse.addHeader(HttpHeaders.SET_COOKIE, buildRefreshCookie("", 0, isSecure).toString());
+            ResponseCookie legacyCookie = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
+                    .httpOnly(true)
+                    .secure(isSecure)
+                    .path("/api/auth")
+                    .maxAge(0)
+                    .sameSite(isSecure ? "None" : "Lax")
+                    .build();
+            httpResponse.addHeader(HttpHeaders.SET_COOKIE, legacyCookie.toString());
+        }
 
         return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
@@ -361,7 +372,9 @@ public class AuthController {
 
         // Clear web cookie
         boolean isSecure = httpRequest != null && httpRequest.isSecure();
-        httpResponse.addHeader(HttpHeaders.SET_COOKIE, buildRefreshCookie("", 0, isSecure).toString());
+        if (httpResponse != null) {
+            httpResponse.addHeader(HttpHeaders.SET_COOKIE, buildRefreshCookie("", 0, isSecure).toString());
+        }
 
         log.info("User {} deleted account and all active tokens were invalidated", userId);
         return ResponseEntity.ok(Map.of("message", "Account successfully deleted and tokens revoked"));
@@ -438,7 +451,9 @@ public class AuthController {
 
             ResponseCookie cookie = buildRefreshCookie(result.refreshToken(),
                     appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, isSecure);
-            httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+            if (httpResponse != null) {
+                httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+            }
 
             Map<String, Object> userMap = new LinkedHashMap<>();
             userMap.put("id", result.user().getUserId());
@@ -474,8 +489,8 @@ public class AuthController {
         if (request == null) {
             return ResponseEntity.badRequest().body(Map.of("message", "Request body is required"));
         }
-        String email = (String) request.get("email");
-        String password = (String) request.get("password");
+        String email = getString(request, "email");
+        String password = getString(request, "password");
 
         if (email == null || email.isBlank() || password == null || password.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Email and password are required"));
@@ -509,7 +524,9 @@ public class AuthController {
 
         ResponseCookie cookie = buildRefreshCookie(refreshToken,
                 appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, isSecure);
-        httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        if (httpResponse != null) {
+            httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        }
 
         Map<String, Object> userMap = getUserMap(user);
 
@@ -532,14 +549,14 @@ public class AuthController {
         if (request == null) {
             return ResponseEntity.badRequest().body(Map.of("message", "Request body is required"));
         }
-        String fullName = (String) request.get("fullName");
+        String fullName = getString(request, "fullName");
         if (fullName == null || fullName.isBlank()) {
-            fullName = (String) request.get("name");
+            fullName = getString(request, "name");
         }
-        String email = (String) request.get("email");
-        String password = (String) request.get("password");
-        String phone = (String) request.get("phone");
-        String roleParam = (String) request.get("role");
+        String email = getString(request, "email");
+        String password = getString(request, "password");
+        String phone = getString(request, "phone");
+        String roleParam = getString(request, "role");
 
         if (fullName == null || fullName.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Full name is required"));
@@ -563,11 +580,11 @@ public class AuthController {
         }
 
         // OTP verification for both Email and Mobile Phone
-        String emailOtp = (String) request.get("emailOtp");
-        if (emailOtp == null) emailOtp = (String) request.get("emailCode");
-        String phoneOtp = (String) request.get("phoneOtp");
-        if (phoneOtp == null) phoneOtp = (String) request.get("phoneCode");
-        String singleOtp = (String) request.get("otp");
+        String emailOtp = getString(request, "emailOtp");
+        if (emailOtp == null) emailOtp = getString(request, "emailCode");
+        String phoneOtp = getString(request, "phoneOtp");
+        if (phoneOtp == null) phoneOtp = getString(request, "phoneCode");
+        String singleOtp = getString(request, "otp");
 
         if (emailOtp == null && singleOtp != null && !singleOtp.isBlank()) {
             emailOtp = singleOtp;
@@ -623,8 +640,8 @@ public class AuthController {
         boolean isSecure = httpRequest != null && httpRequest.isSecure();
         SocialLoginService.LoginResult lr = socialLoginService.processLogin(info, role, "web", null, ipAddress);
 
-        String councilReg = (String) request.get("councilRegNumber");
-        if (councilReg == null) councilReg = (String) request.get("registrationNo");
+        String councilReg = getString(request, "councilRegNumber");
+        if (councilReg == null) councilReg = getString(request, "registrationNo");
 
         UserAuth user = lr.user();
         user.setPasswordHash(passwordEncoder.encode(password));
@@ -658,7 +675,9 @@ public class AuthController {
 
         ResponseCookie cookie = buildRefreshCookie(lr.refreshToken(),
                 appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, isSecure);
-        httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        if (httpResponse != null) {
+            httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        }
 
         Map<String, Object> userMap = getUserMap(user);
 
@@ -797,7 +816,9 @@ public class AuthController {
 
         ResponseCookie cookie = buildRefreshCookie(refreshToken,
                 appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, isSecure);
-        httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        if (httpResponse != null) {
+            httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        }
 
         Map<String, Object> userMap = getUserMap(user);
 
@@ -896,5 +917,11 @@ public class AuthController {
 
     private ResponseCookie buildRefreshCookie(String value, long maxAgeSeconds) {
         return buildRefreshCookie(value, maxAgeSeconds, false);
+    }
+
+    private static String getString(Map<String, ?> map, String key) {
+        if (map == null || key == null) return null;
+        Object val = map.get(key);
+        return val != null ? val.toString() : null;
     }
 }

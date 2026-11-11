@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -51,7 +50,7 @@ public class StoreOAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
-                                        Authentication authentication) throws IOException {
+            Authentication authentication) throws IOException {
         OAuth2AuthenticationToken authToken = (OAuth2AuthenticationToken) authentication;
         String registrationId = authToken.getAuthorizedClientRegistrationId();
         OAuth2User principal = authToken.getPrincipal();
@@ -76,7 +75,8 @@ public class StoreOAuth2SuccessHandler implements AuthenticationSuccessHandler {
             Object verifiedObj = principal.getAttribute("email_verified");
             emailVerified = Boolean.TRUE.equals(verifiedObj) || "true".equalsIgnoreCase(String.valueOf(verifiedObj));
 
-            // Apple sends the user's name ONLY on the first authorization in POST parameter "user"
+            // Apple sends the user's name ONLY on the first authorization in POST parameter
+            // "user"
             String userJson = request.getParameter("user");
             name = parseAppleName(userJson);
         } else {
@@ -127,8 +127,10 @@ public class StoreOAuth2SuccessHandler implements AuthenticationSuccessHandler {
             if (nameMap != null) {
                 String first = (String) nameMap.get("firstName");
                 String last = (String) nameMap.get("lastName");
-                if (first != null && last != null) return first + " " + last;
-                if (first != null) return first;
+                if (first != null && last != null)
+                    return first + " " + last;
+                if (first != null)
+                    return first;
                 return last;
             }
         } catch (Exception e) {
@@ -137,4 +139,3 @@ public class StoreOAuth2SuccessHandler implements AuthenticationSuccessHandler {
         return null;
     }
 }
-

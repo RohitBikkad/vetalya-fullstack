@@ -1,6 +1,5 @@
 package com.pet.vetalya.medshop.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -20,7 +19,8 @@ import java.util.Base64;
 
 /**
  * Cookie-based AuthorizationRequestRepository for stateless OAuth2 login.
- * Encodes OAuth2AuthorizationRequest and preserves ?client=web|android|ios parameter.
+ * Encodes OAuth2AuthorizationRequest and preserves ?client=web|android|ios
+ * parameter.
  * Uses SameSite=None; Secure for Apple cross-site form_post compatibility.
  */
 @Component
@@ -52,8 +52,8 @@ public class StoreCookieAuthRequestRepo implements AuthorizationRequestRepositor
 
     @Override
     public void saveAuthorizationRequest(OAuth2AuthorizationRequest authorizationRequest,
-                                         HttpServletRequest request,
-                                         HttpServletResponse response) {
+            HttpServletRequest request,
+            HttpServletResponse response) {
         if (authorizationRequest == null) {
             deleteCookie(response, OAUTH2_AUTH_REQUEST_COOKIE_NAME);
             deleteCookie(response, CLIENT_TYPE_COOKIE_NAME);
@@ -65,16 +65,18 @@ public class StoreCookieAuthRequestRepo implements AuthorizationRequestRepositor
 
         String clientType = request.getParameter("client");
         if (clientType != null && !clientType.isBlank()) {
-            addSameSiteNoneCookie(response, CLIENT_TYPE_COOKIE_NAME, clientType.trim().toLowerCase(), COOKIE_EXPIRE_SECONDS);
+            addSameSiteNoneCookie(response, CLIENT_TYPE_COOKIE_NAME, clientType.trim().toLowerCase(),
+                    COOKIE_EXPIRE_SECONDS);
         }
     }
 
     @Override
     public OAuth2AuthorizationRequest removeAuthorizationRequest(HttpServletRequest request,
-                                                                 HttpServletResponse response) {
+            HttpServletResponse response) {
         OAuth2AuthorizationRequest authReq = loadAuthorizationRequest(request);
         deleteCookie(response, OAUTH2_AUTH_REQUEST_COOKIE_NAME);
-        // Note: Do not delete CLIENT_TYPE_COOKIE_NAME immediately here so success/failure handlers can read it
+        // Note: Do not delete CLIENT_TYPE_COOKIE_NAME immediately here so
+        // success/failure handlers can read it
         return authReq;
     }
 
@@ -97,7 +99,8 @@ public class StoreCookieAuthRequestRepo implements AuthorizationRequestRepositor
     }
 
     private void addSameSiteNoneCookie(HttpServletResponse response, String name, String value, int maxAge) {
-        // SameSite=None requires Secure. Header format guarantees compliance for Apple form_post
+        // SameSite=None requires Secure. Header format guarantees compliance for Apple
+        // form_post
         String headerValue = String.format("%s=%s; Path=/api/store; Max-Age=%d; HttpOnly; Secure; SameSite=None",
                 name, value, maxAge);
         response.addHeader("Set-Cookie", headerValue);
@@ -126,10 +129,12 @@ public class StoreCookieAuthRequestRepo implements AuthorizationRequestRepositor
     private OAuth2AuthorizationRequest deserialize(String value) {
         try {
             int dot = value.lastIndexOf('.');
-            if (dot <= 0) return null;
+            if (dot <= 0)
+                return null;
             String payload = value.substring(0, dot);
             String sig = value.substring(dot + 1);
-            if (!MessageDigest.isEqual(sign(payload).getBytes(StandardCharsets.UTF_8), sig.getBytes(StandardCharsets.UTF_8))) {
+            if (!MessageDigest.isEqual(sign(payload).getBytes(StandardCharsets.UTF_8),
+                    sig.getBytes(StandardCharsets.UTF_8))) {
                 return null;
             }
             byte[] bytes = Base64.getUrlDecoder().decode(payload);
@@ -148,4 +153,3 @@ public class StoreCookieAuthRequestRepo implements AuthorizationRequestRepositor
         return Base64.getUrlEncoder().withoutPadding().encodeToString(rawHmac);
     }
 }
-

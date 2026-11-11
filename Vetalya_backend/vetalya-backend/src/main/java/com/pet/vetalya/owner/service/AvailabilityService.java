@@ -29,10 +29,10 @@ public class AvailabilityService {
     private final AppProperties appProperties;
 
     public AvailabilityService(VetRepository vetRepo,
-                               UserAuthRepository userAuthRepo,
-                               HospitalRepository hospitalRepo,
-                               AppointmentRepository appointmentRepo,
-                               AppProperties appProperties) {
+            UserAuthRepository userAuthRepo,
+            HospitalRepository hospitalRepo,
+            AppointmentRepository appointmentRepo,
+            AppProperties appProperties) {
         this.vetRepo = vetRepo;
         this.userAuthRepo = userAuthRepo;
         this.hospitalRepo = hospitalRepo;
@@ -111,5 +111,6 @@ public class AvailabilityService {
         }
     }
 
-    public record InstantRange(Instant start, Instant end) {}
+    public record InstantRange(Instant start, Instant end) {
+    }
 }

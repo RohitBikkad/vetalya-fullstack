@@ -9,7 +9,6 @@ import org.slf4j.MDC;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -46,9 +45,10 @@ public class StoreTokenFilter extends OncePerRequestFilter {
             if (tenantId == null || userId == null || !userStatusCache.isTokenValid(tenantId, userId, ver)) {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType("application/problem+json");
-                response.getWriter().write("""
-                    {"status":401,"title":"Unauthorized","detail":"Token is expired, revoked, or user/tenant is inactive"}
-                """);
+                response.getWriter()
+                        .write("""
+                                    {"status":401,"title":"Unauthorized","detail":"Token is expired, revoked, or user/tenant is inactive"}
+                                """);
                 return;
             }
 
@@ -67,4 +67,3 @@ public class StoreTokenFilter extends OncePerRequestFilter {
         }
     }
 }
-

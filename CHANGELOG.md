@@ -41,6 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Replaced unsafe `Map.of()` calls with `LinkedHashMap` for responses containing potentially null fields (`refreshToken`, exception messages) preventing runtime NPEs.
     - Cleaned up unimported `OtpService` references and added null guards in `getUserMap` and `extractCookie`.
     - Added overloaded variants for `buildRefreshCookie` (`(String, long, boolean)`, `(String, int, boolean)`, and `(String, long)`) with null-guarded cookie value (`value != null ? value : ""`) to guarantee method resolution across primitive narrowing/widening and prevent IDE compiler diagnostic errors.
+    - Guarded all `httpResponse.addHeader(...)` calls with `if (httpResponse != null)` across all controller endpoints to eliminate potential null-pointer dereference warnings.
+    - Removed unused entity imports (`PetOwner`, `Vet`) and replaced wildcard `org.springframework.web.bind.annotation.*` with explicit imports.
+    - Added `getString(request, key)` helper eliminating unchecked `(String)` type casts in `login` and `register` endpoints.
+    - Synced IDE code hygiene cleanups in `StoreCookieAuthRequestRepo`, `StoreOAuth2SuccessHandler`, `StoreTokenFilter`, `AppointmentRescheduleRequest`, and `AvailabilityService`.
 
 ---
 
