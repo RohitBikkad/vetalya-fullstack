@@ -20,3 +20,4 @@ if (fs.existsSync(indexHtml)) {
   }
   console.log('✅ Generated static fallback HTML for routes:', routes);
 }
+
