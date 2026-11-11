@@ -3,8 +3,6 @@ package com.pet.vetalya.owner.service;
 import com.pet.vetalya.common.GlobalExceptionHandler.ResourceNotFoundException;
 import com.pet.vetalya.config.AppProperties;
 import com.pet.vetalya.entity.Hospital;
-import com.pet.vetalya.entity.UserAuth;
-import com.pet.vetalya.entity.Vet;
 import com.pet.vetalya.owner.dto.SlotResponse;
 import com.pet.vetalya.repository.AppointmentRepository;
 import com.pet.vetalya.repository.HospitalRepository;
@@ -13,7 +11,11 @@ import com.pet.vetalya.repository.VetRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.*;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -42,11 +44,11 @@ public class AvailabilityService {
 
     @Transactional(readOnly = true)
     public List<SlotResponse> getFreeSlots(String vetUserId, LocalDate date, String hospitalId) {
-        Vet vet = vetRepo.findById(vetUserId)
+        vetRepo.findById(vetUserId)
                 .filter(v -> v != null && v.isVerified())
                 .orElseThrow(() -> new ResourceNotFoundException("Vet not found or not verified"));
 
-        UserAuth user = userAuthRepo.findById(vetUserId)
+        userAuthRepo.findById(vetUserId)
                 .filter(u -> "ACTIVE".equals(u.getStatus()))
                 .orElseThrow(() -> new ResourceNotFoundException("Vet not found or not active"));
 
