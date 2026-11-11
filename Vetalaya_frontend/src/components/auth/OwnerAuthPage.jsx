@@ -192,46 +192,40 @@ export default function OwnerAuthPage({ initialMode = 'login', onNavigate }) {
             <h1 className="text-2xl font-black text-[#10324E] tracking-tight">
               {mode === 'login'
                 ? 'Welcome Back!'
-                : step === 'form'
-                ? 'Create Pet Passport'
-                : 'Verify Contact Details'}
+                : 'Create Pet Passport'}
             </h1>
             <p className="text-xs text-[#242826]/70 leading-relaxed">
               {mode === 'login'
                 ? 'Sign in to access your companion’s health records and reminders.'
-                : step === 'form'
-                ? 'Join Vetalya to manage lifelong vaccinations and emergency passports.'
-                : 'Enter the 6-digit codes sent to your email and mobile phone.'}
+                : 'Join Vetalya to manage lifelong vaccinations and emergency passports.'}
             </p>
           </div>
 
           {/* Mode Switcher Pills */}
-          {step === 'form' && (
-            <div className="flex p-1 bg-[#F5F2EB] rounded-2xl">
-              <button
-                type="button"
-                onClick={() => { setMode('login'); setError(null); setSuccessNotice(null); }}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                  mode === 'login'
-                    ? 'bg-white text-[#10324E] shadow-2xs'
-                    : 'text-[#242826]/60 hover:text-[#10324E]'
-                }`}
-              >
-                Log in
-              </button>
-              <button
-                type="button"
-                onClick={() => { setMode('register'); setError(null); setSuccessNotice(null); }}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                  mode === 'register'
-                    ? 'bg-white text-[#10324E] shadow-2xs'
-                    : 'text-[#242826]/60 hover:text-[#10324E]'
-                }`}
-              >
-                Sign up
-              </button>
-            </div>
-          )}
+          <div className="flex p-1 bg-[#F5F2EB] rounded-2xl">
+            <button
+              type="button"
+              onClick={() => { setMode('login'); setError(null); setSuccessNotice(null); }}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                mode === 'login'
+                  ? 'bg-white text-[#10324E] shadow-2xs'
+                  : 'text-[#242826]/60 hover:text-[#10324E]'
+              }`}
+            >
+              Log in
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode('register'); setError(null); setSuccessNotice(null); }}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                mode === 'register'
+                  ? 'bg-white text-[#10324E] shadow-2xs'
+                  : 'text-[#242826]/60 hover:text-[#10324E]'
+              }`}
+            >
+              Sign up
+            </button>
+          </div>
 
           {/* Alert Notices */}
           {error && (

@@ -174,46 +174,40 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
             <h1 className="text-2xl font-black text-[#10324E] tracking-tight">
               {mode === 'login'
                 ? 'Doctor OPD Login'
-                : step === 'form'
-                ? 'Register Clinic Practice'
-                : 'Verify Doctor Credentials'}
+                : 'Register Clinic Practice'}
             </h1>
             <p className="text-xs text-[#242826]/70 leading-relaxed">
               {mode === 'login'
                 ? 'Sign in to access patient health timelines, digital Rx builder, and OPD consultation desk.'
-                : step === 'form'
-                ? 'Verified practitioner registration. Requires State Council Registration Number for audit compliance.'
-                : 'Enter the 6-digit verification codes sent to your official email and contact mobile number.'}
+                : 'Verified practitioner registration. Requires State Council Registration Number for audit compliance.'}
             </p>
           </div>
 
-          {/* Mode Switcher Pills (Only shown on initial form step) */}
-          {step === 'form' && (
-            <div className="flex p-1 bg-[#F5F2EB] rounded-2xl">
-              <button
-                type="button"
-                onClick={() => { setMode('login'); setError(null); setSuccessNotice(null); }}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                  mode === 'login'
-                    ? 'bg-white text-[#10324E] shadow-2xs'
-                    : 'text-[#242826]/60 hover:text-[#10324E]'
-                }`}
-              >
-                Log in
-              </button>
-              <button
-                type="button"
-                onClick={() => { setMode('register'); setError(null); setSuccessNotice(null); }}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                  mode === 'register'
-                    ? 'bg-white text-[#10324E] shadow-2xs'
-                    : 'text-[#242826]/60 hover:text-[#10324E]'
-                }`}
-              >
-                Sign up
-              </button>
-            </div>
-          )}
+          {/* Mode Switcher Pills */}
+          <div className="flex p-1 bg-[#F5F2EB] rounded-2xl">
+            <button
+              type="button"
+              onClick={() => { setMode('login'); setError(null); setSuccessNotice(null); }}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                mode === 'login'
+                  ? 'bg-white text-[#10324E] shadow-2xs'
+                  : 'text-[#242826]/60 hover:text-[#10324E]'
+              }`}
+            >
+              Log in
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode('register'); setError(null); setSuccessNotice(null); }}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                mode === 'register'
+                  ? 'bg-white text-[#10324E] shadow-2xs'
+                  : 'text-[#242826]/60 hover:text-[#10324E]'
+              }`}
+            >
+              Sign up
+            </button>
+          </div>
 
           {/* Quick Doctor Seed Banner (Login Mode Only) */}
           {mode === 'login' && (
