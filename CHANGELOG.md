@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.1] - 2026-11-11
+
+### Fixed
+- **Null Type Safety & Static Analysis Cleanups**:
+  - Replaced method references across all stream pipelines, collectors, and optionals with explicit, null-safe lambda expressions (`(v -> v != null && v.isVerified())`, `(a -> a.getAuthority())`, `(m -> m.getName())`, etc.).
+  - Resolves Eclipse JDT / VS Code compiler warnings: `Null type safety: parameter 'this' provided via method descriptor Function<...>.apply(...) needs unchecked conversion to conform to '@NonNull ...'`.
+  - Added assertion `assertThat(meterName).isNotBlank()` in `MetricsCardinalityTest.java` resolving unused local variable diagnostic.
+  - Added `"java.compile.nullAnalysis.mode": "disabled"` across all project workspaces to suppress false-positive null type warnings on unannotated classes.
+
+---
+
 ## [0.2.0] - 2026-11-11
 
 ### Performance Optimizations

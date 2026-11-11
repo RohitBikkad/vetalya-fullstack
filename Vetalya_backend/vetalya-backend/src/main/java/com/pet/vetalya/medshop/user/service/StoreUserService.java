@@ -96,7 +96,7 @@ public class StoreUserService {
 
     @Transactional(readOnly = true)
     public Page<StoreUserResponse> getUsers(String tenantId, Pageable pageable) {
-        return userRepo.findByTenantId(tenantId, pageable).map(this::mapToDto);
+        return userRepo.findByTenantId(tenantId, pageable).map(u -> mapToDto(u));
     }
 
     @Transactional(readOnly = true)

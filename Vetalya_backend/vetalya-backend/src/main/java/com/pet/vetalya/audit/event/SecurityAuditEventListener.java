@@ -55,7 +55,7 @@ public class SecurityAuditEventListener {
         }
 
         String role = auth.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
+                .map(a -> a.getAuthority())
                 .collect(Collectors.joining(","));
 
         HttpServletRequest request = getCurrentRequest();
@@ -127,7 +127,7 @@ public class SecurityAuditEventListener {
                 userId = auth.getName();
             }
             role = auth.getAuthorities().stream()
-                    .map(GrantedAuthority::getAuthority)
+                    .map(a -> a.getAuthority())
                     .collect(Collectors.joining(","));
         }
 

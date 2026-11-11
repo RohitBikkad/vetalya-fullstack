@@ -43,7 +43,7 @@ public class AvailabilityService {
     @Transactional(readOnly = true)
     public List<SlotResponse> getFreeSlots(String vetUserId, LocalDate date, String hospitalId) {
         Vet vet = vetRepo.findById(vetUserId)
-                .filter(Vet::isVerified)
+                .filter(v -> v != null && v.isVerified())
                 .orElseThrow(() -> new ResourceNotFoundException("Vet not found or not verified"));
 
         UserAuth user = userAuthRepo.findById(vetUserId)

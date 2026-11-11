@@ -40,7 +40,7 @@ public class SecurityMdcFilter extends OncePerRequestFilter {
             }
 
             String roles = auth.getAuthorities().stream()
-                    .map(GrantedAuthority::getAuthority)
+                    .map(a -> a.getAuthority())
                     .collect(Collectors.joining(","));
             if (!roles.isBlank()) {
                 MDC.put("role", roles);

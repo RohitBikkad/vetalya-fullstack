@@ -44,7 +44,7 @@ public class SmsProviderHealthIndicator extends CachedHealthIndicator {
                     .build();
         }
 
-        long successCount = recentAttempts.stream().filter(Boolean::booleanValue).count();
+        long successCount = recentAttempts.stream().filter(b -> Boolean.TRUE.equals(b)).count();
         double ratio = (double) successCount / recentAttempts.size();
 
         Health.Builder builder;

@@ -29,7 +29,7 @@ public class ReminderService {
         Pageable pageable = PageRequest.of(page, size);
 
         Page<Reminder> reminders = reminderRepo.findUpcomingForVet(vetUserId, Instant.now(), pageable);
-        Page<ReminderResponse> responsePage = reminders.map(this::toResponse);
+        Page<ReminderResponse> responsePage = reminders.map(r -> toResponse(r));
         return PageResponse.of(responsePage);
     }
 

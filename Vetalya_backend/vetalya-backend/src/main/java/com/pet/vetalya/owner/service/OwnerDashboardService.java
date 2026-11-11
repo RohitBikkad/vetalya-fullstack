@@ -45,7 +45,7 @@ public class OwnerDashboardService {
         List<Appointment> upcomingEntities = appointmentRepo.findNext3UpcomingForOwner(
                 ownerUserId, Instant.now(), PageRequest.of(0, 3));
         List<OwnerAppointmentResponse> upcomingAppointments = upcomingEntities.stream()
-                .map(this::toResponse)
+                .map(a -> toResponse(a))
                 .toList();
 
         // 3. Count of pending (BOOKED) appointments

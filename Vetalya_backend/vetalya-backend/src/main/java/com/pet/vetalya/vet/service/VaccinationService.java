@@ -58,7 +58,7 @@ public class VaccinationService {
         validatePetExists(petId);
         validateVetHasAppointmentForPet(vetUserId, petId);
         return vaccinationRepo.findAllByPetIdAndVetUserId(petId, vetUserId).stream()
-                .map(this::toResponse)
+                .map(v -> toResponse(v))
                 .toList();
     }
 
@@ -82,7 +82,7 @@ public class VaccinationService {
     @Transactional(readOnly = true)
     public List<VaccinationResponse> findDue(String vetUserId, LocalDate from, LocalDate to) {
         return vaccinationRepo.findDueForVet(vetUserId, from, to).stream()
-                .map(this::toResponse)
+                .map(v -> toResponse(v))
                 .toList();
     }
 

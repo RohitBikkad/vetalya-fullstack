@@ -38,7 +38,7 @@ public class VetSearchService {
     public List<VetSearchResult> search(String pincode) {
         // Get all verified vets who are ACTIVE
         List<Vet> verifiedVets = vetRepo.findAll().stream()
-                .filter(Vet::isVerified)
+                .filter(v -> v != null && v.isVerified())
                 .filter(v -> userAuthRepo.findById(v.getUserId())
                         .map(u -> "ACTIVE".equals(u.getStatus()))
                         .orElse(false))
@@ -48,7 +48,9 @@ public class VetSearchService {
             return List.of();
         }
 
-        List<String> vetUserIds = verifiedVets.stream().map(Vet::getUserId).toList();
+        List<String> vetUserIds = verifiedVets.stream()
+                .map(v -> v.getUserId())
+                .toList();
 
         // Batch-load active hospitals for these vets
         Map<String, List<Hospital>> hospitalsByVet = new HashMap<>();
@@ -93,7 +95,7 @@ public class VetSearchService {
                 return Double.compare(b.averageRating(), a.averageRating()); // higher rating first
             });
         } else {
-            results.sort(Comparator.comparingDouble(VetSearchResult::averageRating).reversed());
+            results.sort(Comparator.comparingDouble((VetSearchResult r) -> r.averageRating()).reversed());
         }
 
         return results;
@@ -105,7 +107,7 @@ public class VetSearchService {
     @Transactional(readOnly = true)
     public VetSearchResult getPublicProfile(String vetUserId) {
         Vet vet = vetRepo.findById(vetUserId)
-                .filter(Vet::isVerified)
+                .filter(v -> v != null && v.isVerified())
                 .orElseThrow(() -> new ResourceNotFoundException("Vet not found or not verified"));
 
         userAuthRepo.findById(vetUserId)

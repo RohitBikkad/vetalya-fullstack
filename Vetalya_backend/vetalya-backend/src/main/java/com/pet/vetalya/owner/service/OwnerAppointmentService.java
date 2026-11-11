@@ -64,7 +64,7 @@ public class OwnerAppointmentService {
 
         // 2. Validate vet is verified and ACTIVE
         Vet vet = vetRepo.findById(request.vetUserId())
-                .filter(Vet::isVerified)
+                .filter(v -> v != null && v.isVerified())
                 .orElseThrow(() -> new BadRequestException("Vet not found or not verified"));
 
         UserAuth vetUser = userAuthRepo.findById(request.vetUserId())
@@ -137,7 +137,7 @@ public class OwnerAppointmentService {
                 ownerUserId, status, petId, fromInstant, toInstant, pageable);
 
         List<OwnerAppointmentResponse> content = aptPage.getContent().stream()
-                .map(this::toResponseFromEntity)
+                .map(a -> toResponseFromEntity(a))
                 .toList();
 
         return new PageResponse<>(content, aptPage.getNumber(), aptPage.getSize(),

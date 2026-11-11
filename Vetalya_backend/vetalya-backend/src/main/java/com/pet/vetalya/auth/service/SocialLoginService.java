@@ -139,9 +139,9 @@ public class SocialLoginService {
 
     private boolean isProfileComplete(UserAuth user) {
         if ("ROLE_VET".equals(user.getRole())) {
-            return vetRepo.findById(user.getUserId()).map(Vet::isProfileComplete).orElse(false);
+            return vetRepo.findById(user.getUserId()).map(v -> v.isProfileComplete()).orElse(false);
         }
-        return petOwnerRepo.findById(user.getUserId()).map(PetOwner::isProfileComplete).orElse(false);
+        return petOwnerRepo.findById(user.getUserId()).map(o -> o.isProfileComplete()).orElse(false);
     }
 
     private void validateRole(String role) {

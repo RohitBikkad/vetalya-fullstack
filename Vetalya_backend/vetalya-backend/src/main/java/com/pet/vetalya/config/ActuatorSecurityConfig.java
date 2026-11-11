@@ -46,7 +46,7 @@ public class ActuatorSecurityConfig {
     @Order(0)
     public SecurityFilterChain actuatorFilterChain(HttpSecurity http) throws Exception {
         Set<String> allowedIps = Arrays.stream(allowedIpsConfig.split(","))
-                .map(String::trim)
+                .map(s -> s.trim())
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toSet());
 

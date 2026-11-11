@@ -42,7 +42,7 @@ public class AuditRetentionJob {
     @Scheduled(cron = "${app.audit.retention-cron:0 0 3 * * *}")
     @SchedulerLock(name = "AuditRetentionJob", lockAtMostFor = "15m", lockAtLeastFor = "1m")
     public void run() {
-        jobRunner.runJob("audit_retention", this::deleteExpiredAuditLogs);
+        jobRunner.runJob("audit_retention", () -> deleteExpiredAuditLogs());
     }
 
     @Transactional

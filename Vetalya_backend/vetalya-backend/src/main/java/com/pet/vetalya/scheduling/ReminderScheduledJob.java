@@ -41,7 +41,7 @@ public class ReminderScheduledJob {
     @Scheduled(fixedDelayString = "${app.reminder.interval-ms:60000}")
     @SchedulerLock(name = "ReminderScheduledJob", lockAtMostFor = "5m", lockAtLeastFor = "10s")
     public void run() {
-        jobRunner.runJob(JOB_NAME, this::processDueReminders);
+        jobRunner.runJob(JOB_NAME, () -> processDueReminders());
     }
 
     @Transactional

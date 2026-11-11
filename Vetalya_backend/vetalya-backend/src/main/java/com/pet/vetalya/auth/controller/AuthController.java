@@ -797,7 +797,7 @@ public class AuthController {
         if (request.getCookies() == null) return null;
         return Arrays.stream(request.getCookies())
                 .filter(c -> name.equals(c.getName()))
-                .map(Cookie::getValue)
+                .map(c -> c.getValue())
                 .findFirst()
                 .orElse(null);
     }

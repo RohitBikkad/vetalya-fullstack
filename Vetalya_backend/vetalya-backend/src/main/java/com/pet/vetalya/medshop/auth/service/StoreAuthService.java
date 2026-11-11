@@ -333,7 +333,7 @@ public class StoreAuthService {
                 .orElseThrow(() -> new MedShopException.NotFoundException("Tenant not found"));
 
         List<String> providers = authProviderRepo.findByTenantIdAndUserId(tenantId, userId)
-                .stream().map(StoreAuthProvider::getProvider).toList();
+                .stream().map(p -> p.getProvider()).toList();
 
         TenantSummaryDto tenantSummary = new TenantSummaryDto(
                 tenant.getId(), tenant.getShopName(), tenant.getGstin(), tenant.getStateCode(),

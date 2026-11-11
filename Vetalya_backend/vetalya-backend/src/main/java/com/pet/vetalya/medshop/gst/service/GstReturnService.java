@@ -147,7 +147,7 @@ public class GstReturnService {
     @Transactional(readOnly = true)
     public Page<GstReturnResponse> listReturns(Pageable pageable) {
         String tenantId = TenantContext.getTenantId();
-        return gstReturnRepo.findByTenantId(tenantId, pageable).map(this::toResponse);
+        return gstReturnRepo.findByTenantId(tenantId, pageable).map(r -> toResponse(r));
     }
 
     @Transactional(readOnly = true)
@@ -246,12 +246,12 @@ public class GstReturnService {
 
         List<Gstr1B2csSummary> b2csList = b2csMap.values().stream()
                 .map(a -> new Gstr1B2csSummary(a.pos, a.rate, a.taxable, a.cgst, a.sgst, a.igst, a.total))
-                .sorted(Comparator.comparing(Gstr1B2csSummary::placeOfSupply))
+                .sorted(Comparator.comparing(s -> s.placeOfSupply()))
                 .collect(Collectors.toList());
 
         List<Gstr1HsnSummary> hsnList = hsnMap.values().stream()
                 .map(a -> new Gstr1HsnSummary(a.hsnCode, a.medicineName, a.qty, a.totalValue, a.taxable, a.cgst, a.sgst, a.igst))
-                .sorted(Comparator.comparing(Gstr1HsnSummary::hsnCode))
+                .sorted(Comparator.comparing(s -> s.hsnCode()))
                 .collect(Collectors.toList());
 
         return new Gstr1ExportResponse(toResponse(gstReturn), b2bList, b2csList, hsnList);

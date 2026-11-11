@@ -95,7 +95,7 @@ public class PetService {
         Pageable pageable = PageRequest.of(Math.max(page, 0), boundedSize, Sort.by(sortDir, sortField));
 
         Page<Pet> petPage = petRepo.findAllByOwnerUserIdAndDeletedAtIsNull(ownerUserId, pageable);
-        List<PetResponse> content = petPage.getContent().stream().map(this::toResponse).toList();
+        List<PetResponse> content = petPage.getContent().stream().map(p -> toResponse(p)).toList();
         return new PageResponse<>(content, petPage.getNumber(), petPage.getSize(),
                 petPage.getTotalElements(), petPage.getTotalPages());
     }

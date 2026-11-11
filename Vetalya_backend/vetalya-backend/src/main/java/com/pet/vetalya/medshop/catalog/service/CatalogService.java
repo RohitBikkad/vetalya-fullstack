@@ -197,7 +197,7 @@ public class CatalogService {
 
     @Transactional(readOnly = true)
     public Page<SupplierDto> getSuppliers(String tenantId, Pageable pageable) {
-        return supplierRepo.findByTenantId(tenantId, pageable).map(this::mapSupplier);
+        return supplierRepo.findByTenantId(tenantId, pageable).map(s -> mapSupplier(s));
     }
 
     @Transactional(readOnly = true)
@@ -294,9 +294,9 @@ public class CatalogService {
 
         Page<Medicine> page = medicineRepo.findFiltered(tenantId, q, categoryId, supplierId, form, scheduleH, active, pageable);
         if (isCashier) {
-            return page.map(this::mapMedicineCashier);
+            return page.map(m -> mapMedicineCashier(m));
         }
-        return page.map(this::mapMedicineFull);
+        return page.map(m -> mapMedicineFull(m));
     }
 
     @Transactional(readOnly = true)
@@ -368,7 +368,7 @@ public class CatalogService {
     public List<MedicineFullDto> getLowStockMedicines(String tenantId) {
         LocalDate today = LocalDate.now(zoneId);
         List<Medicine> medicines = medicineRepo.findLowStockMedicines(tenantId, today);
-        return medicines.stream().map(this::mapMedicineFull).toList();
+        return medicines.stream().map(m -> mapMedicineFull(m)).toList();
     }
 
     private void validateMedicineRates(double gstRate, java.math.BigDecimal mrp, java.math.BigDecimal purchasePrice) {
@@ -394,9 +394,9 @@ public class CatalogService {
         LocalDate nearestExpiry = medicineRepo.getNearestExpiry(m.getTenantId(), m.getId(), today);
 
         String catName = m.getCategoryId() != null ? categoryRepo.findByTenantIdAndId(m.getTenantId(), m.getCategoryId())
-                .map(Category::getName).orElse(null) : null;
+                .map(c -> c.getName()).orElse(null) : null;
         String supName = m.getSupplierId() != null ? supplierRepo.findByTenantIdAndId(m.getTenantId(), m.getSupplierId())
-                .map(Supplier::getName).orElse(null) : null;
+                .map(s -> s.getName()).orElse(null) : null;
 
         return new MedicineFullDto(
                 m.getId(), m.getName(), m.getGenericName(), m.getHsnCode(),
@@ -414,7 +414,7 @@ public class CatalogService {
         LocalDate nearestExpiry = medicineRepo.getNearestExpiry(m.getTenantId(), m.getId(), today);
 
         String catName = m.getCategoryId() != null ? categoryRepo.findByTenantIdAndId(m.getTenantId(), m.getCategoryId())
-                .map(Category::getName).orElse(null) : null;
+                .map(c -> c.getName()).orElse(null) : null;
 
         return new MedicineCashierDto(
                 m.getId(), m.getName(), m.getGenericName(), m.getHsnCode(),

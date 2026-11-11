@@ -38,7 +38,7 @@ public class AppMetrics {
         // Register custom gauges
         registry.gauge("reminders.overdue", overdueRemindersCount);
         registry.gauge("vets.unverified.pending", unverifiedVetsCount);
-        registry.gauge("users.active.15min", this, AppMetrics::estimateActiveUsers);
+        registry.gauge("users.active.15min", this, m -> m.estimateActiveUsers());
     }
 
     // ── Authentication & Security Metrics ──

@@ -263,7 +263,7 @@ public class BillingService {
                 LocalDate minShelfLifeDate = today.plusDays(minShelfLifeDays);
                 List<StockBatch> eligibleBatches = stockBatchRepo.findEligibleBatchesForSale(tenantId, medicine.getId(), minShelfLifeDate);
 
-                int totalAvailable = eligibleBatches.stream().mapToInt(StockBatch::getQuantityAvailable).sum();
+                int totalAvailable = eligibleBatches.stream().mapToInt(b -> b.getQuantityAvailable()).sum();
                 if (totalAvailable < itemReq.quantity()) {
                     throw new MedShopException.BadRequestException("Insufficient stock for medicine: " + medicine.getName()
                             + ". Available: " + totalAvailable + ", Requested: " + itemReq.quantity());
@@ -495,9 +495,9 @@ public class BillingService {
 
         return page.map(s -> {
             String medName = medNames.computeIfAbsent(s.getMedicineId(), mid ->
-                    medicineRepo.findByTenantIdAndId(tenantId, mid).map(Medicine::getName).orElse("Unknown"));
+                    medicineRepo.findByTenantIdAndId(tenantId, mid).map(m -> m.getName()).orElse("Unknown"));
             String invNum = invNumbers.computeIfAbsent(s.getInvoiceId(), iid ->
-                    salesInvoiceRepo.findByTenantIdAndId(tenantId, iid).map(SalesInvoice::getInvoiceNumber).orElse("Unknown"));
+                    salesInvoiceRepo.findByTenantIdAndId(tenantId, iid).map(inv -> inv.getInvoiceNumber()).orElse("Unknown"));
 
             return new ScheduleHRegisterResponse(
                     s.getId(), s.getInvoiceId(), invNum, s.getMedicineId(), medName,

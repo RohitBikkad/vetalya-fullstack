@@ -55,7 +55,7 @@ public class ReportService {
         List<StockBatch> expiredBatches = stockBatchRepo.findExpiredBatchesWithStock(tenantId, today);
         BigDecimal expiredStockValue = expiredBatches.stream()
                 .map(b -> b.getPurchasePrice().multiply(BigDecimal.valueOf(b.getQuantityAvailable())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(BigDecimal.ZERO, (a, b) -> a.add(b));
 
         List<SalesInvoiceRepository.TopMedicineProjection> topProjections =
                 salesInvoiceRepo.getTopMedicines(tenantId, firstOfMonth, today, 5);
@@ -137,7 +137,7 @@ public class ReportService {
 
         return batches.stream().map(b -> {
             String medName = medNames.computeIfAbsent(b.getMedicineId(),
-                    mid -> medicineRepo.findByTenantIdAndId(tenantId, mid).map(Medicine::getName).orElse("Unknown"));
+                    mid -> medicineRepo.findByTenantIdAndId(tenantId, mid).map(m -> m.getName()).orElse("Unknown"));
 
             BigDecimal qty = BigDecimal.valueOf(b.getQuantityAvailable());
             BigDecimal purchaseVal = b.getPurchasePrice().multiply(qty);

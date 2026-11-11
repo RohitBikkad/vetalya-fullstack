@@ -102,7 +102,7 @@ public class StockService {
         return batchRepo.findBatchesFiltered(tenantId, medicineId, minExpiry, maxExpiry, hasStock, pageable)
                 .map(b -> {
                     String medName = medicineRepo.findByTenantIdAndId(tenantId, b.getMedicineId())
-                            .map(Medicine::getName).orElse("Unknown");
+                            .map(m -> m.getName()).orElse("Unknown");
                     return mapBatch(b, medName);
                 });
     }
@@ -112,7 +112,7 @@ public class StockService {
         StockBatch b = batchRepo.findByTenantIdAndId(tenantId, id)
                 .orElseThrow(() -> new MedShopException.NotFoundException("Batch not found"));
         String medName = medicineRepo.findByTenantIdAndId(tenantId, b.getMedicineId())
-                .map(Medicine::getName).orElse("Unknown");
+                .map(m -> m.getName()).orElse("Unknown");
         return mapBatch(b, medName);
     }
 
@@ -139,7 +139,7 @@ public class StockService {
         auditService.record(tenantId, userId, "STOCK_BATCH", id, "UPDATE_CORRECTION", null, b, ipAddress);
 
         String medName = medicineRepo.findByTenantIdAndId(tenantId, b.getMedicineId())
-                .map(Medicine::getName).orElse("Unknown");
+                .map(m -> m.getName()).orElse("Unknown");
         return mapBatch(b, medName);
     }
 
@@ -170,7 +170,7 @@ public class StockService {
                 "delta=" + req.quantityDelta() + ";reason=" + req.reason(), b, ipAddress);
 
         String medName = medicineRepo.findByTenantIdAndId(tenantId, b.getMedicineId())
-                .map(Medicine::getName).orElse("Unknown");
+                .map(m -> m.getName()).orElse("Unknown");
         return mapBatch(b, medName);
     }
 
@@ -222,7 +222,7 @@ public class StockService {
         return batchRepo.findExpiringBatches(tenantId, today, cutoff).stream()
                 .map(b -> {
                     String medName = medicineRepo.findByTenantIdAndId(tenantId, b.getMedicineId())
-                            .map(Medicine::getName).orElse("Unknown");
+                            .map(m -> m.getName()).orElse("Unknown");
                     return mapBatch(b, medName);
                 }).toList();
     }

@@ -1,0 +1,117 @@
+spring:
+  application:
+    name: Vetalya-Test
+  datasource:
+    url: jdbc:h2:mem:vetalyatest;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  flyway:
+    enabled: false
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-google-client-id
+            client-secret: test-google-client-secret
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+          apple:
+            client-id: test-apple-client-id
+            client-secret: test-apple-client-secret
+            client-authentication-method: client_secret_post
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            client-name: Apple
+        provider:
+          apple:
+            authorization-uri: https://appleid.apple.com/auth/authorize
+            token-uri: https://appleid.apple.com/auth/token
+            jwk-set-uri: https://appleid.apple.com/auth/keys
+            user-name-attribute: sub
+
+app:
+  web-redirect-url: http://localhost:3000
+  mobile-redirect-scheme: myvetapp
+  jwt:
+    private-key-path: classpath:keys/private.pem
+    public-key-path: classpath:keys/public.pem
+    access-token-expiry-minutes: 15
+    refresh-token-expiry-days: 14
+  google:
+    client-ids:
+      - test-google-client-id
+  apple:
+    team-id: test-team
+    key-id: test-key
+    services-id: test-apple-client-id
+    bundle-id: test-bundle
+    private-key-path: classpath:keys/AuthKey.p8
+  cors:
+    allowed-origin: http://localhost:3000
+  appointment:
+    slot-minutes: 30
+    min-lead-minutes: 60
+    cancel-cutoff-hours: 2
+    reminder-offsets-hours: [24, 1]
+  pet:
+    max-per-owner: 20
+  review:
+    edit-window-days: 30
+  zone: Asia/Kolkata
+  billing:
+    min-shelf-life-days: 30
+  gst:
+    allowed-rates: [0.00, 5.00, 12.00, 18.00, 28.00]
+  store:
+    web-redirect-url: http://localhost:3000/store
+    mobile-redirect-scheme: medshop
+    jwt:
+      private-key-path: classpath:keys/medshop_private.pem
+      public-key-path: classpath:keys/medshop_public.pem
+      access-token-expiry-minutes: 15
+      refresh-token-expiry-days: 30
+  management:
+    security:
+      username: actuator-admin
+      password: SecretPassword123!
+    allowed-ips: "*"
+  logging:
+    http:
+      slow-request-threshold-ms: 1000
+      max-body-size: 1024
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,loggers,scheduledtasks
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when_authorized
+      roles: ACTUATOR_ADMIN
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState, databaseConnectivity, flywayMigration, reminderScheduler, memoryAndDisk, diskSpace
+      status:
+        order: DOWN, OUT_OF_SERVICE, DEGRADED, UP, UNKNOWN
+    prometheus:
+      enabled: true
+    metrics:
+      enabled: true
+    loggers:
+      enabled: true
+    scheduledtasks:
+      enabled: true
+
+

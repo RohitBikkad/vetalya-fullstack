@@ -36,7 +36,7 @@ public class ReviewService {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
         Page<Review> reviews = reviewRepo.findReviewsForVet(vetUserId, rating, hospitalId, pageable);
-        Page<ReviewResponse> responsePage = reviews.map(this::toResponse);
+        Page<ReviewResponse> responsePage = reviews.map(r -> toResponse(r));
         return PageResponse.of(responsePage);
     }
 

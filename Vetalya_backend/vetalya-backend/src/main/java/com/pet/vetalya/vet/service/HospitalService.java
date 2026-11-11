@@ -54,7 +54,7 @@ public class HospitalService {
     @Transactional(readOnly = true)
     public List<HospitalResponse> listOwn(String vetUserId) {
         return hospitalRepo.findAllByVetUserIdAndActiveTrue(vetUserId).stream()
-                .map(this::toResponse)
+                .map(h -> toResponse(h))
                 .toList();
     }
 

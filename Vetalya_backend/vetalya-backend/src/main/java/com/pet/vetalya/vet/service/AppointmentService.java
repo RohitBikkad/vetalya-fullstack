@@ -74,7 +74,7 @@ public class AppointmentService {
         Page<Appointment> appointments = appointmentRepo.findVetAppointments(
                 vetUserId, status, hospitalId, fromInstant, toInstant, pageable);
 
-        Page<AppointmentResponse> responsePage = appointments.map(this::toResponse);
+        Page<AppointmentResponse> responsePage = appointments.map(a -> toResponse(a));
         return PageResponse.of(responsePage);
     }
 

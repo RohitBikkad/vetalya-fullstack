@@ -91,7 +91,7 @@ public class OwnerReviewService {
 
         Page<Review> reviewPage = reviewRepo.findAllByOwnerUserId(ownerUserId, pageable);
         List<OwnerReviewResponse> content = reviewPage.getContent().stream()
-                .map(this::toResponse)
+                .map(r -> toResponse(r))
                 .toList();
 
         return new PageResponse<>(content, reviewPage.getNumber(), reviewPage.getSize(),

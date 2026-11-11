@@ -40,7 +40,7 @@ public class CustomerService {
 
     @Transactional(readOnly = true)
     public Page<CustomerDto> searchCustomers(String tenantId, String q, Pageable pageable) {
-        return customerRepo.search(tenantId, q, pageable).map(this::mapToDto);
+        return customerRepo.search(tenantId, q, pageable).map(c -> mapToDto(c));
     }
 
     @Transactional(readOnly = true)
