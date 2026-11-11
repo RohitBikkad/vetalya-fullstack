@@ -1,4 +1,4 @@
- package com.pet.vetalya.auth.controller;
+package com.pet.vetalya.auth.controller;
 
 import com.pet.vetalya.auth.apple.AppleTokenRevocationService;
 import com.pet.vetalya.auth.service.NativeTokenVerificationService;

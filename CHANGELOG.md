@@ -78,3 +78,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RS256 asymmetric JWT authentication with RSA keypair generation.
 - Supabase PostgreSQL integration with Flyway database migrations (`V1` through `V7`).
 - Render Docker container deployment configuration with multi-stage build.
+

@@ -21,6 +21,18 @@ public record AppProperties(
         if (zone == null || zone.isBlank()) {
             zone = "Asia/Kolkata";
         }
+        if (jwt == null) {
+            jwt = new Jwt("classpath:keys/private.pem", "classpath:keys/public.pem", 1440, 14);
+        }
+        if (cors == null) {
+            cors = new Cors("http://localhost:3000");
+        }
+        if (google == null) {
+            google = new Google(List.of("1030204623930-s3t2s597p2rvf5nal0i3552vh8t10h23.apps.googleusercontent.com"));
+        }
+        if (apple == null) {
+            apple = new Apple("", "", "", "", "classpath:keys/AuthKey.p8");
+        }
         if (appointment == null) {
             appointment = new Appointment(30, 60, 2, List.of(24, 1));
         }

@@ -55,3 +55,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Initial Release
 - Spring Boot 3.4+ / Java 21 modular monolith with RS256 JWT, Flyway migrations, and Supabase integration.
+

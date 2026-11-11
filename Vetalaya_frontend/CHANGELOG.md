@@ -35,3 +35,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - React 19 + Vite with Tailwind CSS.
 - Role-based views: Pet Owner, Veterinarian, Admin, Clinic Staff.
 - Modular navigation, responsive mobile drawers, and authentication modals.
+

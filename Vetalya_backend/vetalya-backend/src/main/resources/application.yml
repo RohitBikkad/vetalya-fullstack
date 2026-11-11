@@ -236,6 +236,7 @@ app:
 
 server:
   port: ${PORT:8080}
+  forward-headers-strategy: framework
 
 # ── OTP Configuration (Fullstack addition) ──
   otp:
