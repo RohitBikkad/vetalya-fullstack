@@ -2,6 +2,7 @@ package com.pet.vetalya.auth.controller;
 
 import com.pet.vetalya.auth.apple.AppleTokenRevocationService;
 import com.pet.vetalya.auth.service.NativeTokenVerificationService;
+import com.pet.vetalya.auth.service.OtpService;
 import com.pet.vetalya.auth.service.SocialLoginService;
 import com.pet.vetalya.auth.service.TokenService;
 import com.pet.vetalya.config.AppProperties;
@@ -61,7 +62,7 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final PetOwnerRepository petOwnerRepo;
     private final VetRepository vetRepo;
-    private final com.pet.vetalya.auth.service.OtpService otpService;
+    private final OtpService otpService;
 
     public AuthController(TokenService tokenService,
                           SocialLoginService socialLoginService,
@@ -75,7 +76,7 @@ public class AuthController {
                           PasswordEncoder passwordEncoder,
                           PetOwnerRepository petOwnerRepo,
                           VetRepository vetRepo,
-                          com.pet.vetalya.auth.service.OtpService otpService) {
+                          OtpService otpService) {
         this.tokenService = tokenService;
         this.socialLoginService = socialLoginService;
         this.nativeTokenVerificationService = nativeTokenVerificationService;
@@ -146,7 +147,7 @@ public class AuthController {
             @RequestBody CodeExchangeRequest request,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
-        if (request.code() == null || request.code().isBlank()) {
+        if (request == null || request.code() == null || request.code().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "invalid_code", "message", "Code is required"));
         }
 
@@ -154,7 +155,7 @@ public class AuthController {
         OneTimeCode otc = oneTimeCodeRepo.findByCodeHash(codeHash)
                 .orElse(null);
 
-        if (otc == null || otc.isUsed() || otc.getExpiresAt().isBefore(Instant.now())) {
+        if (otc == null || otc.isUsed() || otc.getExpiresAt() == null || otc.getExpiresAt().isBefore(Instant.now())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "invalid_or_expired_code", "message", "Code is invalid or expired"));
         }
@@ -162,6 +163,11 @@ public class AuthController {
         // Mark code used immediately to prevent replay
         otc.setUsed(true);
         oneTimeCodeRepo.save(otc);
+
+        if (otc.getUserId() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "invalid_code", "message", "Code has no associated user"));
+        }
 
         UserAuth user = userAuthRepo.findById(otc.getUserId())
                 .orElseThrow(() -> new IllegalStateException("User not found for code"));
@@ -204,7 +210,7 @@ public class AuthController {
             @RequestBody NativeLoginRequest request,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
-        if (request.idToken() == null || request.idToken().isBlank()) {
+        if (request == null || request.idToken() == null || request.idToken().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "missing_token", "message", "idToken is required"));
         }
 
@@ -227,7 +233,9 @@ public class AuthController {
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("token", result.accessToken());
             response.put("accessToken", result.accessToken());
-            response.put("refreshToken", result.refreshToken());
+            if (result.refreshToken() != null) {
+                response.put("refreshToken", result.refreshToken());
+            }
             response.put("expiresIn", expiresIn);
             response.put("newUser", result.newUser());
             response.put("profileComplete", result.profileComplete());
@@ -235,11 +243,13 @@ public class AuthController {
 
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
+            String msg = e.getMessage() != null ? e.getMessage() : "Invalid Google ID token";
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "authentication_failed", "message", e.getMessage()));
+                    .body(Map.of("error", "authentication_failed", "message", msg));
         } catch (SocialLoginService.AccountBlockedException e) {
+            String msg = e.getMessage() != null ? e.getMessage() : "Account is blocked";
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("error", "account_blocked", "message", e.getMessage()));
+                    .body(Map.of("error", "account_blocked", "message", msg));
         }
     }
 
@@ -249,7 +259,7 @@ public class AuthController {
      */
     @PostMapping("/apple")
     public ResponseEntity<?> nativeAppleLogin(@RequestBody NativeLoginRequest request, HttpServletRequest httpRequest) {
-        if (request.idToken() == null || request.idToken().isBlank()) {
+        if (request == null || request.idToken() == null || request.idToken().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "missing_token", "message", "idToken is required"));
         }
 
@@ -270,11 +280,13 @@ public class AuthController {
                     result.profileComplete()
             ));
         } catch (IllegalArgumentException e) {
+            String msg = e.getMessage() != null ? e.getMessage() : "Invalid Apple ID token";
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "authentication_failed", "message", e.getMessage()));
+                    .body(Map.of("error", "authentication_failed", "message", msg));
         } catch (SocialLoginService.AccountBlockedException e) {
+            String msg = e.getMessage() != null ? e.getMessage() : "Account is blocked";
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("error", "account_blocked", "message", e.getMessage()));
+                    .body(Map.of("error", "account_blocked", "message", msg));
         }
     }
 
@@ -319,6 +331,9 @@ public class AuthController {
             @AuthenticationPrincipal Jwt jwt,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
+        if (jwt == null || jwt.getSubject() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
 
         String userId = jwt.getSubject();
         UserAuth user = userAuthRepo.findById(userId)
@@ -423,24 +438,31 @@ public class AuthController {
             userMap.put("authProvider", "LOCAL / DEMO");
             userMap.put("avatar", info.pictureUrl());
 
-            return ResponseEntity.ok(Map.of(
-                    "token", result.accessToken(),
-                    "accessToken", result.accessToken(),
-                    "refreshToken", result.refreshToken(),
-                    "user", userMap
-            ));
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("token", result.accessToken());
+            resp.put("accessToken", result.accessToken());
+            if (result.refreshToken() != null) {
+                resp.put("refreshToken", result.refreshToken());
+            }
+            resp.put("user", userMap);
+
+            return ResponseEntity.ok(resp);
         } catch (Exception e) {
             log.error("Demo login error", e);
+            String msg = e.getMessage() != null ? e.getMessage() : "Demo login failed";
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "demo_login_failed", "message", e.getMessage()));
+                    .body(Map.of("error", "demo_login_failed", "message", msg));
         }
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(
-            @RequestBody Map<String, Object> request,
+            @RequestBody(required = false) Map<String, Object> request,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Request body is required"));
+        }
         String email = (String) request.get("email");
         String password = (String) request.get("password");
 
@@ -479,19 +501,25 @@ public class AuthController {
 
         Map<String, Object> userMap = getUserMap(user);
 
-        return ResponseEntity.ok(Map.of(
-                "token", accessToken,
-                "accessToken", accessToken,
-                "refreshToken", refreshToken,
-                "user", userMap
-        ));
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("token", accessToken);
+        resp.put("accessToken", accessToken);
+        if (refreshToken != null) {
+            resp.put("refreshToken", refreshToken);
+        }
+        resp.put("user", userMap);
+
+        return ResponseEntity.ok(resp);
     }
 
     @PostMapping("/register")
     public ResponseEntity<?> register(
-            @RequestBody Map<String, Object> request,
+            @RequestBody(required = false) Map<String, Object> request,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Request body is required"));
+        }
         String fullName = (String) request.get("fullName");
         if (fullName == null || fullName.isBlank()) {
             fullName = (String) request.get("name");
@@ -573,8 +601,10 @@ public class AuthController {
         String role = (roleParam != null && (roleParam.equalsIgnoreCase("VETERINARIAN") || roleParam.equalsIgnoreCase("ROLE_VET")))
                 ? "ROLE_VET" : "ROLE_PET_OWNER";
 
-        String firstName = fullName.contains(" ") ? fullName.substring(0, fullName.indexOf(' ')) : fullName;
-        String lastName = fullName.contains(" ") ? fullName.substring(fullName.indexOf(' ') + 1) : "";
+        String trimmedName = fullName.trim();
+        int spaceIdx = trimmedName.indexOf(' ');
+        String firstName = spaceIdx > 0 ? trimmedName.substring(0, spaceIdx) : trimmedName;
+        String lastName = spaceIdx > 0 ? trimmedName.substring(spaceIdx + 1).trim() : "";
 
         ProviderUserInfo info = new ProviderUserInfo("GOOGLE", "reg-" + email, email, true, firstName, lastName, null);
         SocialLoginService.LoginResult lr = socialLoginService.processLogin(info, role, "web", null, httpRequest.getRemoteAddr());
@@ -592,19 +622,23 @@ public class AuthController {
         if ("ROLE_VET".equals(role)) {
             final String regNumber = councilReg;
             vetRepo.findById(user.getUserId()).ifPresent(v -> {
-                if (regNumber != null && !regNumber.isBlank()) {
-                    v.setRegistrationNo(regNumber);
+                if (v != null) {
+                    if (regNumber != null && !regNumber.isBlank()) {
+                        v.setRegistrationNo(regNumber);
+                    }
+                    v.setFirstName(firstName);
+                    v.setLastName(lastName);
+                    v.setVerified(true);
+                    vetRepo.save(v);
                 }
-                v.setFirstName(firstName);
-                v.setLastName(lastName);
-                v.setVerified(true);
-                vetRepo.save(v);
             });
         } else {
             petOwnerRepo.findById(user.getUserId()).ifPresent(po -> {
-                po.setFirstName(firstName);
-                po.setLastName(lastName);
-                petOwnerRepo.save(po);
+                if (po != null) {
+                    po.setFirstName(firstName);
+                    po.setLastName(lastName);
+                    petOwnerRepo.save(po);
+                }
             });
         }
 
@@ -614,19 +648,25 @@ public class AuthController {
 
         Map<String, Object> userMap = getUserMap(user);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
-                "token", lr.accessToken(),
-                "accessToken", lr.accessToken(),
-                "refreshToken", lr.refreshToken(),
-                "user", userMap
-        ));
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("token", lr.accessToken());
+        resp.put("accessToken", lr.accessToken());
+        if (lr.refreshToken() != null) {
+            resp.put("refreshToken", lr.refreshToken());
+        }
+        resp.put("user", userMap);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(resp);
     }
 
     /**
      * Dispatch a 6-digit OTP to mobile phone number or email address.
      */
     @PostMapping("/otp/send")
-    public ResponseEntity<?> sendOtp(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> sendOtp(@RequestBody(required = false) Map<String, String> request) {
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Request body is required"));
+        }
         String phone = request.get("phone");
         String email = request.get("email");
         String target = request.get("target");
@@ -640,7 +680,7 @@ public class AuthController {
         }
 
         try {
-            com.pet.vetalya.auth.service.OtpService.OtpResult result = otpService.sendOtp(target, purpose);
+            OtpService.OtpResult result = otpService.sendOtp(target, purpose);
             Map<String, Object> resp = new LinkedHashMap<>();
             resp.put("success", true);
             resp.put("message", result.message());
@@ -649,7 +689,8 @@ public class AuthController {
             resp.put("devOtp", result.otpCode()); // mock SMS delivery for instant testing
             return ResponseEntity.ok(resp);
         } catch (Exception ex) {
-            return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+            String msg = ex.getMessage() != null ? ex.getMessage() : "Failed to dispatch OTP";
+            return ResponseEntity.badRequest().body(Map.of("message", msg));
         }
     }
 
@@ -657,7 +698,10 @@ public class AuthController {
      * Verify the 6-digit OTP entered by the user.
      */
     @PostMapping("/otp/verify")
-    public ResponseEntity<?> verifyOtp(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> verifyOtp(@RequestBody(required = false) Map<String, String> request) {
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Request body is required"));
+        }
         String phone = request.get("phone");
         String email = request.get("email");
         String target = request.get("target");
@@ -692,9 +736,12 @@ public class AuthController {
      */
     @PostMapping("/login-otp")
     public ResponseEntity<?> loginWithOtp(
-            @RequestBody Map<String, String> request,
+            @RequestBody(required = false) Map<String, String> request,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Request body is required"));
+        }
         String phone = request.get("phone");
         String otp = request.get("otp");
         if (otp == null) otp = request.get("code");
@@ -739,17 +786,20 @@ public class AuthController {
 
         Map<String, Object> userMap = getUserMap(user);
 
-        return ResponseEntity.ok(Map.of(
-                "token", accessToken,
-                "accessToken", accessToken,
-                "refreshToken", refreshToken,
-                "user", userMap
-        ));
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("token", accessToken);
+        resp.put("accessToken", accessToken);
+        if (refreshToken != null) {
+            resp.put("refreshToken", refreshToken);
+        }
+        resp.put("user", userMap);
+
+        return ResponseEntity.ok(resp);
     }
 
     @GetMapping("/me")
     public ResponseEntity<?> me(@AuthenticationPrincipal Jwt jwt) {
-        if (jwt == null) {
+        if (jwt == null || jwt.getSubject() == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
         UserAuth user = userAuthRepo.findById(jwt.getSubject()).orElse(null);
@@ -761,6 +811,9 @@ public class AuthController {
 
     private Map<String, Object> getUserMap(UserAuth user) {
         Map<String, Object> map = new LinkedHashMap<>();
+        if (user == null) {
+            return map;
+        }
         map.put("id", user.getUserId());
         map.put("email", user.getEmail());
         map.put("role", user.getRole());
@@ -772,31 +825,41 @@ public class AuthController {
 
         if ("ROLE_VET".equals(user.getRole())) {
             vetRepo.findById(user.getUserId()).ifPresent(v -> {
-                map.put("firstName", v.getFirstName());
-                map.put("lastName", v.getLastName());
-                map.put("registrationNo", v.getRegistrationNo());
-                map.put("councilRegNumber", v.getRegistrationNo());
-                map.put("fullName", ((v.getFirstName() != null ? v.getFirstName() : "") + " " + (v.getLastName() != null ? v.getLastName() : "")).trim());
-                map.put("avatarUrl", v.getPhotoUrl());
+                if (v != null) {
+                    map.put("firstName", v.getFirstName());
+                    map.put("lastName", v.getLastName());
+                    map.put("registrationNo", v.getRegistrationNo());
+                    map.put("councilRegNumber", v.getRegistrationNo());
+                    String fn = v.getFirstName() != null ? v.getFirstName() : "";
+                    String ln = v.getLastName() != null ? v.getLastName() : "";
+                    map.put("fullName", (fn + " " + ln).trim());
+                    map.put("avatarUrl", v.getPhotoUrl());
+                }
             });
         } else {
             petOwnerRepo.findById(user.getUserId()).ifPresent(po -> {
-                map.put("firstName", po.getFirstName());
-                map.put("lastName", po.getLastName());
-                map.put("fullName", ((po.getFirstName() != null ? po.getFirstName() : "") + " " + (po.getLastName() != null ? po.getLastName() : "")).trim());
+                if (po != null) {
+                    map.put("firstName", po.getFirstName());
+                    map.put("lastName", po.getLastName());
+                    String fn = po.getFirstName() != null ? po.getFirstName() : "";
+                    String ln = po.getLastName() != null ? po.getLastName() : "";
+                    map.put("fullName", (fn + " " + ln).trim());
+                }
             });
         }
-        if (!map.containsKey("fullName") || map.get("fullName").toString().isBlank()) {
-            map.put("fullName", user.getEmail() != null ? user.getEmail().split("@")[0] : "Vetalya User");
+        Object fnObj = map.get("fullName");
+        if (fnObj == null || fnObj.toString().isBlank()) {
+            map.put("fullName", (user.getEmail() != null && !user.getEmail().isBlank())
+                    ? user.getEmail().split("@")[0] : "Vetalya User");
         }
         map.put("name", map.get("fullName"));
         return map;
     }
 
     private String extractCookie(HttpServletRequest request, String name) {
-        if (request.getCookies() == null) return null;
+        if (request == null || request.getCookies() == null || name == null) return null;
         return Arrays.stream(request.getCookies())
-                .filter(c -> name.equals(c.getName()))
+                .filter(c -> c != null && name.equals(c.getName()))
                 .map(c -> c.getValue())
                 .findFirst()
                 .orElse(null);

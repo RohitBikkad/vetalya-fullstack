@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Resolves Eclipse JDT and VS Code compiler warnings: `Null type safety: parameter 'this' provided via method descriptor Function<...>.apply(...) needs unchecked conversion to conform to '@NonNull ...'`.
   - Added assertion `assertThat(meterName).isNotBlank()` in `MetricsCardinalityTest.java` resolving unused local variable diagnostic.
   - Configured `"java.compile.nullAnalysis.mode": "disabled"` across all project workspaces to prevent false-positive null type warnings on unannotated third-party classes.
+  - **`SecurityAuditEventListener.java`**: Added null-safe retrieval for `AuthorizationDeniedEvent`'s authentication supplier (`authSupplier != null ? authSupplier.get() : null`), null-guarded `event.getException().getMessage()`, and null-checked authority collections.
+  - **`AuthController.java`**: Added null checks across all `@RequestBody` parameters (`login`, `register`, `sendOtp`, `verifyOtp`, `loginWithOtp`, `exchange`, `nativeGoogleLogin`, `nativeAppleLogin`) to prevent `NullPointerException` on empty payloads.
+  - Replaced unsafe `Map.of()` calls with `LinkedHashMap` for responses containing potentially null fields (`refreshToken`, exception messages) preventing runtime NPEs.
+  - Cleaned up unimported `OtpService` references and added null guards in `getUserMap` and `extractCookie`.
 
 ---
 

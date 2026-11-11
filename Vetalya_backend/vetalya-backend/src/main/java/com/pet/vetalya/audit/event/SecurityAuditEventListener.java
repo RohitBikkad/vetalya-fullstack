@@ -9,13 +9,13 @@ import org.springframework.security.authentication.event.AbstractAuthenticationF
 import org.springframework.security.authentication.event.AuthenticationSuccessEvent;
 import org.springframework.security.authorization.event.AuthorizationDeniedEvent;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -40,7 +40,10 @@ public class SecurityAuditEventListener {
 
     @EventListener
     public void onAuthenticationSuccess(AuthenticationSuccessEvent event) {
+        if (event == null) return;
         Authentication auth = event.getAuthentication();
+        if (auth == null) return;
+
         String userId;
         if (auth.getPrincipal() instanceof Jwt jwt) {
             userId = jwt.getSubject();
@@ -54,9 +57,13 @@ public class SecurityAuditEventListener {
             userId = auth.getName();
         }
 
-        String role = auth.getAuthorities().stream()
-                .map(a -> a.getAuthority())
-                .collect(Collectors.joining(","));
+        String role = "";
+        if (auth.getAuthorities() != null) {
+            role = auth.getAuthorities().stream()
+                    .filter(a -> a != null && a.getAuthority() != null)
+                    .map(a -> a.getAuthority())
+                    .collect(Collectors.joining(","));
+        }
 
         HttpServletRequest request = getCurrentRequest();
         String ip = auditService.resolveClientIp(request);
@@ -86,8 +93,9 @@ public class SecurityAuditEventListener {
 
     @EventListener
     public void onAuthenticationFailure(AbstractAuthenticationFailureEvent event) {
+        if (event == null) return;
         Authentication auth = event.getAuthentication();
-        String principal = auth != null ? auth.getName() : "unknown";
+        String principal = (auth != null && auth.getName() != null) ? auth.getName() : "unknown";
 
         HttpServletRequest request = getCurrentRequest();
         String ip = auditService.resolveClientIp(request);
@@ -100,24 +108,30 @@ public class SecurityAuditEventListener {
             bruteForceSignalService.recordIpFailure(ip);
         }
 
+        String failureReason = (event.getException() != null && event.getException().getMessage() != null)
+                ? event.getException().getMessage()
+                : "Authentication failed";
+
         auditService.recordEvent(
                 "LOGIN_FAILURE",
                 null,
                 null,
                 "JWT",
                 "FAILURE",
-                event.getException().getMessage(),
+                failureReason,
                 clientType,
                 deviceId,
                 ip,
                 userAgent,
-                Map.of("attempted_principal", principal)
+                Map.of("attempted_principal", principal != null ? principal : "unknown")
         );
     }
 
     @EventListener
     public void onAuthorizationDenied(AuthorizationDeniedEvent<?> event) {
-        Authentication auth = event.getAuthentication().get();
+        if (event == null) return;
+        Supplier<Authentication> authSupplier = event.getAuthentication();
+        Authentication auth = (authSupplier != null) ? authSupplier.get() : null;
         String userId = null;
         String role = null;
         if (auth != null && auth.isAuthenticated()) {
@@ -126,9 +140,12 @@ public class SecurityAuditEventListener {
             } else {
                 userId = auth.getName();
             }
-            role = auth.getAuthorities().stream()
-                    .map(a -> a.getAuthority())
-                    .collect(Collectors.joining(","));
+            if (auth.getAuthorities() != null) {
+                role = auth.getAuthorities().stream()
+                        .filter(a -> a != null && a.getAuthority() != null)
+                        .map(a -> a.getAuthority())
+                        .collect(Collectors.joining(","));
+            }
         }
 
         HttpServletRequest request = getCurrentRequest();
@@ -148,7 +165,7 @@ public class SecurityAuditEventListener {
                 deviceId,
                 ip,
                 userAgent,
-                Map.of("resource", request != null ? request.getRequestURI() : "unknown")
+                Map.of("resource", (request != null && request.getRequestURI() != null) ? request.getRequestURI() : "unknown")
         );
     }
 
