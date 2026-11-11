@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.1] - 2026-11-11
 
+### Performance & UX Improvements
+- **Eliminated Flash of Login Page on Google Sign-In**:
+  - Added dedicated authenticating splash screen in `App.jsx` when `isLoading` is true during Google authentication, eliminating the confusing visual drop back to the static login form before dashboard load.
+  - Set `ux_mode: 'popup'` and `auto_select: false` explicitly in Google Identity Services initialization to prevent accidental page redirects.
+- **Removed Duplicate Network Round-Trip**:
+  - Refactored `refreshUserProfile` in `AuthContext.jsx` to only validate saved tokens on initial app startup, eliminating redundant `GET /users/profile` requests immediately after successful Google login.
+  - Wrapped `handleAuthSuccess`, `loginWithGoogle`, `login`, and `signup` in `useCallback` to prevent unnecessary component re-renders.
+
 ### Fixed
 - **Null Type Safety & Static Analysis Cleanups**:
   - Replaced method references across all stream pipelines, collectors, and optionals with explicit, null-safe lambda expressions (`(v -> v != null && v.isVerified())`, `(a -> a.getAuthority())`, `(m -> m.getName())`, etc.).

@@ -230,7 +230,27 @@ function AuthenticatedProfileView() {
 }
 
 function MainContent() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading && !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#F7F5EE] flex flex-col items-center justify-center p-6 text-center select-none">
+        <div className="relative mb-6">
+          <div className="w-20 h-20 rounded-full bg-[#E0F2EB] flex items-center justify-center shadow-sm">
+            <div className="w-10 h-10 border-3 border-[#2D8A7A] border-t-transparent rounded-full animate-spin" />
+          </div>
+          <div className="absolute inset-0 rounded-full border border-[#2D8A7A]/20 animate-ping pointer-events-none" />
+        </div>
+        <h2 className="text-2xl font-extrabold text-[#10324E] font-display tracking-tight">
+          Signing into Vetalya...
+        </h2>
+        <p className="text-xs text-[#242826]/70 mt-2 max-w-sm leading-relaxed">
+          Securing your session with Google and preparing your animal healthcare dashboard.
+        </p>
+      </div>
+    );
+  }
+
   return isAuthenticated ? <DashboardRouter /> : <LoginPage />;
 }
 

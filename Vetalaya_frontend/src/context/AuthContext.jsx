@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import {
   loginApi,
   registerApi,
@@ -22,7 +22,7 @@ export function AuthProvider({ children }) {
   const [tokenTimeRemaining, setTokenTimeRemaining] = useState(null);
   const [sessionExpiredNotice, setSessionExpiredNotice] = useState(false);
 
-  // Validate or synchronize active session with Spring Boot backend
+  // Validate or synchronize active session with Spring Boot backend on app startup
   const refreshUserProfile = useCallback(async () => {
     const savedToken = localStorage.getItem('vetalya_jwt_token');
     if (!savedToken) return;
@@ -50,11 +50,17 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // On initial page mount only: validate or synchronize saved session with backend
+  const initialMountChecked = useRef(false);
   useEffect(() => {
-    if (jwtToken) {
-      refreshUserProfile();
+    if (!initialMountChecked.current) {
+      initialMountChecked.current = true;
+      const savedToken = localStorage.getItem('vetalya_jwt_token');
+      if (savedToken) {
+        refreshUserProfile();
+      }
     }
-  }, [jwtToken, refreshUserProfile]);
+  }, [refreshUserProfile]);
 
   // Monitor token expiration countdown & automatically logout when countdown reaches 0
   useEffect(() => {
@@ -105,7 +111,7 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const handleAuthSuccess = (authResponse) => {
+  const handleAuthSuccess = useCallback((authResponse) => {
     if (!authResponse || typeof authResponse !== 'object') {
       throw new Error('Authentication response was invalid or empty from backend.');
     }
@@ -154,10 +160,10 @@ export function AuthProvider({ children }) {
       return mappedUser;
     }
     return user;
-  };
+  }, []);
 
   // Standard Email/Password Login
-  const login = async (email, password, rememberMe = true) => {
+  const login = useCallback(async (email, password, rememberMe = true) => {
     setIsLoading(true);
     setError(null);
 
@@ -171,10 +177,10 @@ export function AuthProvider({ children }) {
       setError(err.message || 'Login failed');
       throw err;
     }
-  };
+  }, [handleAuthSuccess]);
 
   // Sign up (supports object payload or individual arguments)
-  const signup = async (data, email, password, role = 'ROLE_PET_OWNER') => {
+  const signup = useCallback(async (data, email, password, role = 'ROLE_PET_OWNER') => {
     setIsLoading(true);
     setError(null);
 
@@ -188,10 +194,10 @@ export function AuthProvider({ children }) {
       setError(err.message || 'Registration failed');
       throw err;
     }
-  };
+  }, [handleAuthSuccess]);
 
   // Google SSO with verified Google ID Token
-  const loginWithGoogle = async (idToken, role = 'PET_PARENT') => {
+  const loginWithGoogle = useCallback(async (idToken, role = 'PET_PARENT') => {
     if (!idToken) {
       throw new Error('Google credential token was not provided.');
     }
@@ -208,10 +214,10 @@ export function AuthProvider({ children }) {
       setError(err.message || 'Google Sign-In failed');
       throw err;
     }
-  };
+  }, [handleAuthSuccess]);
 
   // 1-Click Role Login for instant role verification via DB
-  const loginWithDemo = async (roleKey = 'PET_PARENT') => {
+  const loginWithDemo = useCallback(async (roleKey = 'PET_PARENT') => {
     setIsLoading(true);
     setError(null);
 
@@ -225,7 +231,7 @@ export function AuthProvider({ children }) {
       setError(err.message || 'Demo authentication failed. Database service may be initializing.');
       throw err;
     }
-  };
+  }, [handleAuthSuccess]);
 
   const logout = async (isAuto = false) => {
     try {

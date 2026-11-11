@@ -101,6 +101,8 @@ export default function AuthCard({ onToggleForgot }) {
         try {
           window.google.accounts.id.initialize({
             client_id: googleClientId,
+            ux_mode: 'popup',
+            auto_select: false,
             callback: async (response) => {
               if (response.credential) {
                 try {
