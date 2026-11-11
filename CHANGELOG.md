@@ -16,6 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.3] - 2026-11-11
+
+### Added & Enhanced
+- **OpenAPI 3.0 / Swagger UI Integration**:
+  - Implemented `OpenApiConfig.java` configuring OpenAPI 3.0 specification, RS256 Bearer JWT security scheme, and interactive Swagger UI.
+  - Configured SpringDoc endpoints in `application.yml` and permitted them in `ApiSecurityConfig.java`.
+- **Multi-Identifier Login & Vet Credential Hardening**:
+  - Enhanced `/api/auth/login` to allow login via Email or Phone number.
+  - Guaranteed `dr.priya@vetalya.com` credentials in `DataInitializer.java`.
+- **Endpoint Integration Test Suite**:
+  - Added automated integration suite `scratch/test_all_endpoints.py` verifying 18 production endpoints with a **100% pass rate** (18/18).
+
+---
+
 ## [0.2.2] - 2026-11-11
 
 ### Documentation & Infrastructure

@@ -242,3 +242,17 @@ server:
   otp:
     expiry-minutes: ${OTP_EXPIRY_MINUTES:10}
     max-attempts: ${OTP_MAX_ATTEMPTS:3}
+
+# ── SpringDoc OpenAPI 3 / Swagger UI ──
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+    try-it-out-enabled: true
+    persist-authorization: true
+    display-request-duration: true

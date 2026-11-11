@@ -83,7 +83,10 @@ public class ApiSecurityConfig {
     @Order(3)
     public SecurityFilterChain fallbackPublicFilterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/", "/error", "/favicon.ico")
+                .securityMatcher("/", "/error", "/favicon.ico",
+                        "/swagger-ui.html", "/swagger-ui/**",
+                        "/v3/api-docs", "/v3/api-docs/**",
+                        "/api-docs/**")
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
