@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import LandingPage from './components/landing/LandingPage';
+import OwnerAuthPage from './components/auth/OwnerAuthPage';
+import VetAuthPage from './components/auth/VetAuthPage';
 import LoginPage from './components/auth/LoginPage';
 import DashboardRouter from './components/dashboard/DashboardRouter';
 import VetalyaBrandLogo from './components/auth/VetalyaBrandLogo';
@@ -231,6 +234,23 @@ function AuthenticatedProfileView() {
 
 function MainContent() {
   const { isAuthenticated, isLoading } = useAuth();
+  const [currentPath, setCurrentPath] = useState(() => window.location.pathname || '/');
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname || '/');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleNavigate = (path) => {
+    if (path !== window.location.pathname) {
+      window.history.pushState({}, '', path);
+    }
+    setCurrentPath(path);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   if (isLoading && !isAuthenticated) {
     return (
@@ -251,7 +271,30 @@ function MainContent() {
     );
   }
 
-  return isAuthenticated ? <DashboardRouter /> : <LoginPage />;
+  // Authenticated users go to their role-gated dashboard
+  if (isAuthenticated) {
+    return <DashboardRouter onNavigate={handleNavigate} />;
+  }
+
+  // Role-tailored & Public Unauthenticated Routing
+  if (currentPath === '/owner/login') {
+    return <OwnerAuthPage initialMode="login" onNavigate={handleNavigate} />;
+  }
+  if (currentPath === '/owner/register') {
+    return <OwnerAuthPage initialMode="register" onNavigate={handleNavigate} />;
+  }
+  if (currentPath === '/vet/login') {
+    return <VetAuthPage initialMode="login" onNavigate={handleNavigate} />;
+  }
+  if (currentPath === '/vet/register') {
+    return <VetAuthPage initialMode="register" onNavigate={handleNavigate} />;
+  }
+  if (currentPath === '/login') {
+    return <LoginPage onNavigate={handleNavigate} />;
+  }
+
+  // Default to Landing Page for '/' and all general marketing views
+  return <LandingPage onNavigate={handleNavigate} />;
 }
 
 export default function App() {

@@ -17,7 +17,7 @@ import AuthCard from './AuthCard';
  * - Right column: Consumer-facing single Login & Dual Role-Tailored Sign-Up
  * - Automatic role routing based on credentials
  */
-export default function LoginPage() {
+export default function LoginPage({ onNavigate }) {
   const { sessionExpiredNotice, setSessionExpiredNotice } = useAuth();
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
@@ -72,7 +72,17 @@ export default function LoginPage() {
       )}
 
       {/* ── Main Two-Column Container ── */}
-      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-12 py-8 lg:py-16 my-auto relative z-10">
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-12 py-6 lg:py-12 my-auto relative z-10">
+        {onNavigate && (
+          <div className="mb-4">
+            <button
+              onClick={() => onNavigate('/')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 hover:bg-white border border-[#10324E]/10 text-xs font-bold text-[#10324E] shadow-2xs transition-all cursor-pointer"
+            >
+              <span>← Back to Home</span>
+            </button>
+          </div>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
           
           {/* Left Column: Brand & Value Props (7 Cols on desktop) */}
