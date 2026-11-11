@@ -22,7 +22,6 @@ import com.pet.vetalya.repository.PetOwnerRepository;
 import com.pet.vetalya.repository.RefreshTokenRepository;
 import com.pet.vetalya.repository.UserAuthRepository;
 import com.pet.vetalya.repository.VetRepository;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -111,15 +110,16 @@ public class AuthController {
                     .body(Map.of("error", "missing_token", "message", "Refresh token is missing"));
         }
 
+        boolean isSecure = httpRequest != null && httpRequest.isSecure();
         try {
-            String ipAddress = httpRequest.getRemoteAddr();
+            String ipAddress = httpRequest != null ? httpRequest.getRemoteAddr() : "127.0.0.1";
             TokenService.RotationResult result = tokenService.rotateRefreshToken(rawToken, ipAddress);
 
             int expiresIn = appProperties.jwt().accessTokenExpiryMinutes() * 60;
 
             if (isWeb) {
                 // Set rotated refresh token back in HttpOnly cookie
-                ResponseCookie cookie = buildRefreshCookie(result.refreshToken(), appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, httpRequest.isSecure());
+                ResponseCookie cookie = buildRefreshCookie(result.refreshToken(), appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, isSecure);
                 httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
                 return ResponseEntity.ok(new TokenResponse(result.accessToken(), null, expiresIn, false, true));
             } else {
@@ -130,10 +130,11 @@ public class AuthController {
             log.warn("Refresh failed: {}", e.getMessage());
             // Clear cookie on failure
             if (isWeb) {
-                httpResponse.addHeader(HttpHeaders.SET_COOKIE, buildRefreshCookie("", 0, httpRequest.isSecure()).toString());
+                httpResponse.addHeader(HttpHeaders.SET_COOKIE, buildRefreshCookie("", 0, isSecure).toString());
             }
+            String errorMsg = (e.getMessage() != null && !e.getMessage().isBlank()) ? e.getMessage() : "Invalid refresh token";
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "invalid_token", "message", e.getMessage()));
+                    .body(Map.of("error", "invalid_token", "message", errorMsg));
         }
     }
 
@@ -177,7 +178,8 @@ public class AuthController {
                     .body(Map.of("error", "account_inactive", "message", "Account is " + user.getStatus().toLowerCase()));
         }
 
-        String ipAddress = httpRequest.getRemoteAddr();
+        String ipAddress = httpRequest != null ? httpRequest.getRemoteAddr() : "127.0.0.1";
+        boolean isSecure = httpRequest != null && httpRequest.isSecure();
         String accessToken = tokenService.createAccessToken(user);
         String refreshToken = tokenService.createRefreshToken(user, otc.getClientType(), request.deviceId(), ipAddress);
         int expiresIn = appProperties.jwt().accessTokenExpiryMinutes() * 60;
@@ -185,10 +187,10 @@ public class AuthController {
         // Set refresh token cookie on the active domain/proxy path
         ResponseCookie refreshCookie = ResponseCookie.from(REFRESH_COOKIE_NAME, refreshToken)
                 .httpOnly(true)
-                .secure(httpRequest.isSecure())
+                .secure(isSecure)
                 .path("/")
                 .maxAge(appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60)
-                .sameSite(httpRequest.isSecure() ? "None" : "Lax")
+                .sameSite(isSecure ? "None" : "Lax")
                 .build();
         httpResponse.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
@@ -219,14 +221,15 @@ public class AuthController {
         if ("VETERINARIAN".equalsIgnoreCase(role)) role = "ROLE_VET";
 
         try {
-            var userInfo = nativeTokenVerificationService.verifyGoogleToken(request.idToken());
-            String ipAddress = httpRequest.getRemoteAddr();
+            ProviderUserInfo userInfo = nativeTokenVerificationService.verifyGoogleToken(request.idToken());
+            String ipAddress = httpRequest != null ? httpRequest.getRemoteAddr() : "127.0.0.1";
+            boolean isSecure = httpRequest != null && httpRequest.isSecure();
 
             SocialLoginService.LoginResult result = socialLoginService.processLogin(
                     userInfo, role, "web", request.deviceId(), ipAddress);
 
             ResponseCookie cookie = buildRefreshCookie(result.refreshToken(),
-                    appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, httpRequest.isSecure());
+                    appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, isSecure);
             httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
             int expiresIn = appProperties.jwt().accessTokenExpiryMinutes() * 60;
@@ -265,8 +268,8 @@ public class AuthController {
 
         String role = request.role() != null ? request.role() : "ROLE_PET_OWNER";
         try {
-            var userInfo = nativeTokenVerificationService.verifyAppleToken(request.idToken(), request.name());
-            String ipAddress = httpRequest.getRemoteAddr();
+            ProviderUserInfo userInfo = nativeTokenVerificationService.verifyAppleToken(request.idToken(), request.name());
+            String ipAddress = httpRequest != null ? httpRequest.getRemoteAddr() : "127.0.0.1";
 
             SocialLoginService.LoginResult result = socialLoginService.processLogin(
                     userInfo, role, "ios", request.deviceId(), ipAddress);
@@ -307,13 +310,14 @@ public class AuthController {
         }
 
         // Clear refresh cookie for both "/" and legacy "/api/auth" paths
-        httpResponse.addHeader(HttpHeaders.SET_COOKIE, buildRefreshCookie("", 0, httpRequest.isSecure()).toString());
+        boolean isSecure = httpRequest != null && httpRequest.isSecure();
+        httpResponse.addHeader(HttpHeaders.SET_COOKIE, buildRefreshCookie("", 0, isSecure).toString());
         ResponseCookie legacyCookie = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
                 .httpOnly(true)
-                .secure(httpRequest.isSecure())
+                .secure(isSecure)
                 .path("/api/auth")
                 .maxAge(0)
-                .sameSite(httpRequest.isSecure() ? "None" : "Lax")
+                .sameSite(isSecure ? "None" : "Lax")
                 .build();
         httpResponse.addHeader(HttpHeaders.SET_COOKIE, legacyCookie.toString());
 
@@ -356,7 +360,8 @@ public class AuthController {
         refreshTokenRepo.revokeAllByUserId(userId);
 
         // Clear web cookie
-        httpResponse.addHeader(HttpHeaders.SET_COOKIE, buildRefreshCookie("", 0, httpRequest.isSecure()).toString());
+        boolean isSecure = httpRequest != null && httpRequest.isSecure();
+        httpResponse.addHeader(HttpHeaders.SET_COOKIE, buildRefreshCookie("", 0, isSecure).toString());
 
         log.info("User {} deleted account and all active tokens were invalidated", userId);
         return ResponseEntity.ok(Map.of("message", "Account successfully deleted and tokens revoked"));
@@ -408,16 +413,22 @@ public class AuthController {
             }
         }
 
-        String ipAddress = httpRequest.getRemoteAddr();
+        String ipAddress = httpRequest != null ? httpRequest.getRemoteAddr() : "127.0.0.1";
+        boolean isSecure = httpRequest != null && httpRequest.isSecure();
         String safeSub = "demo-" + normalizedRole.toLowerCase();
+
+        String trimmedName = name.trim();
+        int spaceIdx = trimmedName.indexOf(' ');
+        String firstName = spaceIdx > 0 ? trimmedName.substring(0, spaceIdx) : trimmedName;
+        String lastName = spaceIdx > 0 ? trimmedName.substring(spaceIdx + 1).trim() : "";
 
         ProviderUserInfo info = new ProviderUserInfo(
                 "GOOGLE",
                 safeSub,
                 email,
                 true,
-                name.contains(" ") ? name.substring(0, name.indexOf(' ')) : name,
-                name.contains(" ") ? name.substring(name.indexOf(' ') + 1) : "",
+                firstName,
+                lastName,
                 "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"
         );
 
@@ -426,7 +437,7 @@ public class AuthController {
                     info, normalizedRole, "web", null, ipAddress);
 
             ResponseCookie cookie = buildRefreshCookie(result.refreshToken(),
-                    appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, httpRequest.isSecure());
+                    appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, isSecure);
             httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
             Map<String, Object> userMap = new LinkedHashMap<>();
@@ -491,12 +502,13 @@ public class AuthController {
         user.setLastLoginAt(Instant.now());
         userAuthRepo.save(user);
 
-        String ipAddress = httpRequest.getRemoteAddr();
+        String ipAddress = httpRequest != null ? httpRequest.getRemoteAddr() : "127.0.0.1";
+        boolean isSecure = httpRequest != null && httpRequest.isSecure();
         String accessToken = tokenService.createAccessToken(user);
         String refreshToken = tokenService.createRefreshToken(user, "web", null, ipAddress);
 
         ResponseCookie cookie = buildRefreshCookie(refreshToken,
-                appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, httpRequest.isSecure());
+                appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, isSecure);
         httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
         Map<String, Object> userMap = getUserMap(user);
@@ -607,7 +619,9 @@ public class AuthController {
         String lastName = spaceIdx > 0 ? trimmedName.substring(spaceIdx + 1).trim() : "";
 
         ProviderUserInfo info = new ProviderUserInfo("GOOGLE", "reg-" + email, email, true, firstName, lastName, null);
-        SocialLoginService.LoginResult lr = socialLoginService.processLogin(info, role, "web", null, httpRequest.getRemoteAddr());
+        String ipAddress = httpRequest != null ? httpRequest.getRemoteAddr() : "127.0.0.1";
+        boolean isSecure = httpRequest != null && httpRequest.isSecure();
+        SocialLoginService.LoginResult lr = socialLoginService.processLogin(info, role, "web", null, ipAddress);
 
         String councilReg = (String) request.get("councilRegNumber");
         if (councilReg == null) councilReg = (String) request.get("registrationNo");
@@ -643,7 +657,7 @@ public class AuthController {
         }
 
         ResponseCookie cookie = buildRefreshCookie(lr.refreshToken(),
-                appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, httpRequest.isSecure());
+                appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, isSecure);
         httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
         Map<String, Object> userMap = getUserMap(user);
@@ -776,12 +790,13 @@ public class AuthController {
         user.setLastLoginAt(Instant.now());
         userAuthRepo.save(user);
 
-        String ipAddress = httpRequest.getRemoteAddr();
+        String ipAddress = httpRequest != null ? httpRequest.getRemoteAddr() : "127.0.0.1";
+        boolean isSecure = httpRequest != null && httpRequest.isSecure();
         String accessToken = tokenService.createAccessToken(user);
         String refreshToken = tokenService.createRefreshToken(user, "web", null, ipAddress);
 
         ResponseCookie cookie = buildRefreshCookie(refreshToken,
-                appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, httpRequest.isSecure());
+                appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, isSecure);
         httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
         Map<String, Object> userMap = getUserMap(user);
