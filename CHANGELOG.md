@@ -16,6 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.2] - 2026-11-11
+
+### Documentation & Infrastructure
+- **Comprehensive Fullstack Platform Documentation**:
+  - Overhauled root `README.md` and added dedicated backend guide detailing fullstack architecture, React 19 frontend, and Spring Boot 3.4.1 backend.
+  - Documented cloud database architecture using **Supabase** (PostgreSQL 15+) with PgBouncer connection pooling on port 6543, SSL mode requirements, and automated Flyway migrations (V1 through V9).
+  - Documented dual cloud deployment on **Render** using Docker multi-stage containers for backend and static site hosting for frontend via `render.yaml` blueprint.
+  - Documented 24/7 automated keepalive and uptime monitoring via **[UptimeRobot](https://dashboard.uptimerobot.com/monitors)** pinging `/actuator/health` every 5 minutes to prevent Render free-tier cold boot delays and ensure 99.9% availability.
+  - Documented telephony and multi-channel messaging integrations (Meta WhatsApp Cloud API v21.0, Fast2SMS India, and Brevo REST API).
+- **Synchronized Backend Source & Documentation**:
+  - Maintained 100% parity between standalone `vetalya-backend` and monorepo `vetalya-fullstack/Vetalya_backend/vetalya-backend`.
+
+---
+
 ## [0.2.1] - 2026-11-11
 
 ### Performance & UX Improvements
