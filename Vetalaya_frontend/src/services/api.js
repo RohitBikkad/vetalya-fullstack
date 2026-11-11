@@ -9,9 +9,9 @@ const getApiBaseUrl = () => {
     return envUrl;
   }
   if (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com')) {
-    return 'https://vetalaya-v2-1.onrender.com/api';
+    return 'https://vetalya-fullstack.onrender.com/api';
   }
-  return envUrl || 'https://vetalaya-v2-1.onrender.com/api';
+  return envUrl || 'https://vetalya-fullstack.onrender.com/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
