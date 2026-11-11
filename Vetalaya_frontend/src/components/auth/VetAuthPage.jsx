@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Stethoscope,
   Mail,
@@ -14,14 +14,19 @@ import {
   CheckCircle2,
   AlertCircle,
   ShieldCheck,
-  FileCheck
+  FileCheck,
+  KeyRound,
+  RefreshCw,
+  Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { sendOtpApi, verifyOtpApi } from '../../services/api';
 import VetalyaBrandLogo from './VetalyaBrandLogo';
 
 export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
   const { login, signup, isLoading } = useAuth();
   const [mode, setMode] = useState(initialMode); // 'login' | 'register'
+  const [step, setStep] = useState('form'); // 'form' | 'otp_verify'
 
   // Form Fields
   const [vetName, setVetName] = useState('');
@@ -37,13 +42,35 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
   const [showPassword, setShowPassword] = useState(false);
   const [agreeDeclaration, setAgreeDeclaration] = useState(false);
 
+  // OTP Verification States
+  const [emailOtp, setEmailOtp] = useState('');
+  const [phoneOtp, setPhoneOtp] = useState('');
+  const [emailDevOtp, setEmailDevOtp] = useState(null);
+  const [phoneDevOtp, setPhoneDevOtp] = useState(null);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+
   // Status & Error
   const [error, setError] = useState(null);
+  const [successNotice, setSuccessNotice] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e) => {
+  // Countdown timer for OTP resend
+  useEffect(() => {
+    let interval;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => Math.max(0, prev - 1));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
+  // Handle Initial Form Submission (Login OR Step 1 of Registration)
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setSuccessNotice(null);
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email.trim() || !emailRegex.test(email.trim())) {
@@ -56,56 +83,134 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
       return;
     }
 
-    if (mode === 'register') {
-      if (!vetName.trim()) {
-        setError('Please enter your full name with professional title.');
-        return;
+    if (mode === 'login') {
+      setIsSubmitting(true);
+      try {
+        await login(email.trim(), password, true);
+      } catch (err) {
+        setError(err.message || 'Authentication failed. Please verify your doctor credentials.');
+      } finally {
+        setIsSubmitting(false);
       }
-      if (!phone.trim() || phone.trim().length < 10) {
-        setError('Please enter a valid 10-digit contact mobile number.');
-        return;
-      }
-      if (!councilRegNo.trim()) {
-        setError('Please provide your State Veterinary Council Registration Number.');
-        return;
-      }
-      if (!clinicName.trim()) {
-        setError('Please enter your primary hospital or clinic name.');
-        return;
-      }
-      if (password !== confirmPassword) {
-        setError('Passwords do not match.');
-        return;
-      }
-      if (!agreeDeclaration) {
-        setError('Please confirm the statutory Veterinary Council declaration.');
-        return;
-      }
+      return;
+    }
+
+    // Mode is 'register': Validate all clinical registration fields
+    if (!vetName.trim()) {
+      setError('Please enter your full name with professional title.');
+      return;
+    }
+    if (!phone.trim() || phone.trim().replace(/\D/g, '').length < 10) {
+      setError('Please enter a valid 10-digit contact mobile number.');
+      return;
+    }
+    if (!councilRegNo.trim()) {
+      setError('Please provide your State Veterinary Council Registration Number.');
+      return;
+    }
+    if (!clinicName.trim()) {
+      setError('Please enter your primary hospital or clinic name.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    if (!agreeDeclaration) {
+      setError('Please confirm the statutory Veterinary Council declaration.');
+      return;
+    }
+
+    // Form inputs valid -> Dispatch verification OTP to both Email and Phone
+    setIsSendingOtp(true);
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanPhone = phone.trim();
+
+      const [emailRes, phoneRes] = await Promise.all([
+        sendOtpApi(cleanEmail, 'REGISTRATION'),
+        sendOtpApi(cleanPhone, 'REGISTRATION'),
+      ]);
+
+      if (emailRes.devOtp) setEmailDevOtp(emailRes.devOtp);
+      if (phoneRes.devOtp) setPhoneDevOtp(phoneRes.devOtp);
+
+      setEmailOtp('');
+      setPhoneOtp('');
+      setResendTimer(60);
+      setStep('otp_verify');
+      setSuccessNotice(`6-digit verification codes sent to ${cleanEmail} and ${cleanPhone}!`);
+    } catch (err) {
+      setError(err.message || 'Failed to dispatch verification OTPs. Please check your credentials.');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  // Complete Registration with verified OTPs (Step 2)
+  const handleCompleteRegistration = async (e) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!emailOtp || emailOtp.trim().length !== 6) {
+      setError('Please enter the 6-digit OTP code sent to your official email.');
+      return;
+    }
+    if (!phoneOtp || phoneOtp.trim().length !== 6) {
+      setError('Please enter the 6-digit OTP code sent to your contact mobile phone.');
+      return;
     }
 
     setIsSubmitting(true);
     try {
-      if (mode === 'login') {
-        await login(email.trim(), password, true);
-      } else {
-        const fullDoctorName = vetName.trim().startsWith('Dr.') ? vetName.trim() : `Dr. ${vetName.trim()}`;
-        await signup({
-          fullName: fullDoctorName,
-          email: email.trim().toLowerCase(),
-          phone: phone.trim(),
-          password,
-          role: 'ROLE_VET',
-          councilRegNumber: councilRegNo.trim(),
-          councilState,
-          degree,
-          clinicName: clinicName.trim(),
-          city: city.trim() || 'Bengaluru',
-        });
-      }
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanPhone = phone.trim();
+      const fullDoctorName = vetName.trim().startsWith('Dr.') ? vetName.trim() : `Dr. ${vetName.trim()}`;
+
+      await signup({
+        fullName: fullDoctorName,
+        email: cleanEmail,
+        phone: cleanPhone,
+        password,
+        role: 'ROLE_VET',
+        councilRegNumber: councilRegNo.trim(),
+        councilState,
+        qualification: degree,
+        degree,
+        clinicName: clinicName.trim() || 'Independent Clinic',
+        city: city.trim() || 'Bengaluru',
+        emailOtp: emailOtp.trim(),
+        phoneOtp: phoneOtp.trim(),
+      });
+
+      setSuccessNotice('Veterinarian registration submitted successfully! Redirecting...');
     } catch (err) {
-      setError(err.message || 'Authentication failed. Please verify your credentials.');
+      setError(err.message || 'Registration failed. Please verify your OTP codes.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Resend OTP handler
+  const handleResendOtp = async () => {
+    if (resendTimer > 0) return;
+    setError(null);
+    setIsSendingOtp(true);
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanPhone = phone.trim();
+      const [emailRes, phoneRes] = await Promise.all([
+        sendOtpApi(cleanEmail, 'REGISTRATION'),
+        sendOtpApi(cleanPhone, 'REGISTRATION'),
+      ]);
+      if (emailRes.devOtp) setEmailDevOtp(emailRes.devOtp);
+      if (phoneRes.devOtp) setPhoneDevOtp(phoneRes.devOtp);
+      setResendTimer(60);
+      setSuccessNotice('New verification codes dispatched!');
+    } catch (err) {
+      setError(err.message || 'Failed to resend OTP codes.');
+    } finally {
+      setIsSendingOtp(false);
     }
   };
 
@@ -113,6 +218,12 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
   const handleFillDemoVet = () => {
     setEmail('dr.priya@vetalya.com');
     setPassword('Priya@Vetalya2026!');
+  };
+
+  // Quick helper to auto-fill dev OTPs if available
+  const handleAutoFillDevOtp = () => {
+    if (emailDevOtp) setEmailOtp(emailDevOtp);
+    if (phoneDevOtp) setPhoneOtp(phoneDevOtp);
   };
 
   return (
@@ -152,40 +263,48 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
               <span>Veterinarian Clinical Desk</span>
             </div>
             <h1 className="text-2xl font-black text-[#10324E] tracking-tight">
-              {mode === 'login' ? 'Doctor OPD Login' : 'Register Clinic Practice'}
+              {mode === 'login'
+                ? 'Doctor OPD Login'
+                : step === 'form'
+                ? 'Register Clinic Practice'
+                : 'Verify Doctor Credentials'}
             </h1>
             <p className="text-xs text-[#242826]/70 leading-relaxed">
               {mode === 'login'
                 ? 'Sign in to access patient health timelines, digital Rx builder, and OPD consultation desk.'
-                : 'Verified practitioner registration. Requires State Council Registration Number for audit compliance.'}
+                : step === 'form'
+                ? 'Verified practitioner registration. Requires State Council Registration Number for audit compliance.'
+                : 'Enter the 6-digit verification codes sent to your official email and contact mobile number.'}
             </p>
           </div>
 
-          {/* Mode Switcher Pills */}
-          <div className="flex p-1 bg-[#F5F2EB] rounded-2xl">
-            <button
-              type="button"
-              onClick={() => { setMode('login'); setError(null); }}
-              className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                mode === 'login'
-                  ? 'bg-white text-[#10324E] shadow-2xs'
-                  : 'text-[#242826]/60 hover:text-[#10324E]'
-              }`}
-            >
-              Log in
-            </button>
-            <button
-              type="button"
-              onClick={() => { setMode('register'); setError(null); }}
-              className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                mode === 'register'
-                  ? 'bg-white text-[#10324E] shadow-2xs'
-                  : 'text-[#242826]/60 hover:text-[#10324E]'
-              }`}
-            >
-              Sign up
-            </button>
-          </div>
+          {/* Mode Switcher Pills (Only shown on initial form step) */}
+          {step === 'form' && (
+            <div className="flex p-1 bg-[#F5F2EB] rounded-2xl">
+              <button
+                type="button"
+                onClick={() => { setMode('login'); setError(null); setSuccessNotice(null); }}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  mode === 'login'
+                    ? 'bg-white text-[#10324E] shadow-2xs'
+                    : 'text-[#242826]/60 hover:text-[#10324E]'
+                }`}
+              >
+                Log in
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMode('register'); setError(null); setSuccessNotice(null); }}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  mode === 'register'
+                    ? 'bg-white text-[#10324E] shadow-2xs'
+                    : 'text-[#242826]/60 hover:text-[#10324E]'
+                }`}
+              >
+                Sign up
+              </button>
+            </div>
+          )}
 
           {/* Quick Doctor Seed Banner (Login Mode Only) */}
           {mode === 'login' && (
@@ -204,211 +323,318 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
             </div>
           )}
 
-          {/* Error Notice */}
+          {/* Alert Notices */}
           {error && (
-            <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+            <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2 animate-in fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
               <span>{error}</span>
             </div>
           )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            
-            {mode === 'register' && (
-              <>
-                <div>
-                  <label className="block text-[11px] font-bold text-[#10324E] mb-1">Doctor Full Name</label>
-                  <div className="relative">
-                    <User className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
-                    <input
-                      type="text"
-                      value={vetName}
-                      onChange={(e) => setVetName(e.target.value)}
-                      placeholder="Dr. Priya Sharma"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none focus:border-[#10324E] transition-colors"
-                      required
-                    />
-                  </div>
-                </div>
+          {successNotice && (
+            <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
+              <span>{successNotice}</span>
+            </div>
+          )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* ── STEP 1: Main Form (Login OR Initial Registration) ── */}
+          {step === 'form' ? (
+            <form onSubmit={handleFormSubmit} className="space-y-4">
+              
+              {mode === 'register' && (
+                <>
                   <div>
-                    <label className="block text-[11px] font-bold text-[#10324E] mb-1">Council Registration No.</label>
+                    <label className="block text-[11px] font-bold text-[#10324E] mb-1">Doctor Full Name</label>
                     <div className="relative">
-                      <Award className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
+                      <User className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
                       <input
                         type="text"
-                        value={councilRegNo}
-                        onChange={(e) => setCouncilRegNo(e.target.value)}
-                        placeholder="e.g. KVC-2022-8192"
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none"
+                        value={vetName}
+                        onChange={(e) => setVetName(e.target.value)}
+                        placeholder="Dr. Priya Sharma"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none focus:border-[#10324E] transition-colors"
                         required
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-[11px] font-bold text-[#10324E] mb-1">State Council</label>
-                    <select
-                      value={councilState}
-                      onChange={(e) => setCouncilState(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none"
-                    >
-                      <option value="Karnataka Veterinary Council (KVC)">Karnataka (KVC)</option>
-                      <option value="Maharashtra Veterinary Council (MVC)">Maharashtra (MVC)</option>
-                      <option value="Delhi Veterinary Council (DVC)">Delhi (DVC)</option>
-                      <option value="Tamil Nadu Veterinary Council (TNVC)">Tamil Nadu (TNVC)</option>
-                      <option value="Veterinary Council of India (VCI)">Other / VCI Direct</option>
-                    </select>
-                  </div>
-                </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#10324E] mb-1">Council Registration No.</label>
+                      <div className="relative">
+                        <Award className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
+                        <input
+                          type="text"
+                          value={councilRegNo}
+                          onChange={(e) => setCouncilRegNo(e.target.value)}
+                          placeholder="e.g. KVC-2022-8192"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none"
+                          required
+                        />
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-[#10324E] mb-1">Primary Degree</label>
-                    <select
-                      value={degree}
-                      onChange={(e) => setDegree(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none"
-                    >
-                      <option value="BVSc & AH">BVSc &amp; AH</option>
-                      <option value="MVSc Surgery">MVSc (Surgery)</option>
-                      <option value="MVSc Medicine">MVSc (Medicine)</option>
-                      <option value="PhD Veterinary">PhD Veterinary Sciences</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-[#10324E] mb-1">Contact Phone (+91)</label>
-                    <div className="relative">
-                      <Phone className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
-                      <input
-                        type="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="98450 12345"
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none"
-                        required
-                      />
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#10324E] mb-1">State Council</label>
+                      <select
+                        value={councilState}
+                        onChange={(e) => setCouncilState(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none"
+                      >
+                        <option value="Karnataka Veterinary Council (KVC)">Karnataka (KVC)</option>
+                        <option value="Maharashtra Veterinary Council (MVC)">Maharashtra (MVC)</option>
+                        <option value="Delhi Veterinary Council (DVC)">Delhi (DVC)</option>
+                        <option value="Tamil Nadu Veterinary Council (TNVC)">Tamil Nadu (TNVC)</option>
+                        <option value="Veterinary Council of India (VCI)">Other / VCI Direct</option>
+                      </select>
                     </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-[#10324E] mb-1">Hospital / Clinic Name</label>
-                    <div className="relative">
-                      <Building2 className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#10324E] mb-1">Primary Degree</label>
+                      <select
+                        value={degree}
+                        onChange={(e) => setDegree(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none"
+                      >
+                        <option value="BVSc & AH">BVSc &amp; AH</option>
+                        <option value="MVSc Surgery">MVSc (Surgery)</option>
+                        <option value="MVSc Medicine">MVSc (Medicine)</option>
+                        <option value="PhD Veterinary">PhD Veterinary Sciences</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#10324E] mb-1">Contact Phone (+91)</label>
+                      <div className="relative">
+                        <Phone className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
+                        <input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="98450 12345"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#10324E] mb-1">Hospital / Clinic Name</label>
+                      <div className="relative">
+                        <Building2 className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
+                        <input
+                          type="text"
+                          value={clinicName}
+                          onChange={(e) => setClinicName(e.target.value)}
+                          placeholder="e.g. Companion Hospital"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#10324E] mb-1">City</label>
                       <input
                         type="text"
-                        value={clinicName}
-                        onChange={(e) => setClinicName(e.target.value)}
-                        placeholder="e.g. Companion Hospital"
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        placeholder="e.g. Bengaluru"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none"
                         required
                       />
                     </div>
                   </div>
+                </>
+              )}
 
-                  <div>
-                    <label className="block text-[11px] font-bold text-[#10324E] mb-1">City</label>
-                    <input
-                      type="text"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      placeholder="e.g. Bengaluru"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none"
-                      required
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-
-            <div>
-              <label className="block text-[11px] font-bold text-[#10324E] mb-1">
-                {mode === 'login' ? 'Doctor Email or Mobile' : 'Official Email Address'}
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
-                <input
-                  type="text"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="doctor@hospital.in"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none focus:border-[#10324E] transition-colors"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-[#10324E] mb-1">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none focus:border-[#10324E] transition-colors"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-3 text-[#242826]/40 hover:text-[#10324E] cursor-pointer"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            {mode === 'register' && (
               <div>
-                <label className="block text-[11px] font-bold text-[#10324E] mb-1">Confirm Password</label>
+                <label className="block text-[11px] font-bold text-[#10324E] mb-1">
+                  {mode === 'login' ? 'Doctor Email or Mobile' : 'Official Email Address'}
+                </label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
+                  <Mail className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
                   <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none"
+                    type="text"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="doctor@hospital.in"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none focus:border-[#10324E] transition-colors"
                     required
                   />
                 </div>
               </div>
-            )}
 
-            {mode === 'register' && (
-              <label className="flex items-start gap-2 pt-1 text-[11px] text-[#242826]/75 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={agreeDeclaration}
-                  onChange={(e) => setAgreeDeclaration(e.target.checked)}
-                  className="mt-0.5 rounded border-slate-300 text-[#10324E] focus:ring-0"
-                />
-                <span>I affirm that I am a registered veterinary practitioner compliant with VCI / State Council regulations.</span>
-              </label>
-            )}
+              <div>
+                <label className="block text-[11px] font-bold text-[#10324E] mb-1">Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none focus:border-[#10324E] transition-colors"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-3 text-[#242826]/40 hover:text-[#10324E] cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
 
-            <button
-              type="submit"
-              disabled={isSubmitting || isLoading}
-              className="w-full py-3.5 rounded-2xl bg-[#10324E] hover:bg-[#0c273e] text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
-            >
-              {isSubmitting ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <span>{mode === 'login' ? 'Sign In to OPD Desk' : 'Submit Registration for Verification'}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
+              {mode === 'register' && (
+                <div>
+                  <label className="block text-[11px] font-bold text-[#10324E] mb-1">Confirm Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs focus:outline-none"
+                      required
+                    />
+                  </div>
+                </div>
               )}
-            </button>
-          </form>
+
+              {mode === 'register' && (
+                <label className="flex items-start gap-2 pt-1 text-[11px] text-[#242826]/75 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={agreeDeclaration}
+                    onChange={(e) => setAgreeDeclaration(e.target.checked)}
+                    className="mt-0.5 rounded border-slate-300 text-[#10324E] focus:ring-0"
+                  />
+                  <span>I affirm that I am a registered veterinary practitioner compliant with VCI / State Council regulations.</span>
+                </label>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSubmitting || isLoading || isSendingOtp}
+                className="w-full py-3.5 rounded-2xl bg-[#10324E] hover:bg-[#0c273e] text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isSubmitting || isSendingOtp ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span>{mode === 'login' ? 'Sign In to OPD Desk' : 'Proceed to Verification (Send OTP) →'}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+          ) : (
+            /* ── STEP 2: Dual OTP Verification Screen ── */
+            <form onSubmit={handleCompleteRegistration} className="space-y-4 animate-in fade-in">
+              <div className="flex items-center justify-between pb-2 border-b border-[#10324E]/8">
+                <button
+                  type="button"
+                  onClick={() => { setStep('form'); setError(null); }}
+                  className="flex items-center gap-1 text-xs font-bold text-[#10324E] hover:underline cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back to Edit Details</span>
+                </button>
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-50 text-[#10324E] border border-blue-200">
+                  Step 2 of 2
+                </span>
+              </div>
+
+              {/* Dev Helper Callout (If dev OTPs are provided) */}
+              {(emailDevOtp || phoneDevOtp) && (
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between">
+                  <div className="space-y-0.5 text-[11px]">
+                    <span className="font-bold block">Development Test OTPs:</span>
+                    <span>Email OTP: <strong>{emailDevOtp || '123456'}</strong> • Phone OTP: <strong>{phoneDevOtp || '123456'}</strong></span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAutoFillDevOtp}
+                    className="px-2.5 py-1 rounded-lg bg-amber-600 text-white font-bold text-[10px] cursor-pointer hover:bg-amber-700"
+                  >
+                    Auto-fill
+                  </button>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[11px] font-bold text-[#10324E] mb-1">
+                  6-Digit OTP sent to Email: <span className="text-[#2D8A7A]">{email}</span>
+                </label>
+                <div className="relative">
+                  <KeyRound className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={emailOtp}
+                    onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Enter 6-digit code"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs font-mono font-bold tracking-widest text-[#10324E] focus:outline-none focus:border-[#10324E]"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-[#10324E] mb-1">
+                  6-Digit OTP sent to Mobile: <span className="text-[#2D8A7A]">{phone}</span>
+                </label>
+                <div className="relative">
+                  <KeyRound className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={phoneOtp}
+                    onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Enter 6-digit code"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs font-mono font-bold tracking-widest text-[#10324E] focus:outline-none focus:border-[#10324E]"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-xs pt-1">
+                <span className="text-[#242826]/60">Didn't receive codes?</span>
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={resendTimer > 0 || isSendingOtp}
+                  className="font-bold text-[#10324E] hover:underline disabled:opacity-40 cursor-pointer flex items-center gap-1"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isSendingOtp ? 'animate-spin' : ''}`} />
+                  <span>{resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend OTPs'}</span>
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting || isLoading}
+                className="w-full py-3.5 rounded-2xl bg-[#10324E] hover:bg-[#0c273e] text-white font-extrabold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>Verify Codes &amp; Register Clinic</span>
+                  </>
+                )}
+              </button>
+            </form>
+          )}
 
           {/* Quick Role Switcher Footer */}
           <div className="pt-2 text-center text-[11px] text-[#242826]/60">
