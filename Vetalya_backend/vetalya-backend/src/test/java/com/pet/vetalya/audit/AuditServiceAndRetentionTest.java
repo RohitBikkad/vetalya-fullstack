@@ -10,12 +10,9 @@ import com.pet.vetalya.scheduling.ReusableJobRunner;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.data.domain.Pageable;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -42,10 +39,10 @@ class AuditServiceAndRetentionTest {
                 directExecutor,
                 appMetrics,
                 new ObjectMapper(),
-                "127.0.0.1"
-        );
+                "127.0.0.1");
 
-        // Crucial requirement: AuditService must NEVER throw an exception back to caller
+        // Crucial requirement: AuditService must NEVER throw an exception back to
+        // caller
         assertThatCode(() -> auditService.recordEvent(
                 "APPOINTMENT_STATUS_CHANGED",
                 "user_123",
@@ -57,8 +54,7 @@ class AuditServiceAndRetentionTest {
                 "device_abc",
                 "192.168.1.1",
                 "Mozilla/5.0",
-                Map.of("appointmentId", "apt_001")
-        )).doesNotThrowAnyException();
+                Map.of("appointmentId", "apt_001"))).doesNotThrowAnyException();
 
         // Metric must count the failed audit write
         double failedWrites = meterRegistry.counter("audit.write.failed", "reason", "db_error").count();
@@ -74,7 +70,8 @@ class AuditServiceAndRetentionTest {
 
         AuditRetentionJob retentionJob = new AuditRetentionJob(repo, runner, 180, 500);
 
-        // Simulate that there are 3 old IDs older than 180 days on first fetch, and none on second
+        // Simulate that there are 3 old IDs older than 180 days on first fetch, and
+        // none on second
         List<Long> expiredIds = List.of(101L, 102L, 103L);
         when(repo.findIdsOlderThan(any(Instant.class), any(Pageable.class)))
                 .thenReturn(expiredIds)
@@ -88,4 +85,3 @@ class AuditServiceAndRetentionTest {
         verify(repo, times(1)).deleteByIdIn(expiredIds);
     }
 }
-

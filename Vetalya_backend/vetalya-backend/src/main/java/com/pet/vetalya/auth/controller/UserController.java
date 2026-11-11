@@ -1,8 +1,6 @@
 package com.pet.vetalya.auth.controller;
 
-import com.pet.vetalya.entity.PetOwner;
 import com.pet.vetalya.entity.UserAuth;
-import com.pet.vetalya.entity.Vet;
 import com.pet.vetalya.repository.PetOwnerRepository;
 import com.pet.vetalya.repository.UserAuthRepository;
 import com.pet.vetalya.repository.VetRepository;
@@ -26,8 +24,8 @@ public class UserController {
     private final VetRepository vetRepo;
 
     public UserController(UserAuthRepository userAuthRepo,
-                          PetOwnerRepository petOwnerRepo,
-                          VetRepository vetRepo) {
+            PetOwnerRepository petOwnerRepo,
+            VetRepository vetRepo) {
         this.userAuthRepo = userAuthRepo;
         this.petOwnerRepo = petOwnerRepo;
         this.vetRepo = vetRepo;
@@ -55,14 +53,16 @@ public class UserController {
             vetRepo.findById(userId).ifPresent(v -> {
                 profile.put("firstName", v.getFirstName());
                 profile.put("lastName", v.getLastName());
-                profile.put("fullName", ((v.getFirstName() != null ? v.getFirstName() : "") + " " + (v.getLastName() != null ? v.getLastName() : "")).trim());
+                profile.put("fullName", ((v.getFirstName() != null ? v.getFirstName() : "") + " "
+                        + (v.getLastName() != null ? v.getLastName() : "")).trim());
                 profile.put("avatar", v.getPhotoUrl());
             });
         } else {
             petOwnerRepo.findById(userId).ifPresent(po -> {
                 profile.put("firstName", po.getFirstName());
                 profile.put("lastName", po.getLastName());
-                profile.put("fullName", ((po.getFirstName() != null ? po.getFirstName() : "") + " " + (po.getLastName() != null ? po.getLastName() : "")).trim());
+                profile.put("fullName", ((po.getFirstName() != null ? po.getFirstName() : "") + " "
+                        + (po.getLastName() != null ? po.getLastName() : "")).trim());
             });
         }
 
@@ -76,8 +76,7 @@ public class UserController {
         }
         return ResponseEntity.ok(Map.of(
                 "module", "Vetalya Clinical OPD Desk",
-                "message", "Authorized access granted to clinical records and prescriptions."
-        ));
+                "message", "Authorized access granted to clinical records and prescriptions."));
     }
 
     @GetMapping("/admin-portal")
@@ -87,8 +86,6 @@ public class UserController {
         }
         return ResponseEntity.ok(Map.of(
                 "module", "Vetalya Platform Compliance & Verification",
-                "message", "Authorized access granted to council verification registry."
-        ));
+                "message", "Authorized access granted to council verification registry."));
     }
 }
-

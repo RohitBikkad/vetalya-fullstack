@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class VetSearchService {
@@ -22,9 +21,9 @@ public class VetSearchService {
     private final com.pet.vetalya.repository.UserAuthRepository userAuthRepo;
 
     public VetSearchService(VetRepository vetRepo,
-                            HospitalRepository hospitalRepo,
-                            ReviewRepository reviewRepo,
-                            com.pet.vetalya.repository.UserAuthRepository userAuthRepo) {
+            HospitalRepository hospitalRepo,
+            ReviewRepository reviewRepo,
+            com.pet.vetalya.repository.UserAuthRepository userAuthRepo) {
         this.vetRepo = vetRepo;
         this.hospitalRepo = hospitalRepo;
         this.reviewRepo = reviewRepo;
@@ -32,7 +31,8 @@ public class VetSearchService {
     }
 
     /**
-     * Search verified vets. Sort: same pincode first, then nearest pincode, then highest avg rating.
+     * Search verified vets. Sort: same pincode first, then nearest pincode, then
+     * highest avg rating.
      */
     @Transactional(readOnly = true)
     public List<VetSearchResult> search(String pincode) {
@@ -62,13 +62,13 @@ public class VetSearchService {
         Map<String, double[]> ratingMap = new HashMap<>(); // userId -> [avgRating, count]
         List<Object[]> ratingData = reviewRepo.avgRatingAndCountForVets(vetUserIds);
         for (Object[] row : ratingData) {
-            ratingMap.put((String) row[0], new double[]{(double) row[1], ((long) row[2])});
+            ratingMap.put((String) row[0], new double[] { (double) row[1], ((long) row[2]) });
         }
 
         // Build results
         List<VetSearchResult> results = new ArrayList<>();
         for (Vet vet : verifiedVets) {
-            double[] rc = ratingMap.getOrDefault(vet.getUserId(), new double[]{0, 0});
+            double[] rc = ratingMap.getOrDefault(vet.getUserId(), new double[] { 0, 0 });
             List<Hospital> hospitals = hospitalsByVet.getOrDefault(vet.getUserId(), List.of());
 
             List<VetSearchResult.HospitalSummary> hospitalSummaries = hospitals.stream()
@@ -83,7 +83,8 @@ public class VetSearchService {
                     Math.round(rc[0] * 10.0) / 10.0, (long) rc[1], hospitalSummaries));
         }
 
-        // Sort: same pincode first, then numerically nearest pincode, then highest avg rating
+        // Sort: same pincode first, then numerically nearest pincode, then highest avg
+        // rating
         if (pincode != null && !pincode.isBlank()) {
             int searchPincode = parsePincode(pincode);
             results.sort((a, b) -> {
@@ -91,7 +92,8 @@ public class VetSearchService {
                 int pinB = closestPincode(b.hospitals(), searchPincode);
                 int distA = Math.abs(pinA - searchPincode);
                 int distB = Math.abs(pinB - searchPincode);
-                if (distA != distB) return Integer.compare(distA, distB);
+                if (distA != distB)
+                    return Integer.compare(distA, distB);
                 return Double.compare(b.averageRating(), a.averageRating()); // higher rating first
             });
         } else {
@@ -144,11 +146,15 @@ public class VetSearchService {
     }
 
     private int closestPincode(List<VetSearchResult.HospitalSummary> hospitals, int target) {
-        if (hospitals.isEmpty()) return Integer.MAX_VALUE;
+        if (hospitals.isEmpty())
+            return Integer.MAX_VALUE;
         return hospitals.stream()
                 .mapToInt(h -> {
-                    try { return Integer.parseInt(h.pincode()); }
-                    catch (NumberFormatException e) { return Integer.MAX_VALUE; }
+                    try {
+                        return Integer.parseInt(h.pincode());
+                    } catch (NumberFormatException e) {
+                        return Integer.MAX_VALUE;
+                    }
                 })
                 .min()
                 .orElse(Integer.MAX_VALUE);

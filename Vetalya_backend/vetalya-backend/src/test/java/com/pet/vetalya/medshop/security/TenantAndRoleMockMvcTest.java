@@ -14,7 +14,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -32,7 +31,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = {InvoiceController.class, ReportController.class, GstReturnController.class})
+@WebMvcTest(controllers = { InvoiceController.class, ReportController.class, GstReturnController.class })
 @EnableMethodSecurity
 class TenantAndRoleMockMvcTest {
 
@@ -68,8 +67,8 @@ class TenantAndRoleMockMvcTest {
     @DisplayName("Owner can access profit report -> 200 OK")
     void testOwnerCanAccessProfitReport() throws Exception {
         when(reportService.getProfitReport(any(), any())).thenReturn(
-                new ProfitReportResponse(LocalDate.now(), LocalDate.now(), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO)
-        );
+                new ProfitReportResponse(LocalDate.now(), LocalDate.now(), BigDecimal.ZERO, BigDecimal.ZERO,
+                        BigDecimal.ZERO, BigDecimal.ZERO));
 
         mockMvc.perform(get("/api/store/reports/profit")
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_OWNER"))))
@@ -82,8 +81,8 @@ class TenantAndRoleMockMvcTest {
         mockMvc.perform(post("/api/store/invoices/inv-1/cancel")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"reason": "Customer returned medicines"}
-                """)
+                            {"reason": "Customer returned medicines"}
+                        """)
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CASHIER"))))
                 .andExpect(status().isForbidden());
     }
@@ -94,14 +93,13 @@ class TenantAndRoleMockMvcTest {
         when(billingService.cancelInvoice(eq("inv-1"), any())).thenReturn(
                 new InvoiceResponse("inv-1", "INV/26-27/000001", LocalDate.now(), null, null, null, null, null,
                         BigDecimal.TEN, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.TEN,
-                        null, null, null, null, java.util.List.of())
-        );
+                        null, null, null, null, java.util.List.of()));
 
         mockMvc.perform(post("/api/store/invoices/inv-1/cancel")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"reason": "Customer returned medicines"}
-                """)
+                            {"reason": "Customer returned medicines"}
+                        """)
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_MANAGER"))))
                 .andExpect(status().isOk());
     }
@@ -112,8 +110,8 @@ class TenantAndRoleMockMvcTest {
         mockMvc.perform(post("/api/store/gst/returns/generate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"returnMonth": 11, "returnYear": 2026, "returnType": "GSTR1"}
-                """)
+                            {"returnMonth": 11, "returnYear": 2026, "returnType": "GSTR1"}
+                        """)
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CASHIER"))))
                 .andExpect(status().isForbidden());
     }
@@ -124,8 +122,8 @@ class TenantAndRoleMockMvcTest {
         mockMvc.perform(post("/api/store/gst/returns/gr-1/mark-filed")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"filedRefNumber": "ARN1234567890"}
-                """)
+                            {"filedRefNumber": "ARN1234567890"}
+                        """)
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_MANAGER"))))
                 .andExpect(status().isForbidden());
     }
@@ -136,16 +134,14 @@ class TenantAndRoleMockMvcTest {
         when(gstReturnService.markFiled(eq("gr-1"), any())).thenReturn(
                 new GstReturnResponse("gr-1", "tenant-1", 11, 2026, GstReturn.Type.GSTR1,
                         BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
-                        GstReturn.Status.FILED, "ARN1234567890", java.time.Instant.now())
-        );
+                        GstReturn.Status.FILED, "ARN1234567890", java.time.Instant.now()));
 
         mockMvc.perform(post("/api/store/gst/returns/gr-1/mark-filed")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"filedRefNumber": "ARN1234567890"}
-                """)
+                            {"filedRefNumber": "ARN1234567890"}
+                        """)
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_OWNER"))))
                 .andExpect(status().isOk());
     }
 }
-

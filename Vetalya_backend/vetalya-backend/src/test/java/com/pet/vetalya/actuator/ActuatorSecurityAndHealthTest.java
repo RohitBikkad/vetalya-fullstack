@@ -1,14 +1,11 @@
 package com.pet.vetalya.actuator;
 
-import com.pet.vetalya.config.ActuatorSecurityConfig;
-import com.pet.vetalya.config.AppProperties;
 import com.pet.vetalya.health.DatabaseHealthIndicator;
 import com.pet.vetalya.health.ReminderSchedulerHealthIndicator;
 import com.pet.vetalya.repository.ReminderRepository;
 import com.pet.vetalya.scheduling.ReminderScheduledJob;
 import com.pet.vetalya.scheduling.ReusableJobRunner;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,15 +18,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.Statement;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -105,13 +96,13 @@ class ActuatorSecurityAndHealthTest {
         runner.runJob(ReminderScheduledJob.JOB_NAME, () -> 5L);
 
         // Indicator configured with a 1-second max stale interval
-        ReminderSchedulerHealthIndicator indicator =
-                new ReminderSchedulerHealthIndicator(runner, reminderRepo, 1);
+        ReminderSchedulerHealthIndicator indicator = new ReminderSchedulerHealthIndicator(runner, reminderRepo, 1);
 
         // Simulate passage of time past the 1-second threshold
         try {
             Thread.sleep(1100);
-        } catch (InterruptedException ignored) {}
+        } catch (InterruptedException ignored) {
+        }
 
         Health health = indicator.health();
         assertThat(health.getStatus()).isEqualTo(Status.DOWN);

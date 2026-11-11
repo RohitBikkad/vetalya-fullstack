@@ -1,7 +1,6 @@
 package com.pet.vetalya.medshop.report.service;
 
 import com.pet.vetalya.medshop.billing.repository.SalesInvoiceRepository;
-import com.pet.vetalya.medshop.catalog.entity.Medicine;
 import com.pet.vetalya.medshop.catalog.repository.MedicineRepository;
 import com.pet.vetalya.medshop.common.TenantContext;
 import com.pet.vetalya.medshop.report.dto.ReportDtos.*;
@@ -30,8 +29,8 @@ public class ReportService {
     private String zoneId;
 
     public ReportService(SalesInvoiceRepository salesInvoiceRepo,
-                         StockBatchRepository stockBatchRepo,
-                         MedicineRepository medicineRepo) {
+            StockBatchRepository stockBatchRepo,
+            MedicineRepository medicineRepo) {
         this.salesInvoiceRepo = salesInvoiceRepo;
         this.stockBatchRepo = stockBatchRepo;
         this.medicineRepo = medicineRepo;
@@ -57,11 +56,12 @@ public class ReportService {
                 .map(b -> b.getPurchasePrice().multiply(BigDecimal.valueOf(b.getQuantityAvailable())))
                 .reduce(BigDecimal.ZERO, (a, b) -> a.add(b));
 
-        List<SalesInvoiceRepository.TopMedicineProjection> topProjections =
-                salesInvoiceRepo.getTopMedicines(tenantId, firstOfMonth, today, 5);
+        List<SalesInvoiceRepository.TopMedicineProjection> topProjections = salesInvoiceRepo.getTopMedicines(tenantId,
+                firstOfMonth, today, 5);
 
         List<TopMedicineReportItem> top5 = topProjections.stream()
-                .map(p -> new TopMedicineReportItem(p.getMedicineId(), p.getMedicineName(), p.getTotalQuantitySold(), p.getTotalRevenue()))
+                .map(p -> new TopMedicineReportItem(p.getMedicineId(), p.getMedicineName(), p.getTotalQuantitySold(),
+                        p.getTotalRevenue()))
                 .collect(Collectors.toList());
 
         return new DashboardResponse(
@@ -73,8 +73,7 @@ public class ReportService {
                 expiring60,
                 expiring90,
                 expiredStockValue,
-                top5
-        );
+                top5);
     }
 
     public List<SalesSummaryReportItem> getSalesReport(LocalDate from, LocalDate to, String groupBy) {
@@ -85,11 +84,13 @@ public class ReportService {
 
         if ("paymentMode".equalsIgnoreCase(groupBy)) {
             return salesInvoiceRepo.getSalesGroupedByPaymentMode(tenantId, effectiveFrom, effectiveTo).stream()
-                    .map(p -> new SalesSummaryReportItem(p.getGroupKey(), p.getInvoiceCount(), p.getTotalTaxable(), p.getTotalTax(), p.getTotalAmount()))
+                    .map(p -> new SalesSummaryReportItem(p.getGroupKey(), p.getInvoiceCount(), p.getTotalTaxable(),
+                            p.getTotalTax(), p.getTotalAmount()))
                     .collect(Collectors.toList());
         } else {
             return salesInvoiceRepo.getSalesGroupedByDay(tenantId, effectiveFrom, effectiveTo).stream()
-                    .map(p -> new SalesSummaryReportItem(p.getGroupKey(), p.getInvoiceCount(), p.getTotalTaxable(), p.getTotalTax(), p.getTotalAmount()))
+                    .map(p -> new SalesSummaryReportItem(p.getGroupKey(), p.getInvoiceCount(), p.getTotalTaxable(),
+                            p.getTotalTax(), p.getTotalAmount()))
                     .collect(Collectors.toList());
         }
     }
@@ -102,7 +103,8 @@ public class ReportService {
         int effectiveLimit = limit > 0 ? limit : 10;
 
         return salesInvoiceRepo.getTopMedicines(tenantId, effectiveFrom, effectiveTo, effectiveLimit).stream()
-                .map(p -> new TopMedicineReportItem(p.getMedicineId(), p.getMedicineName(), p.getTotalQuantitySold(), p.getTotalRevenue()))
+                .map(p -> new TopMedicineReportItem(p.getMedicineId(), p.getMedicineName(), p.getTotalQuantitySold(),
+                        p.getTotalRevenue()))
                 .collect(Collectors.toList());
     }
 
@@ -112,15 +114,18 @@ public class ReportService {
         LocalDate effectiveFrom = from != null ? from : today.minusDays(30);
         LocalDate effectiveTo = to != null ? to : today;
 
-        SalesInvoiceRepository.ProfitReportProjection p = salesInvoiceRepo.getProfitReport(tenantId, effectiveFrom, effectiveTo);
+        SalesInvoiceRepository.ProfitReportProjection p = salesInvoiceRepo.getProfitReport(tenantId, effectiveFrom,
+                effectiveTo);
 
         BigDecimal revenue = (p != null && p.getTotalRevenue() != null) ? p.getTotalRevenue() : BigDecimal.ZERO;
         BigDecimal cost = (p != null && p.getTotalCost() != null) ? p.getTotalCost() : BigDecimal.ZERO;
-        BigDecimal grossProfit = (p != null && p.getGrossProfit() != null) ? p.getGrossProfit() : revenue.subtract(cost);
+        BigDecimal grossProfit = (p != null && p.getGrossProfit() != null) ? p.getGrossProfit()
+                : revenue.subtract(cost);
 
         BigDecimal margin = BigDecimal.ZERO;
         if (revenue.compareTo(BigDecimal.ZERO) > 0) {
-            margin = grossProfit.divide(revenue, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100")).setScale(2, RoundingMode.HALF_UP);
+            margin = grossProfit.divide(revenue, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100")).setScale(2,
+                    RoundingMode.HALF_UP);
         }
 
         return new ProfitReportResponse(effectiveFrom, effectiveTo, revenue, cost, grossProfit, margin);
@@ -153,9 +158,7 @@ public class ReportService {
                     b.getPurchasePrice(),
                     b.getMrp(),
                     purchaseVal,
-                    mrpVal
-            );
+                    mrpVal);
         }).collect(Collectors.toList());
     }
 }
-

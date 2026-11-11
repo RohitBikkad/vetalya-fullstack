@@ -6,7 +6,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.MDC;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -16,7 +15,8 @@ import java.util.stream.Collectors;
 
 /**
  * Populates authenticated userId (from JWT "sub") and granted roles into MDC.
- * Strictly guarantees that personal identifiers (email, phone, name) and raw tokens are never added.
+ * Strictly guarantees that personal identifiers (email, phone, name) and raw
+ * tokens are never added.
  */
 public class SecurityMdcFilter extends OncePerRequestFilter {
 
@@ -58,4 +58,3 @@ public class SecurityMdcFilter extends OncePerRequestFilter {
         }
     }
 }
-

@@ -10,11 +10,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
-import java.util.concurrent.RejectedExecutionHandler;
 
 /**
  * Dedicated thread pool for non-blocking asynchronous audit log persistence.
- * If the bounded queue is saturated, tasks are discarded and a metric counter is incremented,
+ * If the bounded queue is saturated, tasks are discarded and a metric counter
+ * is incremented,
  * ensuring business request execution is never slowed down or aborted.
  */
 @Configuration
@@ -55,4 +55,3 @@ public class AuditAsyncConfig {
         return executor;
     }
 }
-

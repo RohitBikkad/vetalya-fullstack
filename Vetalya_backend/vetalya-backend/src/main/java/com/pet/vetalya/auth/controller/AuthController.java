@@ -20,6 +20,7 @@ import com.pet.vetalya.repository.PetOwnerRepository;
 import com.pet.vetalya.repository.RefreshTokenRepository;
 import com.pet.vetalya.repository.UserAuthRepository;
 import com.pet.vetalya.repository.VetRepository;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -40,7 +41,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -400,31 +400,35 @@ public class AuthController {
         String email;
         String name;
         switch (roleParam.toUpperCase()) {
-            case "VETERINARIAN", "ROLE_VET" -> {
+            case "VETERINARIAN":
+            case "ROLE_VET":
                 normalizedRole = "ROLE_VET";
                 email = "dr.priya@koramangalavet.in";
                 name = "Dr. Priya Sharma";
-            }
-            case "CLINIC_STAFF", "ROLE_CLINIC_STAFF" -> {
+                break;
+            case "CLINIC_STAFF":
+            case "ROLE_CLINIC_STAFF":
                 normalizedRole = "ROLE_CLINIC_STAFF";
                 email = "reception@koramangalavet.in";
                 name = "Ananya Deshmukh";
-            }
-            case "CLINIC_ADMIN", "ROLE_CLINIC_ADMIN" -> {
+                break;
+            case "CLINIC_ADMIN":
+            case "ROLE_CLINIC_ADMIN":
                 normalizedRole = "ROLE_CLINIC_ADMIN";
                 email = "director@koramangalavet.in";
                 name = "Dr. Rajesh Kulkarni";
-            }
-            case "PLATFORM_ADMIN", "ROLE_PLATFORM_ADMIN" -> {
+                break;
+            case "PLATFORM_ADMIN":
+            case "ROLE_PLATFORM_ADMIN":
                 normalizedRole = "ROLE_PLATFORM_ADMIN";
                 email = "regulatory@vetalya.in";
                 name = "Vetalya Compliance Officer";
-            }
-            default -> {
+                break;
+            default:
                 normalizedRole = "ROLE_PET_OWNER";
                 email = "rahul.sharma@example.com";
                 name = "Rahul Sharma";
-            }
+                break;
         }
 
         String ipAddress = httpRequest != null ? httpRequest.getRemoteAddr() : "127.0.0.1";
@@ -895,11 +899,12 @@ public class AuthController {
 
     private String extractCookie(HttpServletRequest request, String name) {
         if (request == null || request.getCookies() == null || name == null) return null;
-        return Arrays.stream(request.getCookies())
-                .filter(c -> c != null && name.equals(c.getName()))
-                .map(c -> c.getValue())
-                .findFirst()
-                .orElse(null);
+        for (Cookie c : request.getCookies()) {
+            if (c != null && name.equals(c.getName())) {
+                return c.getValue();
+            }
+        }
+        return null;
     }
 
     private ResponseCookie buildRefreshCookie(String value, long maxAgeSeconds, boolean isSecure) {

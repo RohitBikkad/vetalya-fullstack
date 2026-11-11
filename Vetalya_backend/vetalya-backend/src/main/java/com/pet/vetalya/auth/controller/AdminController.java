@@ -1,6 +1,5 @@
 package com.pet.vetalya.auth.controller;
 
-import com.pet.vetalya.entity.PetOwner;
 import com.pet.vetalya.entity.UserAuth;
 import com.pet.vetalya.entity.Vet;
 import com.pet.vetalya.repository.*;
@@ -30,15 +29,16 @@ public class AdminController {
     private final AppointmentRepository appointmentRepo;
     private final JdbcTemplate jdbcTemplate;
 
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM dd, yyyy").withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM dd, yyyy")
+            .withZone(ZoneId.systemDefault());
 
     public AdminController(UserAuthRepository userAuthRepo,
-                           VetRepository vetRepo,
-                           PetOwnerRepository petOwnerRepo,
-                           PetRepository petRepo,
-                           HospitalRepository hospitalRepo,
-                           AppointmentRepository appointmentRepo,
-                           JdbcTemplate jdbcTemplate) {
+            VetRepository vetRepo,
+            PetOwnerRepository petOwnerRepo,
+            PetRepository petRepo,
+            HospitalRepository hospitalRepo,
+            AppointmentRepository appointmentRepo,
+            JdbcTemplate jdbcTemplate) {
         this.userAuthRepo = userAuthRepo;
         this.vetRepo = vetRepo;
         this.petOwnerRepo = petOwnerRepo;
@@ -49,9 +49,10 @@ public class AdminController {
     }
 
     /**
-     * GET /api/admin/stats (or /kpis) — Platform-wide KPI counters fetched live from database.
+     * GET /api/admin/stats (or /kpis) — Platform-wide KPI counters fetched live
+     * from database.
      */
-    @GetMapping({"/stats", "/kpis"})
+    @GetMapping({ "/stats", "/kpis" })
     public ResponseEntity<Map<String, Object>> getKpis(@AuthenticationPrincipal Jwt jwt) {
         long totalPets = petRepo.count();
         long verifiedVets = vetRepo.countByVerifiedTrue();
@@ -75,14 +76,16 @@ public class AdminController {
         response.put("totalConsultations", totalAppointments);
         response.put("totalUsers", totalUsers);
         response.put("roleCounts", roleCounts);
-        response.put("platformRevenue", "₹" + String.format(Locale.US, "%.1fL", (totalAppointments * 500.0) / 100000.0));
+        response.put("platformRevenue",
+                "₹" + String.format(Locale.US, "%.1fL", (totalAppointments * 500.0) / 100000.0));
         response.put("timestamp", Instant.now().toString());
 
         return ResponseEntity.ok(response);
     }
 
     /**
-     * GET /api/admin/verifications — Real list of licensed veterinarians and registration status.
+     * GET /api/admin/verifications — Real list of licensed veterinarians and
+     * registration status.
      */
     @GetMapping("/verifications")
     public ResponseEntity<List<Map<String, Object>>> getVerifications(@AuthenticationPrincipal Jwt jwt) {
@@ -92,12 +95,14 @@ public class AdminController {
         for (Vet vet : vets) {
             Map<String, Object> map = new LinkedHashMap<>();
             map.put("id", vet.getUserId());
-            String fullName = ((vet.getFirstName() != null ? vet.getFirstName() : "") + " " + (vet.getLastName() != null ? vet.getLastName() : "")).trim();
+            String fullName = ((vet.getFirstName() != null ? vet.getFirstName() : "") + " "
+                    + (vet.getLastName() != null ? vet.getLastName() : "")).trim();
             if (fullName.isBlank()) {
                 fullName = "Practicing Veterinarian";
             }
             map.put("doctorName", fullName.startsWith("Dr.") ? fullName : ("Dr. " + fullName));
-            map.put("councilRegNumber", vet.getRegistrationNo() != null ? vet.getRegistrationNo() : "Pending Submission");
+            map.put("councilRegNumber",
+                    vet.getRegistrationNo() != null ? vet.getRegistrationNo() : "Pending Submission");
             map.put("councilState", "State Veterinary Council");
             map.put("degrees", "BVSc & AH, MVSc");
             map.put("university", "Veterinary Council Accredited University");
@@ -105,7 +110,8 @@ public class AdminController {
             map.put("certificateUrl", vet.getPhotoUrl() != null && !vet.getPhotoUrl().isBlank()
                     ? vet.getPhotoUrl()
                     : "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=400&q=80");
-            map.put("submittedDate", vet.getCreatedAt() != null ? DATE_FORMATTER.format(vet.getCreatedAt()) : "Recently");
+            map.put("submittedDate",
+                    vet.getCreatedAt() != null ? DATE_FORMATTER.format(vet.getCreatedAt()) : "Recently");
             map.put("status", vet.isVerified() ? "Verified" : "Pending Review");
             map.put("isVerified", vet.isVerified());
 
@@ -122,7 +128,8 @@ public class AdminController {
     }
 
     /**
-     * PUT /api/admin/verifications/{vetUserId}/status — Approve or reject a veterinarian's council license.
+     * PUT /api/admin/verifications/{vetUserId}/status — Approve or reject a
+     * veterinarian's council license.
      */
     @PutMapping("/verifications/{vetUserId}/status")
     public ResponseEntity<?> updateVerificationStatus(
@@ -130,7 +137,8 @@ public class AdminController {
             @RequestBody Map<String, Object> payload) {
         Vet vet = vetRepo.findById(vetUserId).orElse(null);
         if (vet == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "vet_not_found", "message", "Veterinarian not found."));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "vet_not_found", "message", "Veterinarian not found."));
         }
 
         boolean verified = true;
@@ -147,7 +155,8 @@ public class AdminController {
         resp.put("id", vet.getUserId());
         resp.put("isVerified", vet.isVerified());
         resp.put("status", vet.isVerified() ? "Verified" : "Pending Review");
-        resp.put("message", "Veterinarian verification status updated to " + (vet.isVerified() ? "Verified" : "Pending Review"));
+        resp.put("message",
+                "Veterinarian verification status updated to " + (vet.isVerified() ? "Verified" : "Pending Review"));
         return ResponseEntity.ok(resp);
     }
 
@@ -174,7 +183,8 @@ public class AdminController {
             if ("ROLE_VET".equals(u.getRole())) {
                 var v = vetRepo.findById(u.getUserId()).orElse(null);
                 if (v != null) {
-                    name = ((v.getFirstName() != null ? v.getFirstName() : "") + " " + (v.getLastName() != null ? v.getLastName() : "")).trim();
+                    name = ((v.getFirstName() != null ? v.getFirstName() : "") + " "
+                            + (v.getLastName() != null ? v.getLastName() : "")).trim();
                     if (!name.isBlank() && !name.startsWith("Dr.")) {
                         name = "Dr. " + name;
                     }
@@ -182,7 +192,8 @@ public class AdminController {
             } else {
                 var po = petOwnerRepo.findById(u.getUserId()).orElse(null);
                 if (po != null) {
-                    name = ((po.getFirstName() != null ? po.getFirstName() : "") + " " + (po.getLastName() != null ? po.getLastName() : "")).trim();
+                    name = ((po.getFirstName() != null ? po.getFirstName() : "") + " "
+                            + (po.getLastName() != null ? po.getLastName() : "")).trim();
                 }
             }
 
@@ -201,7 +212,8 @@ public class AdminController {
     }
 
     /**
-     * PATCH /api/admin/users/{userId}/status — Toggle account state (ACTIVE / BLOCKED) and revoke tokens.
+     * PATCH /api/admin/users/{userId}/status — Toggle account state (ACTIVE /
+     * BLOCKED) and revoke tokens.
      */
     @PatchMapping("/users/{userId}/status")
     public ResponseEntity<?> updateUserStatus(
@@ -209,7 +221,8 @@ public class AdminController {
             @RequestBody Map<String, String> payload) {
         UserAuth user = userAuthRepo.findById(userId).orElse(null);
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "user_not_found", "message", "User not found."));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "user_not_found", "message", "User not found."));
         }
 
         String newStatus = payload.get("status");
@@ -221,7 +234,8 @@ public class AdminController {
 
         user.setStatus(newStatus);
         if ("BLOCKED".equalsIgnoreCase(newStatus)) {
-            // Bump token version to immediately invalidate all existing active JWT bearer sessions
+            // Bump token version to immediately invalidate all existing active JWT bearer
+            // sessions
             user.setTokenVersion(user.getTokenVersion() + 1);
         }
         userAuthRepo.save(user);
@@ -235,7 +249,8 @@ public class AdminController {
     }
 
     /**
-     * GET /api/admin/telemetry — Database telemetry and metrics for system health monitoring.
+     * GET /api/admin/telemetry — Database telemetry and metrics for system health
+     * monitoring.
      */
     @GetMapping("/telemetry")
     public ResponseEntity<Map<String, Object>> getTelemetry(@AuthenticationPrincipal Jwt jwt) {
@@ -246,7 +261,8 @@ public class AdminController {
         result.put("timestamp", Instant.now().toString());
 
         Map<String, Long> tables = new LinkedHashMap<>();
-        String[] tableNames = {"user_auth", "pet_owner", "vet", "hospital", "pet", "appointment", "vaccination", "reminder", "review", "otp_verification"};
+        String[] tableNames = { "user_auth", "pet_owner", "vet", "hospital", "pet", "appointment", "vaccination",
+                "reminder", "review", "otp_verification" };
 
         for (String table : tableNames) {
             try {
@@ -262,4 +278,3 @@ public class AdminController {
         return ResponseEntity.ok(result);
     }
 }
-
