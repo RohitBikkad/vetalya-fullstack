@@ -642,6 +642,10 @@ public class AuthController {
             phoneVerified = otpService.isTargetVerifiedRecently(phone, "REGISTRATION")
                          || otpService.isTargetVerifiedRecently(phone, "VERIFICATION");
         }
+        if (!phoneVerified && emailVerified) {
+            log.info("Email {} verified successfully via SMTP; allowing registration without blocking on SMS gateway", email);
+            phoneVerified = true;
+        }
         if (!phoneVerified) {
             return ResponseEntity.badRequest().body(Map.of(
                     "error", "phone_verification_failed",

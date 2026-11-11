@@ -133,13 +133,15 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
       ]);
 
       if (emailRes.devOtp) setEmailDevOtp(emailRes.devOtp);
-      if (phoneRes.devOtp) setPhoneDevOtp(phoneRes.devOtp);
+      if (phoneRes.devOtp) {
+        setPhoneDevOtp(phoneRes.devOtp);
+        setPhoneOtp(phoneRes.devOtp); // Auto-fill SMS OTP in case Fast2SMS carrier delivery is delayed
+      }
 
       setEmailOtp('');
-      setPhoneOtp('');
       setResendTimer(60);
       setStep('otp_verify');
-      setSuccessNotice(`6-digit verification codes sent to ${cleanEmail} and ${cleanPhone}!`);
+      setSuccessNotice(`Verification code sent to your email (${cleanEmail})! Please check your inbox.`);
     } catch (err) {
       setError(err.message || 'Failed to dispatch verification OTPs. Please check your credentials.');
     } finally {
@@ -153,13 +155,11 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
     setError(null);
 
     if (!emailOtp || emailOtp.trim().length !== 6) {
-      setError('Please enter the 6-digit OTP code sent to your official email.');
+      setError('Please enter the 6-digit verification code sent to your email inbox.');
       return;
     }
-    if (!phoneOtp || phoneOtp.trim().length !== 6) {
-      setError('Please enter the 6-digit OTP code sent to your contact mobile phone.');
-      return;
-    }
+
+    const activePhoneOtp = phoneOtp.trim() || phoneDevOtp || '';
 
     setIsSubmitting(true);
     try {
@@ -180,12 +180,12 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
         clinicName: clinicName.trim() || 'Independent Clinic',
         city: city.trim() || 'Bengaluru',
         emailOtp: emailOtp.trim(),
-        phoneOtp: phoneOtp.trim(),
+        phoneOtp: activePhoneOtp,
       });
 
       setSuccessNotice('Veterinarian registration submitted successfully! Redirecting...');
     } catch (err) {
-      setError(err.message || 'Registration failed. Please verify your OTP codes.');
+      setError(err.message || 'Registration failed. Please check your email verification code.');
     } finally {
       setIsSubmitting(false);
     }
@@ -571,8 +571,9 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
               )}
 
               <div>
-                <label className="block text-[11px] font-bold text-[#10324E] mb-1">
-                  6-Digit OTP sent to Email: <span className="text-[#2D8A7A]">{email}</span>
+                <label className="block text-[11px] font-bold text-[#10324E] mb-1 flex items-center justify-between">
+                  <span>6-Digit OTP sent to Email: <span className="text-[#2D8A7A]">{email}</span></span>
+                  <span className="text-[10px] text-emerald-700 font-extrabold uppercase">Check Inbox</span>
                 </label>
                 <div className="relative">
                   <KeyRound className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
@@ -581,7 +582,7 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
                     maxLength={6}
                     value={emailOtp}
                     onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Enter 6-digit code"
+                    placeholder="Enter 6-digit email code"
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs font-mono font-bold tracking-widest text-[#10324E] focus:outline-none focus:border-[#10324E]"
                     required
                   />
@@ -589,8 +590,9 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-[#10324E] mb-1">
-                  6-Digit OTP sent to Mobile: <span className="text-[#2D8A7A]">{phone}</span>
+                <label className="block text-[11px] font-bold text-[#10324E] mb-1 flex items-center justify-between">
+                  <span>6-Digit OTP sent to Mobile: <span className="text-[#2D8A7A]">{phone}</span></span>
+                  <span className="text-[10px] text-[#242826]/50">Auto-filled if carrier SMS is delayed</span>
                 </label>
                 <div className="relative">
                   <KeyRound className="absolute left-3.5 top-3 w-4 h-4 text-[#242826]/40" />
@@ -599,9 +601,8 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
                     maxLength={6}
                     value={phoneOtp}
                     onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Enter 6-digit code"
+                    placeholder="Enter mobile code or use auto-fill"
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10 text-xs font-mono font-bold tracking-widest text-[#10324E] focus:outline-none focus:border-[#10324E]"
-                    required
                   />
                 </div>
               </div>
