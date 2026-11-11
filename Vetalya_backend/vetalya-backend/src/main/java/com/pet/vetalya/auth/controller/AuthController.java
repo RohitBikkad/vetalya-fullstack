@@ -391,10 +391,11 @@ public class AuthController {
 
     @PostMapping("/demo-login")
     public ResponseEntity<?> demoLogin(
-            @RequestBody(required = false) Map<String, String> request,
+            @RequestBody(required = false) Map<String, Object> request,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
-        String roleParam = (request != null && request.get("role") != null) ? request.get("role") : "PET_PARENT";
+        String roleParam = getString(request, "role");
+        if (roleParam == null) roleParam = "PET_PARENT";
         String normalizedRole;
         String email;
         String name;
@@ -696,17 +697,17 @@ public class AuthController {
      * Dispatch a 6-digit OTP to mobile phone number or email address.
      */
     @PostMapping("/otp/send")
-    public ResponseEntity<?> sendOtp(@RequestBody(required = false) Map<String, String> request) {
+    public ResponseEntity<?> sendOtp(@RequestBody(required = false) Map<String, Object> request) {
         if (request == null) {
             return ResponseEntity.badRequest().body(Map.of("message", "Request body is required"));
         }
-        String phone = request.get("phone");
-        String email = request.get("email");
-        String target = request.get("target");
+        String phone = getString(request, "phone");
+        String email = getString(request, "email");
+        String target = getString(request, "target");
         if (target == null || target.isBlank()) {
             target = (phone != null && !phone.isBlank()) ? phone.trim() : (email != null ? email.trim() : null);
         }
-        String purpose = request.get("purpose");
+        String purpose = getString(request, "purpose");
 
         if (target == null || target.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Mobile number or email target is required to send OTP"));
@@ -731,19 +732,19 @@ public class AuthController {
      * Verify the 6-digit OTP entered by the user.
      */
     @PostMapping("/otp/verify")
-    public ResponseEntity<?> verifyOtp(@RequestBody(required = false) Map<String, String> request) {
+    public ResponseEntity<?> verifyOtp(@RequestBody(required = false) Map<String, Object> request) {
         if (request == null) {
             return ResponseEntity.badRequest().body(Map.of("message", "Request body is required"));
         }
-        String phone = request.get("phone");
-        String email = request.get("email");
-        String target = request.get("target");
+        String phone = getString(request, "phone");
+        String email = getString(request, "email");
+        String target = getString(request, "target");
         if (target == null || target.isBlank()) {
             target = (phone != null && !phone.isBlank()) ? phone.trim() : (email != null ? email.trim() : null);
         }
-        String otp = request.get("otp");
-        if (otp == null) otp = request.get("code");
-        String purpose = request.get("purpose");
+        String otp = getString(request, "otp");
+        if (otp == null) otp = getString(request, "code");
+        String purpose = getString(request, "purpose");
 
         if (target == null || otp == null || otp.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Target and 6-digit OTP code are required"));
@@ -769,15 +770,15 @@ public class AuthController {
      */
     @PostMapping("/login-otp")
     public ResponseEntity<?> loginWithOtp(
-            @RequestBody(required = false) Map<String, String> request,
+            @RequestBody(required = false) Map<String, Object> request,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
         if (request == null) {
             return ResponseEntity.badRequest().body(Map.of("message", "Request body is required"));
         }
-        String phone = request.get("phone");
-        String otp = request.get("otp");
-        if (otp == null) otp = request.get("code");
+        String phone = getString(request, "phone");
+        String otp = getString(request, "otp");
+        if (otp == null) otp = getString(request, "code");
 
         if (phone == null || phone.isBlank() || otp == null || otp.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Mobile number and 6-digit OTP are required"));
