@@ -22,19 +22,24 @@ import java.util.List;
 public class AppointmentSlotController {
 
     private final AppointmentSlotService slotService;
+    private final com.pet.vetalya.clinic.ClinicalAccess access;
+    private final com.pet.vetalya.clinic.ClinicWorkspaceService clinics;
 
-    public AppointmentSlotController(AppointmentSlotService slotService) {
+    public AppointmentSlotController(AppointmentSlotService slotService, com.pet.vetalya.clinic.ClinicalAccess access, com.pet.vetalya.clinic.ClinicWorkspaceService clinics) {
         this.slotService = slotService;
+        this.access=access;
+        this.clinics=clinics;
     }
 
     /**
      * POST /api/v1/slots/generate — Generate bulk slots for a veterinarian schedule.
      */
     @PostMapping("/generate")
-    @PreAuthorize("hasAnyAuthority('ROLE_VET', 'ROLE_CLINIC_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_VET')")
     public ResponseEntity<List<SlotResponse>> generateSlots(
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody GenerateSlotsRequest request) {
+        if (request.hospitalId() != null) clinics.requireAccess(jwt.getSubject(),request.hospitalId());
         List<SlotResponse> slots = slotService.generateSlots(jwt.getSubject(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(slots);
     }
@@ -57,19 +62,25 @@ public class AppointmentSlotController {
      */
     @PostMapping("/book")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Appointment> bookSlot(
+    public ResponseEntity<BookingReceipt> bookSlot(
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody BookSlotRequest request) {
         Appointment booked = slotService.bookSlotAtomically(jwt.getSubject(), request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(booked);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new BookingReceipt(
+                booked.getAppointmentId(), booked.getPetId(), booked.getHospitalId(), booked.getSlotId(),
+                booked.getAppointmentAt(), booked.getStatus(), booked.getQueueNumber()));
     }
+
+    public record BookingReceipt(String appointmentId, String petId, String hospitalId, String slotId,
+                                 java.time.Instant appointmentAt, String status, Integer queueNumber) {}
 
     /**
      * POST /api/v1/slots/appointments/{appointmentId}/check-in — Check in patient for queue token.
      */
     @PostMapping("/appointments/{appointmentId}/check-in")
-    @PreAuthorize("hasAnyAuthority('ROLE_VET', 'ROLE_CLINIC_ADMIN', 'ROLE_RECEPTIONIST')")
-    public ResponseEntity<Void> checkIn(@PathVariable String appointmentId) {
+    @PreAuthorize("hasAuthority('ROLE_VET')")
+    public ResponseEntity<Void> checkIn(@AuthenticationPrincipal Jwt jwt, @PathVariable String appointmentId) {
+        access.appointmentVet(jwt.getSubject(),appointmentId);
         slotService.checkInAppointment(appointmentId);
         return ResponseEntity.noContent().build();
     }
@@ -78,8 +89,9 @@ public class AppointmentSlotController {
      * POST /api/v1/slots/appointments/{appointmentId}/start-consultation — Mark consultation started.
      */
     @PostMapping("/appointments/{appointmentId}/start-consultation")
-    @PreAuthorize("hasAnyAuthority('ROLE_VET', 'ROLE_CLINIC_ADMIN')")
-    public ResponseEntity<Void> startConsultation(@PathVariable String appointmentId) {
+    @PreAuthorize("hasAuthority('ROLE_VET')")
+    public ResponseEntity<Void> startConsultation(@AuthenticationPrincipal Jwt jwt, @PathVariable String appointmentId) {
+        access.appointmentVet(jwt.getSubject(),appointmentId);
         slotService.startConsultation(appointmentId);
         return ResponseEntity.noContent().build();
     }
@@ -88,8 +100,9 @@ public class AppointmentSlotController {
      * POST /api/v1/slots/appointments/{appointmentId}/end-consultation — Mark consultation completed.
      */
     @PostMapping("/appointments/{appointmentId}/end-consultation")
-    @PreAuthorize("hasAnyAuthority('ROLE_VET', 'ROLE_CLINIC_ADMIN')")
-    public ResponseEntity<Void> endConsultation(@PathVariable String appointmentId) {
+    @PreAuthorize("hasAuthority('ROLE_VET')")
+    public ResponseEntity<Void> endConsultation(@AuthenticationPrincipal Jwt jwt, @PathVariable String appointmentId) {
+        access.appointmentVet(jwt.getSubject(),appointmentId);
         slotService.endConsultation(appointmentId);
         return ResponseEntity.noContent().build();
     }

@@ -24,12 +24,14 @@ public class DiagnosticService {
     private final DiagnosticTestCatalogRepository catalogRepo;
     private final PetRepository petRepo;
     private final IdGenerator idGenerator;
+    private final AppointmentRepository appointmentRepo;
 
     public DiagnosticService(DiagnosticOrderRepository orderRepo,
                              DiagnosticOrderItemRepository itemRepo,
                              DiagnosticTestCatalogRepository catalogRepo,
                              PetRepository petRepo,
-                             IdGenerator idGenerator) {
+                             IdGenerator idGenerator, AppointmentRepository appointmentRepo) {
+        this.appointmentRepo=appointmentRepo;
         this.orderRepo = orderRepo;
         this.itemRepo = itemRepo;
         this.catalogRepo = catalogRepo;
@@ -42,6 +44,8 @@ public class DiagnosticService {
         petRepo.findById(req.petId())
                 .orElseThrow(() -> new ResourceNotFoundException("Pet not found: " + req.petId()));
 
+        boolean assigned = appointmentRepo.existsByVetUserIdAndPetIdAndHospitalId(vetUserId,req.petId(),req.hospitalId());
+        if (req.hospitalId()==null || !assigned) throw new com.pet.vetalya.common.GlobalExceptionHandler.ForbiddenException("An assigned patient and hospital are required");
         String orderId = idGenerator.newId();
         String orderNumber = "DX-" + Year.now().getValue() + "-" + orderId.substring(orderId.length() - 6).toUpperCase();
 

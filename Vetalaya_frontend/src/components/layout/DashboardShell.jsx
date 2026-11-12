@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { normalizeRole, isHospitalRole, ROLE_LABELS } from '../../utils/roles';
 import { useAuth } from '../../context/AuthContext';
 import { getDatabaseInspectionApi } from '../../services/api';
 import VetalyaBrandLogo from '../auth/VetalyaBrandLogo';
@@ -32,13 +33,14 @@ export default function DashboardShell({ children }) {
   const [loadingDb, setLoadingDb] = useState(false);
 
   // Normalize effective role
-  const isVet = role === 'ROLE_VET' || role === 'VETERINARIAN';
-  const isAdmin = role === 'ROLE_PLATFORM_ADMIN' || role === 'ROLE_CLINIC_ADMIN' || role === 'PLATFORM_ADMIN' || role === 'CLINIC_ADMIN';
+  const effectiveRole = normalizeRole(role);
+  const isVet = isHospitalRole(effectiveRole);
+  const isAdmin = effectiveRole === 'ROLE_PLATFORM_ADMIN';
 
   const roleMeta = isAdmin
     ? { label: 'Platform Admin', icon: ShieldCheck, color: 'text-amber-800', bg: 'bg-amber-100', border: 'border-amber-300' }
     : isVet
-    ? { label: 'Veterinarian', icon: Stethoscope, color: 'text-[#10324E]', bg: 'bg-[#E8EEF4]', border: 'border-[#10324E]/20' }
+    ? { label: ROLE_LABELS[effectiveRole], icon: Stethoscope, color: 'text-[#10324E]', bg: 'bg-[#E8EEF4]', border: 'border-[#10324E]/20' }
     : { label: 'Pet Parent', icon: Heart, color: 'text-[#2D8A7A]', bg: 'bg-[#E0F2EB]', border: 'border-[#2D8A7A]/30' };
 
   // Contextual navigation links tailored strictly to the authenticated user's role
@@ -51,10 +53,7 @@ export default function DashboardShell({ children }) {
       ]
     : isVet
     ? [
-        { label: 'OPD Queue', href: '#opd-queue' },
-        { label: 'SOAP Consultation', href: '#soap-consult' },
-        { label: 'Prescription Desk', href: '#rx-generator' },
-        { label: 'Diagnostic Imaging', href: '#diagnostics' },
+        { label: 'Hospital Workspace', href: '#clinic-workspace' },
       ]
     : [
         { label: 'Health Passports', href: '#passports' },
@@ -63,19 +62,7 @@ export default function DashboardShell({ children }) {
         { label: 'Digital Prescriptions', href: '#prescriptions' },
       ];
 
-  const notifications = isVet
-    ? [
-        { id: 1, title: 'OPD Queue Active', time: 'Just now', text: 'Live consultation queue is initialized and ready for check-ins.', icon: Clock },
-        { id: 2, title: 'SOAP Records Synchronized', time: '1h ago', text: 'Digital prescription templates and drug formularies loaded.', icon: Stethoscope },
-      ]
-    : isAdmin
-    ? [
-        { id: 1, title: 'Security Audit Active', time: 'Active', text: 'OAuth2 exchange codes and JWT rotation monitors running.', icon: ShieldCheck },
-      ]
-    : [
-        { id: 1, title: 'Welcome to Vetalya', time: 'Just now', text: 'Your pet parent health portal is ready. Register your companion to track health passports and vaccines.', icon: Heart },
-        { id: 2, title: 'Veterinary Network', time: 'Active', text: 'Access 24/7 emergency telephone triage and book clinic consultations.', icon: Stethoscope },
-      ];
+  const notifications = [];
 
   const handleFetchDb = async () => {
     setLoadingDb(true);
@@ -140,14 +127,7 @@ export default function DashboardShell({ children }) {
                   ? `${Math.floor(tokenTimeRemaining / 60).toString().padStart(2, '0')}:${(tokenTimeRemaining % 60).toString().padStart(2, '0')}`
                   : '15:00'}
               </span>
-              <button
-                type="button"
-                onClick={triggerExpireNow}
-                title="Force session expiration to test automatic logout"
-                className="hidden sm:inline-block ml-1 px-1.5 py-0.5 rounded-md bg-amber-200/70 hover:bg-amber-300 text-amber-900 font-extrabold text-[10px] cursor-pointer transition-colors"
-              >
-                Expire
-              </button>
+
             </div>
 
             {/* Notification Bell */}
@@ -165,9 +145,10 @@ export default function DashboardShell({ children }) {
                 <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-3xl p-4 shadow-vetalya border border-[#10324E]/10 z-50 animate-in fade-in">
                   <div className="flex items-center justify-between pb-3 border-b border-[#10324E]/10">
                     <h4 className="font-bold text-xs uppercase tracking-wider text-[#10324E]">Activity Feed</h4>
-                    <span className="text-[10px] text-[#2D8A7A] font-bold bg-[#E0F2EB] px-2 py-0.5 rounded-full">3 New</span>
+                    <span className="text-[10px] text-[#2D8A7A] font-bold bg-[#E0F2EB] px-2 py-0.5 rounded-full">{notifications.length} New</span>
                   </div>
                   <div className="mt-3 space-y-2.5 max-h-72 overflow-y-auto">
+                    {notifications.length === 0 && <p className="p-3 text-xs text-slate-500">No notifications to display.</p>}
                     {notifications.map((n) => (
                       <div key={n.id} className="p-3 rounded-2xl bg-[#FAF8F5] border border-[#10324E]/5 hover:bg-white transition flex items-start gap-3">
                         <div className="w-7 h-7 rounded-xl bg-[#E0F2EB] text-[#2D8A7A] flex items-center justify-center shrink-0 mt-0.5">
@@ -222,7 +203,7 @@ export default function DashboardShell({ children }) {
                   </div>
 
                   <div className="space-y-1">
-                    <button
+                    {isAdmin && <button
                       onClick={() => {
                         setShowProfileMenu(false);
                         setShowDbInspector(true);
@@ -232,18 +213,8 @@ export default function DashboardShell({ children }) {
                     >
                       <Database className="w-3.5 h-3.5 text-[#2D8A7A]" />
                       <span>Live Supabase Inspector</span>
-                    </button>
+                    </button>}
 
-                    <button
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        triggerExpireNow();
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-50 rounded-xl transition cursor-pointer text-left"
-                    >
-                      <Clock className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Simulate Token Expiry</span>
-                    </button>
 
                     <hr className="my-1 border-[#10324E]/8" />
 
@@ -349,7 +320,7 @@ export default function DashboardShell({ children }) {
           <span>Vetalya Animal Healthcare Platform • Active Role: <strong className="text-[#10324E]">{role}</strong></span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Supabase DB &amp; Spring Boot API Connected
+            Every Pet’s Health. Always.
           </span>
         </div>
       </footer>

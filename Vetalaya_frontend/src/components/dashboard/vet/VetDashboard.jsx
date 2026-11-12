@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import {
   getVetDashboardApi,
@@ -10,6 +10,7 @@ import {
   createEncounterApi,
   signEncounterApi,
   getEncounterApi,
+  updateDraftEncounterApi,
   generateSlotsApi,
   getAvailableSlotsApi,
   checkInAppointmentApi,
@@ -47,9 +48,11 @@ import {
   FlaskConical,
 } from 'lucide-react';
 
-export default function VetDashboard() {
+export default function VetDashboard({ hospitalId, workingDate }) {
   const { currentUser } = useAuth();
 
+  const [loadError, setLoadError] = useState('');
+  const encounterRef = useRef(null);
   // OPD Metric counts - loaded from backend
   const [metrics, setMetrics] = useState({
     todayTotal: 0,
@@ -92,32 +95,17 @@ export default function VetDashboard() {
   const [activeTab, setActiveTab] = useState('queue'); // 'queue' | 'diagnostics' | 'history'
 
   // Diagnostic records
-  const [diagnostics, setDiagnostics] = useState([
-    {
-      id: 'DX-2026-001',
-      petName: 'Bella (Golden Retriever)',
-      type: 'Complete Blood Count (CBC) & Liver Panel',
-      date: 'Today, 10:30 AM',
-      status: 'PROCESSING',
-      priority: 'ROUTINE',
-      notes: 'Evaluate mild lethargy and elevated liver enzymes prior to dental scaling.',
-      items: [
-        { itemId: 'IT-1', testCode: 'CBC_CANINE', testName: 'Complete Blood Count', category: 'HEMATOLOGY', status: 'COMPLETED', resultValue: 'WBC: 11.2, RBC: 6.8, Hb: 15.1 g/dL', referenceRange: '12-18 g/dL', unit: 'g/dL', flag: 'NORMAL', interpretation: 'Normal erythrogram and leukogram.' },
-        { itemId: 'IT-2', testCode: 'BIOCHEM_LFT_KFT', testName: 'Comprehensive Liver Profile', category: 'BIOCHEMISTRY', status: 'PENDING', resultValue: '', referenceRange: 'ALT: 10-100 U/L', unit: 'U/L', flag: 'NORMAL', interpretation: '' },
-      ],
-    },
-  ]);
+  const [diagnostics, setDiagnostics] = useState([]);
 
   // Standard Test Catalog for Requisitions
-  const STANDARD_TESTS = [
-    { code: 'CBC_CANINE', name: 'Complete Blood Count (Canine/Feline)', category: 'HEMATOLOGY', tat: '6 hrs', price: '₹750' },
-    { code: 'BIOCHEM_LFT_KFT', name: 'Comprehensive Liver & Kidney Profile', category: 'BIOCHEMISTRY', tat: '12 hrs', price: '₹1,600' },
-    { code: 'PARVO_RAPID', name: 'Canine Parvovirus (CPV) Antigen Rapid Test', category: 'SEROLOGY', tat: '1 hr', price: '₹950' },
-    { code: 'RABIES_TITRE', name: 'Rabies Neutralizing Antibody Titre (FAVN)', category: 'SEROLOGY', tat: '72 hrs', price: '₹4,500' },
-    { code: 'XRAY_CHEST_2V', name: 'Digital Radiography (Chest 2 Views)', category: 'RADIOLOGY', tat: '2 hrs', price: '₹1,200' },
-    { code: 'USG_ABDOMEN', name: 'Complete Abdominal Ultrasonography', category: 'ULTRASOUND', tat: '4 hrs', price: '₹1,800' },
-    { code: 'URINALYSIS_FULL', name: 'Urinalysis with Microscopic Examination', category: 'URINALYSIS', tat: '4 hrs', price: '₹600' },
-  ];
+  const [STANDARD_TESTS, setStandardTests] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    getDiagnosticCatalogApi().then(tests => {
+      if (!cancelled) setStandardTests(tests.map(t => ({ code: t.testCode, name: t.testName, category: t.category, tat: `${t.tatHours} hrs`, price: new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(t.basePricePaisa / 100) })));
+    }).catch(e => { if (!cancelled) setLoadError(e.message); });
+    return () => { cancelled = true; };
+  }, []);
 
   // Slot Management State
   const [showSlotModal, setShowSlotModal] = useState(false);
@@ -140,7 +128,7 @@ export default function VetDashboard() {
     petName: '',
     priority: 'ROUTINE',
     clinicalNotes: '',
-    selectedTests: ['CBC_CANINE'],
+    selectedTests: [],
   });
   const [submittingDiagOrder, setSubmittingDiagOrder] = useState(false);
   const [diagError, setDiagError] = useState(null);
@@ -158,6 +146,7 @@ export default function VetDashboard() {
   const [submittingResult, setSubmittingResult] = useState(false);
 
   const loadVetData = useCallback(async () => {
+    setLoadError('');
     setLoadingMetrics(true);
     setLoadingQueue(true);
 
@@ -171,30 +160,20 @@ export default function VetDashboard() {
         setVetProfile(profileRes.value);
       }
       if (hospitalsRes.status === 'fulfilled' && hospitalsRes.value && hospitalsRes.value.length > 0) {
-        setHospitalName(hospitalsRes.value[0].name);
+        setHospitalName(hospitalsRes.value.find(h => h.hospitalId === hospitalId)?.name || 'Selected hospital');
       }
     } catch (e) {
       console.warn('Could not fetch vet profile/hospital:', e.message);
     }
 
-    try {
-      const dashRes = await getVetDashboardApi().catch(() => null);
-      if (dashRes) {
-        setMetrics({
-          todayTotal: dashRes.todayAppointments || 0,
-          waitingInClinic: dashRes.statusCounts?.BOOKED || 0,
-          completedToday: dashRes.statusCounts?.COMPLETED || 0,
-          criticalTriage: dashRes.pendingRequests || 0,
-        });
-      }
-    } catch (e) {
-      console.warn('Could not fetch vet dashboard metrics:', e.message);
-    } finally {
-      setLoadingMetrics(false);
-    }
 
     try {
-      const aptsRes = await getVetAppointmentsApi().catch(() => null);
+      const today = workingDate || new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+      const filters = { ...(hospitalId ? { hospitalId } : {}), from: today, to: today };
+      const first = await getVetAppointmentsApi(0, 50, filters);
+      const pages = [first];
+      for (let page = 1; page < (first.totalPages || 1); page++) pages.push(await getVetAppointmentsApi(page, 50, filters));
+      const aptsRes = { content: pages.flatMap(p => p.content || []) };
       if (aptsRes && aptsRes.content) {
         const mapped = aptsRes.content.map(apt => {
           let parsedNotes = null;
@@ -207,6 +186,9 @@ export default function VetDashboard() {
           }
           return {
             id: apt.appointmentId,
+            petId: apt.pet?.petId,
+            hospitalId: apt.hospitalId,
+            signed: Boolean(parsedNotes?.isSigned || parsedNotes?.signedAt),
             token: `T-${apt.appointmentId ? apt.appointmentId.slice(-2) : '01'}`,
             petName: apt.pet?.name || 'Patient Companion',
             species: apt.pet?.species === 'DOG' ? 'Canine' : apt.pet?.species === 'CAT' ? 'Feline' : (apt.pet?.species || 'Companion'),
@@ -217,7 +199,7 @@ export default function VetDashboard() {
             ownerPhone: 'Verified Client',
             time: apt.appointmentAt ? new Date(apt.appointmentAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Scheduled',
             reason: apt.reason || 'Clinical Consultation & Health Assessment',
-            status: apt.status === 'BOOKED' ? 'Waiting' : apt.status === 'COMPLETED' ? 'Completed' : (apt.status || 'Waiting'),
+            status: apt.status,
             statusColor: apt.status === 'COMPLETED' ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-amber-100 text-amber-800 border-amber-300',
             triageLevel: 'Standard',
             temp: parsedNotes?.temperature || '—',
@@ -226,16 +208,20 @@ export default function VetDashboard() {
           };
         });
         setQueue(mapped);
+        setMetrics({ todayTotal: mapped.length, waitingInClinic: mapped.filter(p => p.status === 'CONFIRMED').length, completedToday: mapped.filter(p => p.status === 'COMPLETED').length, criticalTriage: mapped.filter(p => p.status === 'BOOKED').length });
+        const orders = await Promise.all([...new Set(mapped.map(p => p.petId).filter(Boolean))].map(id => getPetDiagnosticsApi(id)));
+        setDiagnostics(orders.flat().filter(o => !hospitalId || o.hospitalId === hospitalId).map(o => ({ ...o, id: o.orderId, petName: mapped.find(p => p.petId === o.petId)?.petName || o.petId, type: o.items.map(i => i.testName).join(', '), date: new Date(o.createdAt).toLocaleString('en-IN'), notes: o.clinicalNotes })));
       } else {
         setQueue([]);
       }
     } catch (e) {
-      console.warn('Could not fetch vet appointments queue:', e.message);
+      setLoadError(e.message || 'Unable to load clinical workspace.');
       setQueue([]);
     } finally {
       setLoadingQueue(false);
+      setLoadingMetrics(false);
     }
-  }, []);
+  }, [hospitalId, workingDate]);
 
   useEffect(() => {
     loadVetData();
@@ -246,7 +232,7 @@ export default function VetDashboard() {
       await checkInAppointmentApi(patientId);
       await loadVetData();
     } catch (e) {
-      console.warn('Check-in error:', e.message);
+      setLoadError(e.message);
     }
   };
 
@@ -257,6 +243,7 @@ export default function VetDashboard() {
     try {
       await generateSlotsApi({
         ...slotForm,
+        hospitalId,
         slotDurationMinutes: parseInt(slotForm.slotDurationMinutes, 10),
         capacity: parseInt(slotForm.capacity, 10),
       });
@@ -290,27 +277,9 @@ export default function VetDashboard() {
         items,
       };
 
-      await createDiagnosticOrderApi(orderData).catch(() => null);
-
-      const newOrder = {
-        id: `DX-${Date.now().toString().slice(-6)}`,
-        petName: diagOrderForm.petName || 'Patient Companion',
-        type: items.map(i => i.testName).join(', '),
-        date: 'Just now',
-        status: 'ORDERED',
-        priority: diagOrderForm.priority,
-        notes: diagOrderForm.clinicalNotes || 'Ordered during OPD triage.',
-        items: items.map((it, idx) => ({
-          itemId: `ITEM-${idx}-${Date.now()}`,
-          testCode: it.testCode,
-          testName: it.testName,
-          category: it.category,
-          status: 'PENDING',
-          flag: 'NORMAL',
-        })),
-      };
-
-      setDiagnostics(prev => [newOrder, ...prev]);
+      if (!orderData.petId) throw new Error('Select a registered patient.');
+      await createDiagnosticOrderApi({ ...orderData, hospitalId });
+      await loadVetData();
       setShowDiagOrderModal(false);
       setActiveTab('diagnostics');
     } catch (e) {
@@ -342,7 +311,7 @@ export default function VetDashboard() {
         await updateDiagnosticResultApi(selectedItemToVerify.itemId, {
           ...resultForm,
           verifiedBy: `Dr. ${vetProfile?.firstName || 'Practitioner'}`,
-        }).catch(() => null);
+        });
       }
 
       setDiagnostics(prev =>
@@ -372,13 +341,15 @@ export default function VetDashboard() {
 
       setShowResultModal(false);
     } catch (e) {
-      console.warn('Could not save result:', e.message);
+      setLoadError(e.message);
     } finally {
       setSubmittingResult(false);
     }
   };
 
   const handleStartConsultation = (patient) => {
+    if (patient.status === 'COMPLETED' || patient.signed) { setLoadError('This visit is finalized. Signed records require an auditable amendment.'); return; }
+    encounterRef.current = null;
     setActiveConsultation(patient);
     setSoapError(null);
 
@@ -398,7 +369,7 @@ export default function VetDashboard() {
       heartRate: parsedNotes?.heartRate || (patient.hr !== '—' ? patient.hr : ''),
       objectiveExam: parsedNotes?.objectiveExam || '',
       assessment: parsedNotes?.assessment || patient.reason || '',
-      dietPlan: parsedNotes?.dietPlan || 'Maintain fresh clean water and prescribed diet.',
+      dietPlan: parsedNotes?.dietPlan || '',
       followUpDays: parsedNotes?.followUpDays || '7',
       medications: parsedNotes?.medications && parsedNotes.medications.length > 0
         ? parsedNotes.medications
@@ -503,24 +474,16 @@ export default function VetDashboard() {
         })),
       };
 
-      try {
+      if (!activeConsultation.petId) throw new Error('Patient identity is missing. Refresh the queue.');
+      if (encounterRef.current) {
+        await updateDraftEncounterApi(encounterRef.current, encounterPayload);
+      } else {
         const createdEnc = await createEncounterApi(encounterPayload);
-        if (createdEnc?.encounterId) {
-          await signEncounterApi(createdEnc.encounterId);
-        }
-      } catch (encounterErr) {
-        console.warn('Encounter signing sync note:', encounterErr.message);
+        if (!createdEnc?.encounterId) throw new Error('The encounter could not be created.');
+        encounterRef.current = createdEnc.encounterId;
       }
-
-      // 2. Also maintain appointment status update and visitNotes sync
-      if (activeConsultation?.id) {
-        await updateVetAppointmentStatusApi(activeConsultation.id, 'COMPLETED', soapForm.assessment.trim());
-        await updateVetVisitNotesApi(activeConsultation.id, JSON.stringify({
-          ...soapForm,
-          isSigned: true,
-          signedAt: new Date().toISOString(),
-        }));
-      }
+      const signed = await signEncounterApi(encounterRef.current);
+      if (!signed?.isSigned) throw new Error('The encounter was not signed. Please retry.');
 
       setPrescriptionSigned(true);
       await loadVetData();
@@ -546,6 +509,7 @@ export default function VetDashboard() {
   return (
     <div className="space-y-8 animate-in fade-in">
       
+      {loadError && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{loadError}</div>}
       {/* ── Doctor Header Greeting & OPD Station Banner ── */}
       <div className="bg-gradient-to-r from-white via-white to-[#E8EEF4] rounded-[32px] p-6 sm:p-8 border border-[#10324E]/8 shadow-vetalya flex flex-col md:flex-row md:items-center justify-between gap-6 text-left">
         <div>
@@ -557,7 +521,7 @@ export default function VetDashboard() {
             {currentUser?.name ? (currentUser.name.startsWith('Dr.') ? currentUser.name : `Dr. ${currentUser.name}`) : 'Licensed Veterinarian'} 🩺
           </h1>
           <p className="text-sm text-[#242826]/70 mt-1">
-            {hospitalName || 'Clinical OPD Practice'} • Council Reg: {vetProfile?.registrationNo || currentUser?.councilRegNumber || 'Verified Practitioner'} • Room 1
+            {hospitalName || 'Selected hospital'} • Council Reg: {vetProfile?.registrationNo || currentUser?.councilRegNumber || 'Not supplied'}
           </p>
         </div>
 
@@ -581,7 +545,7 @@ export default function VetDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         <div className="bg-white rounded-3xl p-5 border border-[#10324E]/8 shadow-vetalya text-left">
           <div className="flex items-center justify-between text-[#10324E]">
-            <span className="text-xs font-bold text-[#242826]/60">Today's Total</span>
+            <span className="text-xs font-bold text-[#242826]/60">Selected Day Total</span>
             <Users className="w-4 h-4 text-[#10324E]" />
           </div>
           <p className={`text-2xl sm:text-3xl font-extrabold text-[#10324E] font-display mt-2 ${loadingMetrics ? 'opacity-40 animate-pulse' : ''}`}>
@@ -609,12 +573,12 @@ export default function VetDashboard() {
           <p className={`text-2xl sm:text-3xl font-extrabold text-[#10324E] font-display mt-2 ${loadingMetrics ? 'opacity-40 animate-pulse' : ''}`}>
             {metrics.completedToday}
           </p>
-          <span className="text-[11px] text-emerald-700 font-bold mt-1 inline-block">SOAP notes signed</span>
+          <span className="text-[11px] text-emerald-700 font-bold mt-1 inline-block">Completed appointments</span>
         </div>
 
         <div className="bg-white rounded-3xl p-5 border border-rose-200 shadow-vetalya text-left bg-rose-50/30">
           <div className="flex items-center justify-between text-rose-700">
-            <span className="text-xs font-bold text-rose-800">Critical / Triage</span>
+            <span className="text-xs font-bold text-rose-800">Expected arrivals</span>
             <AlertCircle className="w-4 h-4 text-rose-600 animate-pulse" />
           </div>
           <p className={`text-2xl sm:text-3xl font-extrabold text-rose-700 font-display mt-2 ${loadingMetrics ? 'opacity-40 animate-pulse' : ''}`}>
@@ -663,11 +627,11 @@ export default function VetDashboard() {
             <button
               onClick={() => {
                 setDiagOrderForm({
-                  petId: queue[0]?.petId || queue[0]?.id || 'PET-001',
+                  petId: queue[0]?.petId || '',
                   petName: queue[0]?.petName || 'Select Companion',
                   priority: 'ROUTINE',
                   clinicalNotes: '',
-                  selectedTests: ['CBC_CANINE'],
+                  selectedTests: [],
                 });
                 setShowDiagOrderModal(true);
               }}
@@ -774,7 +738,7 @@ export default function VetDashboard() {
                                 petName: item.petName,
                                 priority: 'ROUTINE',
                                 clinicalNotes: `OPD Queue Token ${item.token}: ${item.reason}`,
-                                selectedTests: ['CBC_CANINE'],
+                                selectedTests: [],
                               });
                               setShowDiagOrderModal(true);
                             }}
@@ -785,6 +749,7 @@ export default function VetDashboard() {
                             <span>Order Lab</span>
                           </button>
                           <button
+                            disabled={item.status === 'COMPLETED' || item.status === 'CANCELLED' || item.status === 'NO_SHOW'}
                             onClick={() => handleStartConsultation(item)}
                             className="px-3.5 py-1.5 rounded-xl bg-[#10324E] hover:bg-[#0c273e] text-white font-bold text-xs shadow-2xs transition inline-flex items-center gap-1 cursor-pointer"
                           >
@@ -810,11 +775,11 @@ export default function VetDashboard() {
             <button
               onClick={() => {
                 setDiagOrderForm({
-                  petId: queue[0]?.petId || queue[0]?.id || 'PET-001',
+                  petId: queue[0]?.petId || '',
                   petName: queue[0]?.petName || 'Select Companion',
                   priority: 'ROUTINE',
                   clinicalNotes: '',
-                  selectedTests: ['CBC_CANINE'],
+                  selectedTests: [],
                 });
                 setShowDiagOrderModal(true);
               }}
@@ -1412,7 +1377,7 @@ export default function VetDashboard() {
                         <option key={q.id} value={q.petId || q.id}>{q.petName} (Token {q.token})</option>
                       ))
                     ) : (
-                      <option value="PET-001">Bella (Canine • Golden Retriever)</option>
+                      <option value="">No registered patients available</option>
                     )}
                   </select>
                 </div>
@@ -1494,7 +1459,7 @@ export default function VetDashboard() {
                 </button>
                 <button
                   type="submit"
-                  disabled={submittingDiagOrder || diagOrderForm.selectedTests.length === 0}
+                  disabled={submittingDiagOrder || !STANDARD_TESTS.length || !diagOrderForm.petId || diagOrderForm.selectedTests.length === 0}
                   className="px-4 py-2 rounded-xl bg-[#079D96] hover:bg-[#06847e] text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-50"
                 >
                   {submittingDiagOrder ? 'Submitting Requisition...' : 'Submit Requisition'}

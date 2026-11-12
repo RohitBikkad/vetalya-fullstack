@@ -96,6 +96,8 @@ public class SocialLoginService {
     }
 
     private UserAuth createUser(ProviderUserInfo info, String role) {
+        if (!java.util.Set.of("ROLE_PET_OWNER", "ROLE_VET").contains(role))
+            throw new IllegalArgumentException("Hospital staff and administrator accounts require administrative provisioning");
         String userId = UlidCreator.getMonotonicUlid().toString();
 
         UserAuth user = new UserAuth();

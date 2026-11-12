@@ -158,7 +158,7 @@ public class StoreSecurityConfig {
 
     private CorsConfigurationSource storeCorsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(allowedOrigin));
+        config.setAllowedOrigins(new com.pet.vetalya.config.AppProperties.Cors(allowedOrigin).allowedOrigins());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key", "X-Client-Type", "X-Request-Id"));
         config.setExposedHeaders(List.of("X-Request-Id"));

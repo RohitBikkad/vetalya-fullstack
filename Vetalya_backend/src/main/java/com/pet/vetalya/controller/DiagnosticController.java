@@ -20,8 +20,10 @@ import java.util.List;
 public class DiagnosticController {
 
     private final DiagnosticService diagnosticService;
+    private final com.pet.vetalya.clinic.ClinicalAccess access;
 
-    public DiagnosticController(DiagnosticService diagnosticService) {
+    public DiagnosticController(DiagnosticService diagnosticService, com.pet.vetalya.clinic.ClinicalAccess access) {
+        this.access=access;
         this.diagnosticService = diagnosticService;
     }
 
@@ -29,7 +31,7 @@ public class DiagnosticController {
      * POST /api/v1/diagnostics/orders — Order diagnostic tests.
      */
     @PostMapping("/orders")
-    @PreAuthorize("hasAnyAuthority('ROLE_VET', 'ROLE_CLINIC_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_VET')")
     public ResponseEntity<DiagnosticOrderResponse> createOrder(
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody DiagnosticOrderRequest request) {
@@ -42,7 +44,8 @@ public class DiagnosticController {
      */
     @GetMapping("/orders/{orderId}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<DiagnosticOrderResponse> getOrderById(@PathVariable String orderId) {
+    public ResponseEntity<DiagnosticOrderResponse> getOrderById(@AuthenticationPrincipal Jwt jwt, @PathVariable String orderId) {
+        access.diagnosticRead(jwt.getSubject(),orderId);
         DiagnosticOrderResponse response = diagnosticService.getOrderById(orderId);
         return ResponseEntity.ok(response);
     }
@@ -52,8 +55,8 @@ public class DiagnosticController {
      */
     @GetMapping("/pet/{petId}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<DiagnosticOrderResponse>> getOrdersForPet(@PathVariable String petId) {
-        List<DiagnosticOrderResponse> response = diagnosticService.getOrdersForPet(petId);
+    public ResponseEntity<List<DiagnosticOrderResponse>> getOrdersForPet(@AuthenticationPrincipal Jwt jwt, @PathVariable String petId) {
+        List<DiagnosticOrderResponse> response = diagnosticService.getOrdersForPet(petId).stream().filter(o -> { try { access.diagnosticRead(jwt.getSubject(),o.orderId()); return true; } catch (org.springframework.security.access.AccessDeniedException ex) { return false; } }).toList();
         return ResponseEntity.ok(response);
     }
 
@@ -61,11 +64,14 @@ public class DiagnosticController {
      * PUT /api/v1/diagnostics/items/{itemId}/results — Enter and verify diagnostic result.
      */
     @PutMapping("/items/{itemId}/results")
-    @PreAuthorize("hasAnyAuthority('ROLE_VET', 'ROLE_CLINIC_ADMIN', 'ROLE_LAB_TECHNICIAN')")
+    @PreAuthorize("hasAuthority('ROLE_VET')")
     public ResponseEntity<DiagnosticOrderResponse> updateItemResult(
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable String itemId,
             @Valid @RequestBody DiagnosticResultUpdateRequest request) {
-        DiagnosticOrderResponse response = diagnosticService.updateItemResult(itemId, request);
+        access.diagnosticWrite(jwt.getSubject(),itemId);
+        var attributed = new DiagnosticResultUpdateRequest(request.resultValue(),request.referenceRange(),request.unit(),request.flag(),request.interpretation(),request.reportFileUrl(),jwt.getSubject());
+        DiagnosticOrderResponse response = diagnosticService.updateItemResult(itemId, attributed);
         return ResponseEntity.ok(response);
     }
 

@@ -1,0 +1,1 @@
+{"name":"@vetalya/owner-domain","private":true,"version":"0.1.0","type":"module","exports":{"./model":"./src/model.js","./api":"./src/api.js"},"scripts":{"test":"node --test tests/*.test.js"}}

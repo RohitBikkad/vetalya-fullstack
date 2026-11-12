@@ -72,6 +72,13 @@ public class PetPassportController {
     /**
      * POST /api/v1/pets/{petId}/passport/share-requests — Initiate record sharing.
      */
+    @GetMapping("/{petId}/passport/share-requests")
+    @PreAuthorize("hasRole('PET_OWNER')")
+    public ResponseEntity<List<RecordShareRequestDto.Response>> listShareRequests(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable String petId) {
+        return ResponseEntity.ok(passportService.listShareRequests(jwt.getSubject(), petId));
+    }
+
     @PostMapping("/{petId}/passport/share-requests")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<RecordShareRequestDto.Response> createShareRequest(

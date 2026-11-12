@@ -216,6 +216,18 @@ public class PetPassportService {
         return timeline;
     }
 
+    @Transactional(readOnly = true)
+    public List<RecordShareRequestDto.Response> listShareRequests(String currentUserId, String petId) {
+        Pet pet = petRepo.findById(petId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pet not found"));
+        if (!pet.getOwnerUserId().equals(currentUserId)) {
+            throw new ForbiddenException("Only the pet owner can view sharing history");
+        }
+        return shareRepo.findAllByPetId(petId).stream()
+                .sorted(Comparator.comparing(RecordShareRequest::getCreatedAt).reversed())
+                .map(share -> toShareResponse(share, pet.getName())).toList();
+    }
+
     /**
      * Record Sharing: Request sharing.
      */

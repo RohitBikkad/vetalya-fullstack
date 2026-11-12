@@ -115,6 +115,11 @@ public class GlobalExceptionHandler {
         return enrich(pd);
     }
 
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ProblemDetail handleResponseStatus(org.springframework.web.server.ResponseStatusException ex) {
+        return enrich(ProblemDetail.forStatusAndDetail(ex.getStatusCode(), ex.getReason() != null ? ex.getReason() : "Request rejected"));
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleUnexpected(Exception ex) {
         String correlationId = CorrelationIdFilter.getCorrelationId();

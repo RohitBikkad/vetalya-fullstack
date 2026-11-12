@@ -63,9 +63,25 @@ public record AppProperties(
             String privateKeyPath
     ) {}
 
-    public record Cors(
-            String allowedOrigin
-    ) {}
+    public record Cors(String allowedOrigin) {
+        /** Exact browser origins only. Native apps use Bearer tokens and do not require CORS origins. */
+        public List<String> allowedOrigins() {
+            if (allowedOrigin == null || allowedOrigin.isBlank()) return List.of();
+            return java.util.Arrays.stream(allowedOrigin.split(","))
+                .map(String::trim).filter(s -> !s.isEmpty()).distinct().map(origin -> {
+                    try {
+                        var uri = java.net.URI.create(origin);
+                        if (!("http".equals(uri.getScheme()) || "https".equals(uri.getScheme())) || uri.getHost() == null
+                            || uri.getRawUserInfo() != null || uri.getRawQuery() != null || uri.getRawFragment() != null
+                            || (uri.getRawPath() != null && !uri.getRawPath().isEmpty()) || origin.contains("*"))
+                            throw new IllegalArgumentException();
+                    } catch (IllegalArgumentException e) {
+                        throw new IllegalArgumentException("CORS_ALLOWED_ORIGINS must contain exact http(s) origins without paths or wildcards");
+                    }
+                    return origin;
+                }).toList();
+        }
+    }
 
     public record Appointment(
             int slotMinutes,

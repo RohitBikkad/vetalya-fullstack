@@ -13,6 +13,8 @@ import java.util.Optional;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, String> {
 
+    boolean existsByVetUserIdAndPetIdAndHospitalId(String vetUserId,String petId,String hospitalId);
+
     Optional<Appointment> findByAppointmentIdAndVetUserId(String appointmentId, String vetUserId);
 
     List<Appointment> findAllByPetIdAndStatus(String petId, String status);

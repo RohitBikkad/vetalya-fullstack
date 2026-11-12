@@ -1,5 +1,6 @@
 package com.pet.vetalya.auth.controller;
 
+import com.pet.vetalya.auth.ClientPlatform;
 import com.pet.vetalya.auth.apple.AppleTokenRevocationService;
 import com.pet.vetalya.auth.service.NativeTokenVerificationService;
 import com.pet.vetalya.auth.service.OtpService;
@@ -105,8 +106,10 @@ public class AuthController {
             HttpServletResponse httpResponse) {
 
         String cookieToken = extractCookie(httpRequest, REFRESH_COOKIE_NAME);
-        boolean isWeb = cookieToken != null;
-        String rawToken = isWeb ? cookieToken : (request != null ? request.refreshToken() : null);
+        String bodyToken = request != null ? request.refreshToken() : null;
+        boolean hasBodyToken = bodyToken != null && !bodyToken.isBlank();
+        boolean isWeb = !hasBodyToken && cookieToken != null;
+        String rawToken = hasBodyToken ? bodyToken : cookieToken;
 
         if (rawToken == null || rawToken.isBlank()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -158,7 +161,7 @@ public class AuthController {
         }
 
         String codeHash = TokenService.sha256(request.code());
-        OneTimeCode otc = oneTimeCodeRepo.findByCodeHash(codeHash)
+        OneTimeCode otc = oneTimeCodeRepo.findByCodeHashForUpdate(codeHash)
                 .orElse(null);
 
         if (otc == null || otc.isUsed() || otc.getExpiresAt() == null || otc.getExpiresAt().isBefore(Instant.now())) {
@@ -197,13 +200,13 @@ public class AuthController {
                 .maxAge(appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60)
                 .sameSite(isSecure ? "None" : "Lax")
                 .build();
-        if (httpResponse != null) {
+        if (httpResponse != null && "web".equals(otc.getClientType())) {
             httpResponse.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
         }
 
         return ResponseEntity.ok(new TokenResponse(
                 accessToken,
-                refreshToken,
+                "web".equals(otc.getClientType()) ? null : refreshToken,
                 expiresIn,
                 otc.isNewUser(),
                 otc.isProfileComplete()
@@ -223,6 +226,7 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("error", "missing_token", "message", "idToken is required"));
         }
 
+        ClientPlatform client = ClientPlatform.parse(request.clientType());
         String role = request.role() != null ? request.role() : "ROLE_PET_OWNER";
         if ("PET_PARENT".equalsIgnoreCase(role)) role = "ROLE_PET_OWNER";
         if ("VETERINARIAN".equalsIgnoreCase(role)) role = "ROLE_VET";
@@ -233,11 +237,11 @@ public class AuthController {
             boolean isSecure = httpRequest != null && httpRequest.isSecure();
 
             SocialLoginService.LoginResult result = socialLoginService.processLogin(
-                    userInfo, role, "web", request.deviceId(), ipAddress);
+                    userInfo, role, client.value(), request.deviceId(), ipAddress);
 
             ResponseCookie cookie = buildRefreshCookie(result.refreshToken(),
                     appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, isSecure);
-            if (httpResponse != null) {
+            if (httpResponse != null && client.isWeb()) {
                 httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
             }
 
@@ -245,7 +249,7 @@ public class AuthController {
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("token", result.accessToken());
             response.put("accessToken", result.accessToken());
-            if (result.refreshToken() != null) {
+            if (result.refreshToken() != null && !client.isWeb()) {
                 response.put("refreshToken", result.refreshToken());
             }
             response.put("expiresIn", expiresIn);
@@ -275,6 +279,8 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("error", "missing_token", "message", "idToken is required"));
         }
 
+        if (request.clientType() != null && ClientPlatform.parse(request.clientType()) != ClientPlatform.IOS)
+            return ResponseEntity.badRequest().body(Map.of("message", "Native Apple sign-in requires clientType ios"));
         String role = request.role() != null ? request.role() : "ROLE_PET_OWNER";
         try {
             ProviderUserInfo userInfo = nativeTokenVerificationService.verifyAppleToken(request.idToken(), request.name());
@@ -312,7 +318,8 @@ public class AuthController {
             HttpServletResponse httpResponse) {
 
         String cookieToken = extractCookie(httpRequest, REFRESH_COOKIE_NAME);
-        String rawToken = cookieToken != null ? cookieToken : (request != null ? request.refreshToken() : null);
+        String bodyToken = request != null ? request.refreshToken() : null;
+        String rawToken = bodyToken != null && !bodyToken.isBlank() ? bodyToken : cookieToken;
 
         if (rawToken != null && !rawToken.isBlank()) {
             tokenService.revokeRefreshToken(rawToken);
@@ -494,6 +501,8 @@ public class AuthController {
         if (request == null) {
             return ResponseEntity.badRequest().body(Map.of("message", "Request body is required"));
         }
+        ClientPlatform client = ClientPlatform.parse(getString(request, "clientType"));
+        String deviceId = getString(request, "deviceId");
         String identifier = getString(request, "email");
         if (identifier == null || identifier.isBlank()) {
             identifier = getString(request, "phone");
@@ -542,11 +551,11 @@ public class AuthController {
         String ipAddress = httpRequest != null ? httpRequest.getRemoteAddr() : "127.0.0.1";
         boolean isSecure = httpRequest != null && httpRequest.isSecure();
         String accessToken = tokenService.createAccessToken(user);
-        String refreshToken = tokenService.createRefreshToken(user, "web", null, ipAddress);
+        String refreshToken = tokenService.createRefreshToken(user, client.value(), deviceId, ipAddress);
 
         ResponseCookie cookie = buildRefreshCookie(refreshToken,
                 appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, isSecure);
-        if (httpResponse != null) {
+        if (httpResponse != null && client.isWeb()) {
             httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
         }
 
@@ -555,7 +564,7 @@ public class AuthController {
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("token", accessToken);
         resp.put("accessToken", accessToken);
-        if (refreshToken != null) {
+        if (refreshToken != null && !client.isWeb()) {
             resp.put("refreshToken", refreshToken);
         }
         resp.put("user", userMap);
@@ -571,6 +580,8 @@ public class AuthController {
         if (request == null) {
             return ResponseEntity.badRequest().body(Map.of("message", "Request body is required"));
         }
+        ClientPlatform client = ClientPlatform.parse(getString(request, "clientType"));
+        String deviceId = getString(request, "deviceId");
         String fullName = getString(request, "fullName");
         if (fullName == null || fullName.isBlank()) {
             fullName = getString(request, "name");
@@ -644,7 +655,7 @@ public class AuthController {
         ProviderUserInfo info = new ProviderUserInfo("GOOGLE", "reg-" + email, email, true, firstName, lastName, null);
         String ipAddress = httpRequest != null ? httpRequest.getRemoteAddr() : "127.0.0.1";
         boolean isSecure = httpRequest != null && httpRequest.isSecure();
-        SocialLoginService.LoginResult lr = socialLoginService.processLogin(info, role, "web", null, ipAddress);
+        SocialLoginService.LoginResult lr = socialLoginService.processLogin(info, role, client.value(), deviceId, ipAddress);
 
         String councilReg = getString(request, "councilRegNumber");
         if (councilReg == null) councilReg = getString(request, "registrationNo");
@@ -681,7 +692,7 @@ public class AuthController {
 
         ResponseCookie cookie = buildRefreshCookie(lr.refreshToken(),
                 appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, isSecure);
-        if (httpResponse != null) {
+        if (httpResponse != null && client.isWeb()) {
             httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
         }
 
@@ -690,7 +701,7 @@ public class AuthController {
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("token", lr.accessToken());
         resp.put("accessToken", lr.accessToken());
-        if (lr.refreshToken() != null) {
+        if (lr.refreshToken() != null && !client.isWeb()) {
             resp.put("refreshToken", lr.refreshToken());
         }
         resp.put("user", userMap);
@@ -781,6 +792,8 @@ public class AuthController {
         if (request == null) {
             return ResponseEntity.badRequest().body(Map.of("message", "Request body is required"));
         }
+        ClientPlatform client = ClientPlatform.parse(getString(request, "clientType"));
+        String deviceId = getString(request, "deviceId");
         String phone = getString(request, "phone");
         String otp = getString(request, "otp");
         if (otp == null) otp = getString(request, "code");
@@ -818,11 +831,11 @@ public class AuthController {
         String ipAddress = httpRequest != null ? httpRequest.getRemoteAddr() : "127.0.0.1";
         boolean isSecure = httpRequest != null && httpRequest.isSecure();
         String accessToken = tokenService.createAccessToken(user);
-        String refreshToken = tokenService.createRefreshToken(user, "web", null, ipAddress);
+        String refreshToken = tokenService.createRefreshToken(user, client.value(), deviceId, ipAddress);
 
         ResponseCookie cookie = buildRefreshCookie(refreshToken,
                 appProperties.jwt().refreshTokenExpiryDays() * 24L * 60 * 60, isSecure);
-        if (httpResponse != null) {
+        if (httpResponse != null && client.isWeb()) {
             httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
         }
 
@@ -831,7 +844,7 @@ public class AuthController {
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("token", accessToken);
         resp.put("accessToken", accessToken);
-        if (refreshToken != null) {
+        if (refreshToken != null && !client.isWeb()) {
             resp.put("refreshToken", refreshToken);
         }
         resp.put("user", userMap);

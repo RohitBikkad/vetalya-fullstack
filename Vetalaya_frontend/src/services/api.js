@@ -3,29 +3,17 @@
  * Interacts with Spring Boot backend at http://localhost:8080 (or through Vite /api proxy)
  */
 
-const getApiBaseUrl = () => {
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
-  if (envUrl && envUrl.startsWith('http')) {
-    return envUrl;
-  }
-  if (typeof window !== 'undefined') {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return '/api';
-    }
-    if (window.location.hostname.includes('onrender.com')) {
-      return 'https://vetalya-fullstack.onrender.com/api';
-    }
-  }
-  return envUrl || 'http://localhost:8080/api';
-};
-
-const API_BASE_URL = getApiBaseUrl();
+// Same-origin deployments use /api; separately hosted web deployments set the full API URL.
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/+$/, '');
 
 /**
  * Universal request wrapper handling JWT injection and JSON parsing
  */
+const publicAuthPaths = new Set(['/auth/login', '/auth/register', '/auth/google', '/auth/apple', '/auth/refresh', '/auth/exchange', '/auth/logout', '/auth/login-otp', '/auth/otp/send', '/auth/otp/verify', '/auth/demo-login']);
+
 export async function request(endpoint, options = {}) {
-  const token = localStorage.getItem('vetalya_jwt_token');
+  // Public auth must not carry an expired access JWT: the resource-server filter would reject refresh/login.
+  const token = publicAuthPaths.has(endpoint.split('?')[0]) ? null : localStorage.getItem('vetalya_jwt_token');
 
   const headers = {
     'Content-Type': 'application/json',
@@ -50,11 +38,15 @@ export async function request(endpoint, options = {}) {
     }
   }
 
-  const data = await response.json().catch(() => null);
+  if (response.ok && (response.status === 204 || response.headers.get('content-length') === '0')) return null;
+  const body = await response.text();
+  let data = null;
+  try { data = body ? JSON.parse(body) : null; } catch { /* Invalid server response is reported below. */ }
+  if (response.ok && !body) return null;
 
   if (!response.ok || !data) {
     const errorMessage =
-      data?.message ||
+      data?.message || data?.detail ||
       (data?.details ? Object.values(data.details).join(', ') : null) ||
       (!data ? `Failed to connect to backend at ${API_BASE_URL} (Status ${response.status}).` : 'Request failed');
     throw new Error(errorMessage);
@@ -177,8 +169,9 @@ export async function getPetVaccinationsApi(petId) {
   return request(`/owner/pets/${petId}/vaccinations`);
 }
 
-export async function getVetAppointmentsApi(page = 0, size = 20) {
-  return request(`/vet/appointments?page=${page}&size=${size}`);
+export async function getVetAppointmentsApi(page = 0, size = 20, filters = {}) {
+  const params = new URLSearchParams({ page, size, ...filters });
+  return request(`/vet/appointments?${params}`);
 }
 
 export async function getVetDashboardApi() {

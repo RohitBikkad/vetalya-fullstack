@@ -98,6 +98,11 @@ public class AppointmentSlotService {
             throw new ConflictException("Slot is no longer available. Please select another slot.");
         }
 
+        Instant startsAt = LocalDateTime.of(slot.getSlotDate(), slot.getStartTime()).atZone(IST).toInstant();
+        if (!startsAt.isAfter(Instant.now())) {
+            throw new ConflictException("This appointment slot has already started. Please choose a future slot.");
+        }
+
         // 2. Validate pet exists and belongs to owner
         Pet pet = petRepo.findById(req.petId())
                 .orElseThrow(() -> new ResourceNotFoundException("Pet not found: " + req.petId()));

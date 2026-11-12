@@ -18,7 +18,7 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/admin")
-@PreAuthorize("hasAnyAuthority('ROLE_PLATFORM_ADMIN', 'ROLE_CLINIC_ADMIN')")
+@PreAuthorize("hasAuthority('ROLE_PLATFORM_ADMIN')")
 public class AdminController {
 
     private final UserAuthRepository userAuthRepo;

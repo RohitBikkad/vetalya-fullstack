@@ -17,8 +17,8 @@ import java.util.List;
 @Configuration
 public class OpenApiConfig {
 
-    @Value("${app.web-redirect-url:https://vetalya-frontend.onrender.com}")
-    private String frontendUrl;
+    @Value("${API_PUBLIC_URL:}")
+    private String publicApiUrl;
 
     @Bean
     public OpenAPI customOpenAPI() {
@@ -38,11 +38,9 @@ public class OpenApiConfig {
                         .license(new License()
                                 .name("Proprietary")
                                 .url("https://vetalya.com/terms")))
-                .servers(List.of(
-                        new Server().url("/").description("Current Active Server / In-Cluster Route"),
-                        new Server().url("https://vetalya-backend.onrender.com").description("Production Cloud Service (Render)"),
-                        new Server().url("http://localhost:8080").description("Local Development Server")
-                ))
+                .servers(publicApiUrl == null || publicApiUrl.isBlank()
+                    ? List.of(new Server().url("/").description("Current API server — shared by web, Android and iOS"))
+                    : List.of(new Server().url(publicApiUrl).description("Configured shared public API")))
                 .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
                 .components(new Components()
                         .addSecuritySchemes(securitySchemeName,

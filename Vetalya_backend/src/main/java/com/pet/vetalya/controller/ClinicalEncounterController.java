@@ -19,8 +19,10 @@ import java.util.List;
 public class ClinicalEncounterController {
 
     private final ClinicalEncounterService encounterService;
+    private final com.pet.vetalya.clinic.ClinicalAccess access;
 
-    public ClinicalEncounterController(ClinicalEncounterService encounterService) {
+    public ClinicalEncounterController(ClinicalEncounterService encounterService, com.pet.vetalya.clinic.ClinicalAccess access) {
+        this.access=access;
         this.encounterService = encounterService;
     }
 
@@ -28,7 +30,7 @@ public class ClinicalEncounterController {
      * POST /api/v1/encounters — Start or draft a new clinical encounter.
      */
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ROLE_VET', 'ROLE_CLINIC_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_VET')")
     public ResponseEntity<EncounterResponse> createEncounter(
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody EncounterRequest request) {
@@ -42,7 +44,9 @@ public class ClinicalEncounterController {
     @GetMapping("/{encounterId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<EncounterResponse> getEncounter(
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable String encounterId) {
+        access.encounterRead(jwt.getSubject(),encounterId);
         EncounterResponse response = encounterService.getEncounter(encounterId);
         return ResponseEntity.ok(response);
     }
@@ -51,7 +55,7 @@ public class ClinicalEncounterController {
      * PUT /api/v1/encounters/{encounterId} — Update draft encounter before signing.
      */
     @PutMapping("/{encounterId}")
-    @PreAuthorize("hasAnyAuthority('ROLE_VET', 'ROLE_CLINIC_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_VET')")
     public ResponseEntity<EncounterResponse> updateDraftEncounter(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable String encounterId,
@@ -64,7 +68,7 @@ public class ClinicalEncounterController {
      * POST /api/v1/encounters/{encounterId}/sign — Cryptographically sign and lock encounter.
      */
     @PostMapping("/{encounterId}/sign")
-    @PreAuthorize("hasAnyAuthority('ROLE_VET', 'ROLE_CLINIC_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_VET')")
     public ResponseEntity<EncounterResponse> signEncounter(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable String encounterId) {
@@ -76,7 +80,7 @@ public class ClinicalEncounterController {
      * POST /api/v1/encounters/{encounterId}/amend — Create auditable amendment to signed record.
      */
     @PostMapping("/{encounterId}/amend")
-    @PreAuthorize("hasAnyAuthority('ROLE_VET', 'ROLE_CLINIC_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_VET')")
     public ResponseEntity<EncounterResponse> amendEncounter(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable String encounterId,
@@ -91,8 +95,9 @@ public class ClinicalEncounterController {
     @GetMapping("/pet/{petId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<EncounterResponse>> listPetEncounters(
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable String petId) {
-        List<EncounterResponse> list = encounterService.listPetEncounters(petId);
+        List<EncounterResponse> list = encounterService.listPetEncounters(petId).stream().filter(e -> { try { access.encounterRead(jwt.getSubject(),e.encounterId()); return true; } catch (org.springframework.security.access.AccessDeniedException ex) { return false; } }).toList();
         return ResponseEntity.ok(list);
     }
 }

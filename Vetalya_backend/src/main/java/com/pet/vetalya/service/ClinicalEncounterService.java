@@ -63,6 +63,18 @@ public class ClinicalEncounterService {
         Pet pet = petRepo.findById(req.petId())
                 .orElseThrow(() -> new ResourceNotFoundException("Pet not found with ID: " + req.petId()));
 
+        if (req.appointmentId() == null || req.appointmentId().isBlank()) {
+            throw new ConflictException("An assigned appointment is required for this clinical workflow");
+        }
+        Appointment appointment = appointmentRepo.findByAppointmentIdAndVetUserId(req.appointmentId(),vetUserId)
+            .orElseThrow(() -> new ForbiddenException("Appointment is not assigned to this veterinarian"));
+        if (!pet.getPetId().equals(appointment.getPetId()) || !Objects.equals(req.hospitalId(),appointment.getHospitalId()))
+            throw new ForbiddenException("Patient or hospital does not match the appointment");
+        var existing = encounterRepo.findByAppointmentId(req.appointmentId());
+        if (existing.isPresent()) return updateDraftEncounter(vetUserId,existing.get().getEncounterId(),req);
+        if (Set.of("COMPLETED","CANCELLED","NO_SHOW").contains(appointment.getStatus()))
+            throw new ConflictException("This appointment is finalized");
+
         ClinicalEncounter encounter = new ClinicalEncounter();
         encounter.setEncounterId(idGenerator.newId());
         encounter.setPetId(pet.getPetId());
@@ -83,6 +95,7 @@ public class ClinicalEncounterService {
         if (req.appointmentId() != null && !req.appointmentId().isBlank()) {
             appointmentRepo.findById(req.appointmentId()).ifPresent(apt -> {
                 apt.setStatus("IN_CONSULTATION");
+                if (apt.getConsultationStartTime()==null) apt.setConsultationStartTime(Instant.now());
                 appointmentRepo.save(apt);
             });
         }
@@ -151,9 +164,11 @@ public class ClinicalEncounterService {
         if (savedEncounter.getAppointmentId() != null) {
             appointmentRepo.findById(savedEncounter.getAppointmentId()).ifPresent(apt -> {
                 apt.setStatus("COMPLETED");
+                apt.setConsultationEndTime(signTimestamp);
                 // Store serialized summary in visit_notes for legacy compatibility
                 try {
                     Map<String, Object> summary = new HashMap<>();
+                    summary.put("isSigned", true);
                     summary.put("assessment", savedEncounter.getDiagnosisPrimary());
                     summary.put("treatmentPlan", savedEncounter.getTreatmentPlan());
                     summary.put("temperature", savedEncounter.getTemperatureF());
@@ -181,6 +196,10 @@ public class ClinicalEncounterService {
     public EncounterResponse amendEncounter(String vetUserId, String encounterId, EncounterAmendmentRequest req) {
         ClinicalEncounter encounter = encounterRepo.findById(encounterId)
                 .orElseThrow(() -> new ResourceNotFoundException("Encounter not found with ID: " + encounterId));
+
+        if (!encounter.getVetUserId().equals(vetUserId)) {
+            throw new ForbiddenException("Only the authoring veterinarian may amend this record");
+        }
 
         if (!encounter.isSigned()) {
             throw new ConflictException("Encounter is not yet signed. Update draft directly instead of creating an amendment.");

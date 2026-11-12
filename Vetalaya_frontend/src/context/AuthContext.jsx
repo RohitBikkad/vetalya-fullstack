@@ -128,7 +128,7 @@ export function AuthProvider({ children }) {
         try {
           const payload = JSON.parse(atob(token.split('.')[1]));
           const roles = payload.roles || [];
-          const role = roles[0] || 'ROLE_PET_OWNER';
+          const role = roles[0] || '';
           const sub = payload.sub || 'user@vetalya.local';
           const isEmail = sub.includes('@');
           user = {
@@ -261,7 +261,7 @@ export function AuthProvider({ children }) {
         currentUser,
         jwtToken,
         isAuthenticated: Boolean(currentUser && jwtToken),
-        role: currentUser?.role || 'ROLE_PET_OWNER',
+        role: currentUser?.role || '',
         isLoading,
         error,
         tokenTimeRemaining,

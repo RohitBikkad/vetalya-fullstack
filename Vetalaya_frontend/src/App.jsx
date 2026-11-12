@@ -265,7 +265,7 @@ function MainContent() {
           Signing into Vetalya...
         </h2>
         <p className="text-xs text-[#242826]/70 mt-2 max-w-sm leading-relaxed">
-          Securing your session with Google and preparing your animal healthcare dashboard.
+          Preparing your secure care workspace.
         </p>
       </div>
     );
