@@ -23,13 +23,24 @@ const tokenStore = {
       await SecureStore.deleteItemAsync("vetalya.refreshToken");
   },
 };
-export const apiBaseUrl =
-  process.env.EXPO_PUBLIC_API_BASE_URL ||
-  (__DEV__
+const rawBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+function resolveApiBaseUrl() {
+  if (rawBaseUrl) {
+    if (Platform.OS === "android" && rawBaseUrl.includes("localhost")) {
+      return rawBaseUrl.replace("localhost", "10.0.2.2");
+    }
+    if ((Platform.OS === "ios" || Platform.OS === "web") && rawBaseUrl.includes("10.0.2.2")) {
+      return rawBaseUrl.replace("10.0.2.2", "localhost");
+    }
+    return rawBaseUrl;
+  }
+  return __DEV__
     ? Platform.OS === "android"
       ? "http://10.0.2.2:8080/api"
       : "http://localhost:8080/api"
-    : "");
+    : "";
+}
+export const apiBaseUrl = resolveApiBaseUrl();
 let instance;
 export function client() {
   if (!instance)
