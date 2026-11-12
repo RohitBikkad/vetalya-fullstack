@@ -16,7 +16,10 @@ import java.util.Set;
 public class SocialLoginService {
 
     private static final Logger log = LoggerFactory.getLogger(SocialLoginService.class);
-    private static final Set<String> ALLOWED_ROLES = Set.of("ROLE_VET", "ROLE_PET_OWNER", "ROLE_PLATFORM_ADMIN", "ROLE_CLINIC_ADMIN");
+    private static final Set<String> ALLOWED_ROLES = Set.of(
+            "ROLE_VET", "ROLE_PET_OWNER", "ROLE_PLATFORM_ADMIN", "ROLE_CLINIC_ADMIN",
+            "ROLE_LAB_TECHNICIAN", "ROLE_RECEPTIONIST", "ROLE_PHARMACIST", "ROLE_VET_NURSE"
+    );
 
     private final UserAuthRepository userAuthRepo;
     private final AuthProviderRepository authProviderRepo;
