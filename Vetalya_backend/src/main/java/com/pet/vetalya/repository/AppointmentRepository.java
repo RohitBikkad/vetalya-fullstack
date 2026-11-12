@@ -15,6 +15,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
 
     Optional<Appointment> findByAppointmentIdAndVetUserId(String appointmentId, String vetUserId);
 
+    List<Appointment> findAllByPetIdAndStatus(String petId, String status);
+
     /**
      * Paginated list with optional filters. Uses JPQL with dynamic conditions.
      */

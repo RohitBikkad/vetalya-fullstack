@@ -12,6 +12,8 @@ public interface VaccinationRepository extends JpaRepository<Vaccination, String
 
     List<Vaccination> findAllByPetIdAndVetUserId(String petId, String vetUserId);
 
+    List<Vaccination> findAllByPetIdOrderByLastVaccinationDateDesc(String petId);
+
     Optional<Vaccination> findByVaccinationIdAndVetUserId(String vaccinationId, String vetUserId);
 
     /**

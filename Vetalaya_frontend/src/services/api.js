@@ -8,10 +8,15 @@ const getApiBaseUrl = () => {
   if (envUrl && envUrl.startsWith('http')) {
     return envUrl;
   }
-  if (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com')) {
-    return 'https://vetalya-fullstack.onrender.com/api';
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return '/api';
+    }
+    if (window.location.hostname.includes('onrender.com')) {
+      return 'https://vetalya-fullstack.onrender.com/api';
+    }
   }
-  return envUrl || 'https://vetalya-fullstack.onrender.com/api';
+  return envUrl || 'http://localhost:8080/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();

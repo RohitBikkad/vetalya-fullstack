@@ -77,6 +77,10 @@ public class Appointment {
     @JoinColumn(name = "hospital_id", insertable = false, updatable = false)
     private Hospital hospital;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vet_user_id", referencedColumnName = "user_id", insertable = false, updatable = false)
+    private Vet vet;
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();
@@ -145,4 +149,5 @@ public class Appointment {
     public Pet getPet() { return pet; }
     public PetOwner getOwner() { return owner; }
     public Hospital getHospital() { return hospital; }
+    public Vet getVet() { return vet; }
 }

@@ -145,32 +145,32 @@ public class ClinicalEncounterService {
         encounter.setSigned(true);
         encounter.setSignedAt(signTimestamp);
         encounter.setDigitalSignatureHash(signatureHash);
-        encounter = encounterRepo.save(encounter);
+        final ClinicalEncounter savedEncounter = encounterRepo.save(encounter);
 
         // Complete linked appointment
-        if (encounter.getAppointmentId() != null) {
-            appointmentRepo.findById(encounter.getAppointmentId()).ifPresent(apt -> {
+        if (savedEncounter.getAppointmentId() != null) {
+            appointmentRepo.findById(savedEncounter.getAppointmentId()).ifPresent(apt -> {
                 apt.setStatus("COMPLETED");
                 // Store serialized summary in visit_notes for legacy compatibility
                 try {
                     Map<String, Object> summary = new HashMap<>();
-                    summary.put("assessment", encounter.getDiagnosisPrimary());
-                    summary.put("treatmentPlan", encounter.getTreatmentPlan());
-                    summary.put("temperature", encounter.getTemperatureF());
-                    summary.put("weight", encounter.getBodyWeightKg());
-                    summary.put("dietPlan", encounter.getDietInstructions());
+                    summary.put("assessment", savedEncounter.getDiagnosisPrimary());
+                    summary.put("treatmentPlan", savedEncounter.getTreatmentPlan());
+                    summary.put("temperature", savedEncounter.getTemperatureF());
+                    summary.put("weight", savedEncounter.getBodyWeightKg());
+                    summary.put("dietPlan", savedEncounter.getDietInstructions());
                     summary.put("signedAt", signTimestamp.toString());
                     summary.put("digitalSignatureHash", signatureHash);
                     apt.setVisitNotes(objectMapper.writeValueAsString(summary));
                 } catch (Exception e) {
-                    apt.setVisitNotes(encounter.getDiagnosisPrimary());
+                    apt.setVisitNotes(savedEncounter.getDiagnosisPrimary());
                 }
                 appointmentRepo.save(apt);
             });
         }
 
         log.info("Clinical encounter digitally signed: encounterId={}, hash={}", encounterId, signatureHash);
-        return toEncounterResponse(encounter);
+        return toEncounterResponse(savedEncounter);
     }
 
     /**
