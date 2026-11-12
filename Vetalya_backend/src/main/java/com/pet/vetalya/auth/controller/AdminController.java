@@ -32,6 +32,25 @@ public class AdminController {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM dd, yyyy")
             .withZone(ZoneId.systemDefault());
 
+    private static final Set<String> CLINIC_STAFF_ROLES = Set.of(
+            "ROLE_VET",
+            "ROLE_RECEPTIONIST",
+            "ROLE_LAB_TECHNICIAN",
+            "ROLE_PHARMACIST",
+            "ROLE_VET_NURSE",
+            "ROLE_CLINIC_STAFF",
+            "ROLE_ACCOUNTANT"
+    );
+
+    private boolean isPlatformAdmin(Jwt jwt) {
+        if (jwt == null) return false;
+        Object rolesClaim = jwt.getClaims().get("roles");
+        if (rolesClaim instanceof List<?> list) {
+            return list.contains("ROLE_PLATFORM_ADMIN");
+        }
+        return false;
+    }
+
     public AdminController(UserAuthRepository userAuthRepo,
             VetRepository vetRepo,
             PetOwnerRepository petOwnerRepo,
@@ -85,9 +104,10 @@ public class AdminController {
 
     /**
      * GET /api/admin/verifications — Real list of licensed veterinarians and
-     * registration status.
+     * registration status. (Platform Super Admin only).
      */
     @GetMapping("/verifications")
+    @PreAuthorize("hasAuthority('ROLE_PLATFORM_ADMIN')")
     public ResponseEntity<List<Map<String, Object>>> getVerifications(@AuthenticationPrincipal Jwt jwt) {
         List<Vet> vets = vetRepo.findAll();
         List<Map<String, Object>> list = new ArrayList<>();
@@ -129,9 +149,10 @@ public class AdminController {
 
     /**
      * PUT /api/admin/verifications/{vetUserId}/status — Approve or reject a
-     * veterinarian's council license.
+     * veterinarian's council license. (Platform Super Admin only).
      */
     @PutMapping("/verifications/{vetUserId}/status")
+    @PreAuthorize("hasAuthority('ROLE_PLATFORM_ADMIN')")
     public ResponseEntity<?> updateVerificationStatus(
             @PathVariable String vetUserId,
             @RequestBody Map<String, Object> payload) {
@@ -161,14 +182,22 @@ public class AdminController {
     }
 
     /**
-     * GET /api/admin/users — Live list of all authenticated accounts in database.
+     * GET /api/admin/users — Live list of accounts.
+     * Platform Super Admin sees all platform users.
+     * Clinic Admin is strictly scoped to practice staff (Vets, Receptionists, Lab Techs, Pharmacists, Nurses).
      */
     @GetMapping("/users")
     public ResponseEntity<List<Map<String, Object>>> getUsers(@AuthenticationPrincipal Jwt jwt) {
+        boolean isSuperAdmin = isPlatformAdmin(jwt);
         List<UserAuth> userAuths = userAuthRepo.findAll();
         List<Map<String, Object>> list = new ArrayList<>();
 
         for (UserAuth u : userAuths) {
+            // Clinic Admin cannot view Pet Owners or Platform Admins
+            if (!isSuperAdmin && !CLINIC_STAFF_ROLES.contains(u.getRole())) {
+                continue;
+            }
+
             Map<String, Object> map = new LinkedHashMap<>();
             map.put("id", u.getUserId());
             map.put("email", u.getEmail() != null ? u.getEmail() : "—");
@@ -212,17 +241,31 @@ public class AdminController {
     }
 
     /**
-     * PATCH /api/admin/users/{userId}/status — Toggle account state (ACTIVE /
-     * BLOCKED) and revoke tokens.
+     * PATCH /api/admin/users/{userId}/status — Toggle account state (ACTIVE / BLOCKED) and revoke tokens.
+     * Platform Super Admin can manage all platform accounts.
+     * Clinic Admin is strictly restricted to their own practice staff (cannot block Pet Parents or revoke their tokens).
      */
     @PatchMapping("/users/{userId}/status")
     public ResponseEntity<?> updateUserStatus(
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable String userId,
             @RequestBody Map<String, String> payload) {
         UserAuth user = userAuthRepo.findById(userId).orElse(null);
         if (user == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", "user_not_found", "message", "User not found."));
+        }
+
+        boolean isSuperAdmin = isPlatformAdmin(jwt);
+        if (!isSuperAdmin) {
+            // Clinic Admin can ONLY manage staff accounts; Pet Owners & Platform Admins are strictly forbidden!
+            if (!CLINIC_STAFF_ROLES.contains(user.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of(
+                                "error", "forbidden",
+                                "message", "Clinic administrators can only manage staff accounts belonging to their clinical practice. Pet owners and platform accounts cannot be modified or revoked."
+                        ));
+            }
         }
 
         String newStatus = payload.get("status");
@@ -234,8 +277,7 @@ public class AdminController {
 
         user.setStatus(newStatus);
         if ("BLOCKED".equalsIgnoreCase(newStatus)) {
-            // Bump token version to immediately invalidate all existing active JWT bearer
-            // sessions
+            // Bump token version to immediately invalidate all existing active JWT bearer sessions
             user.setTokenVersion(user.getTokenVersion() + 1);
         }
         userAuthRepo.save(user);
@@ -249,10 +291,11 @@ public class AdminController {
     }
 
     /**
-     * GET /api/admin/telemetry — Database telemetry and metrics for system health
-     * monitoring.
+     * GET /api/admin/telemetry — Database telemetry and metrics for system health monitoring.
+     * (Platform Super Admin only).
      */
     @GetMapping("/telemetry")
+    @PreAuthorize("hasAuthority('ROLE_PLATFORM_ADMIN')")
     public ResponseEntity<Map<String, Object>> getTelemetry(@AuthenticationPrincipal Jwt jwt) {
         long startTime = System.currentTimeMillis();
         Map<String, Object> result = new LinkedHashMap<>();
