@@ -218,16 +218,15 @@ vetalya-fullstack/
 │   └── vite.config.js
 │
 └── Vetalya_backend/             # Spring Boot 3.4 Backend
-    └── vetalya-backend/
-        ├── src/
-        │   ├── main/java/com/pet/vetalya/
-        │   │   ├── auth/      # JWT, OAuth2, Refresh Token, OTP Service
-        │   │   ├── config/    # SecurityFilterChain, CORS, DataInitializer
-        │   │   ├── entity/    # JPA Entities (user_auth, pet_owner, vet, etc.)
-        │   │   └── repository/# Spring Data JPA Repositories
-        │   └── main/resources/# application.yml, Flyway migrations, RSA keys
-        ├── pom.xml
-        └── Dockerfile
+    ├── src/
+    │   ├── main/java/com/pet/vetalya/
+    │   │   ├── auth/          # JWT, OAuth2, Refresh Token, OTP Service
+    │   │   ├── config/        # SecurityFilterChain, CORS, DataInitializer
+    │   │   ├── entity/        # JPA Entities (user_auth, pet_owner, vet, etc.)
+    │   │   └── repository/    # Spring Data JPA Repositories
+    │   └── main/resources/    # application.yml, Flyway migrations, RSA keys
+    ├── pom.xml
+    └── Dockerfile
 ```
 
 ---
@@ -241,7 +240,7 @@ vetalya-fullstack/
 
 ### 1. Backend Setup
 ```bash
-cd Vetalya_backend/vetalya-backend
+cd Vetalya_backend
 ./mvnw clean install -DskipTests
 ./mvnw spring-boot:run
 ```

@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Documented 24/7 automated keepalive and uptime monitoring via **[UptimeRobot](https://dashboard.uptimerobot.com/monitors)** pinging `/actuator/health` every 5 minutes to prevent Render free-tier cold boot delays and ensure 99.9% availability.
   - Documented telephony and multi-channel messaging integrations (Meta WhatsApp Cloud API v21.0, Fast2SMS India, and Brevo REST API).
 - **Synchronized Backend Source & Documentation**:
-  - Maintained 100% parity between standalone `vetalya-backend` and monorepo `vetalya-fullstack/Vetalya_backend/vetalya-backend`.
+  - Maintained 100% parity between standalone `vetalya-backend` and monorepo `vetalya-fullstack/Vetalya_backend`.
 
 ---
 

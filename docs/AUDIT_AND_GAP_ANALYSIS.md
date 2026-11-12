@@ -4,7 +4,7 @@
 An in-depth inspection of the Vetalya repository was conducted across frontend applications, backend services, database schema, security filters, API endpoints, and configuration files.
 
 The repository currently consists of:
-- **`Vetalya_backend/vetalya-backend`**: Java 21 / Spring Boot 4.1.1 (Spring Boot 3/4 baseline) with Spring Security, Spring Data JPA, Flyway migrations (`V1` to `V9`), PostgreSQL connection pooling with HikariCP, JWT token rotation, and MedShop multi-tenant pharmacy.
+- **`Vetalya_backend`**: Java 21 / Spring Boot 4.1.1 (Spring Boot 3/4 baseline) with Spring Security, Spring Data JPA, Flyway migrations (`V1` to `V9`), PostgreSQL connection pooling with HikariCP, JWT token rotation, and MedShop multi-tenant pharmacy.
 - **`Vetalaya_frontend`**: React 18, Vite, Tailwind CSS with established brand identity (`#123F70`, `#079B96`, `#FF843F`, `#F7F9FA`), role-gated routing, Pet Parent Dashboard, Vet OPD Dashboard, and Admin Dashboard.
 
 The existing code is well-structured and provides a strong foundation. **All existing working features and database tables will be strictly preserved and built upon.**

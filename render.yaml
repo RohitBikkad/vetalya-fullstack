@@ -8,8 +8,8 @@ services:
   - type: web
     name: vetalya-backend
     runtime: docker
-    dockerfilePath: ./Vetalya_backend/vetalya-backend/Dockerfile
-    dockerContext: ./Vetalya_backend/vetalya-backend
+    dockerfilePath: ./Vetalya_backend/Dockerfile
+    dockerContext: ./Vetalya_backend
     plan: starter
     region: singapore # Options: singapore, oregon, frankfurt, ohio
     healthCheckPath: /api/public/db-inspect
