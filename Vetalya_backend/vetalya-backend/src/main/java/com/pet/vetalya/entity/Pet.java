@@ -35,6 +35,27 @@ public class Pet {
     @Column(name = "registration_no", length = 50)
     private String registrationNo;
 
+    @Column(name = "passport_number", length = 30, unique = true)
+    private String passportNumber;
+
+    @Column(length = 100)
+    private String color;
+
+    @Column(name = "distinctive_marks", length = 255)
+    private String distinctiveMarks;
+
+    @Column(name = "microchip_number", length = 50)
+    private String microchipNumber;
+
+    @Column(name = "weight_kg", precision = 6, scale = 2)
+    private java.math.BigDecimal weightKg;
+
+    @Column(name = "sterilization_status", length = 20)
+    private String sterilizationStatus = "UNKNOWN";
+
+    @Column(name = "is_deceased", nullable = false)
+    private boolean isDeceased = false;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
@@ -90,4 +111,25 @@ public class Pet {
 
     public Instant getDeletedAt() { return deletedAt; }
     public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
+
+    public String getPassportNumber() { return passportNumber; }
+    public void setPassportNumber(String passportNumber) { this.passportNumber = passportNumber; }
+
+    public String getColor() { return color; }
+    public void setColor(String color) { this.color = color; }
+
+    public String getDistinctiveMarks() { return distinctiveMarks; }
+    public void setDistinctiveMarks(String distinctiveMarks) { this.distinctiveMarks = distinctiveMarks; }
+
+    public String getMicrochipNumber() { return microchipNumber; }
+    public void setMicrochipNumber(String microchipNumber) { this.microchipNumber = microchipNumber; }
+
+    public java.math.BigDecimal getWeightKg() { return weightKg; }
+    public void setWeightKg(java.math.BigDecimal weightKg) { this.weightKg = weightKg; }
+
+    public String getSterilizationStatus() { return sterilizationStatus; }
+    public void setSterilizationStatus(String sterilizationStatus) { this.sterilizationStatus = sterilizationStatus; }
+
+    public boolean isDeceased() { return isDeceased; }
+    public void setDeceased(boolean deceased) { isDeceased = deceased; }
 }

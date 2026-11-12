@@ -13,8 +13,8 @@ public record PetRequest(
         String name,
 
         @NotBlank(message = "Species is required")
-        @Pattern(regexp = "^(DOG|CAT|BIRD|RABBIT|OTHER)$",
-                 message = "Species must be one of: DOG, CAT, BIRD, RABBIT, OTHER")
+        @Pattern(regexp = "^(DOG|CAT|BIRD|RABBIT|HORSE|CATTLE|BUFFALO|SHEEP|GOAT|OTHER)$",
+                 message = "Species must be one of: DOG, CAT, BIRD, RABBIT, HORSE, CATTLE, BUFFALO, SHEEP, GOAT, OTHER")
         String species,
 
         @NotBlank(message = "Gender is required")

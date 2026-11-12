@@ -59,7 +59,8 @@ public class ApiSecurityConfig {
                                 "/api/auth/otp/**",
                                 "/api/auth/register",
                                 "/api/auth/demo-login",
-                                "/api/auth/health")
+                                "/api/auth/health",
+                                "/api/v1/pets/emergency/**")
                         .permitAll()
                         // Role-gated endpoints
                         .requestMatchers("/api/vet/**", "/api/users/vet-portal")

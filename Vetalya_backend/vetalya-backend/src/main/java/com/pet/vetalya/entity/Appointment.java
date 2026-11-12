@@ -35,6 +35,24 @@ public class Appointment {
     @Column(name = "visit_notes")
     private String visitNotes;
 
+    @Column(name = "slot_id", length = 26)
+    private String slotId;
+
+    @Column(name = "queue_number")
+    private Integer queueNumber;
+
+    @Column(name = "check_in_time")
+    private Instant checkInTime;
+
+    @Column(name = "consultation_start_time")
+    private Instant consultationStartTime;
+
+    @Column(name = "consultation_end_time")
+    private Instant consultationEndTime;
+
+    @Column(name = "appointment_type", length = 30)
+    private String appointmentType = "OPD_CONSULTATION";
+
     @Version
     @Column(nullable = false)
     private int version;
@@ -99,6 +117,24 @@ public class Appointment {
 
     public String getVisitNotes() { return visitNotes; }
     public void setVisitNotes(String visitNotes) { this.visitNotes = visitNotes; }
+
+    public String getSlotId() { return slotId; }
+    public void setSlotId(String slotId) { this.slotId = slotId; }
+
+    public Integer getQueueNumber() { return queueNumber; }
+    public void setQueueNumber(Integer queueNumber) { this.queueNumber = queueNumber; }
+
+    public Instant getCheckInTime() { return checkInTime; }
+    public void setCheckInTime(Instant checkInTime) { this.checkInTime = checkInTime; }
+
+    public Instant getConsultationStartTime() { return consultationStartTime; }
+    public void setConsultationStartTime(Instant consultationStartTime) { this.consultationStartTime = consultationStartTime; }
+
+    public Instant getConsultationEndTime() { return consultationEndTime; }
+    public void setConsultationEndTime(Instant consultationEndTime) { this.consultationEndTime = consultationEndTime; }
+
+    public String getAppointmentType() { return appointmentType; }
+    public void setAppointmentType(String appointmentType) { this.appointmentType = appointmentType; }
 
     public int getVersion() { return version; }
     public void setVersion(int version) { this.version = version; }

@@ -7,6 +7,8 @@ import {
   bookOwnerAppointmentApi,
   getDueVaccinationsApi,
   searchVetsApi,
+  bookSlotApi,
+  getAvailableSlotsApi,
 } from '../../../services/api';
 import {
   Heart,
@@ -26,6 +28,7 @@ import {
   Download,
   Share2,
 } from 'lucide-react';
+import PetPassportModal from './PetPassportModal';
 
 export default function PetParentDashboard() {
   const { currentUser } = useAuth();
@@ -266,16 +269,24 @@ export default function PetParentDashboard() {
     setSubmittingBook(true);
 
     try {
-      const selectedVet = availableVets.find(v => v.vetUserId === bookForm.vetUserId);
-      const hospitalId = bookForm.hospitalId || (selectedVet?.hospitals?.[0]?.hospitalId || null);
+      if (bookForm.slotId) {
+        await bookSlotApi({
+          slotId: bookForm.slotId,
+          petId: pet.id,
+          reason: bookForm.reason.trim(),
+        });
+      } else {
+        const selectedVet = availableVets.find(v => v.vetUserId === bookForm.vetUserId);
+        const hospitalId = bookForm.hospitalId || (selectedVet?.hospitals?.[0]?.hospitalId || null);
 
-      await bookOwnerAppointmentApi({
-        petId: pet.id,
-        vetUserId: bookForm.vetUserId,
-        hospitalId: hospitalId,
-        appointmentAt: appDate.toISOString(),
-        notes: bookForm.reason.trim(),
-      });
+        await bookOwnerAppointmentApi({
+          petId: pet.id,
+          vetUserId: bookForm.vetUserId,
+          hospitalId: hospitalId,
+          appointmentAt: appDate.toISOString(),
+          notes: bookForm.reason.trim(),
+        });
+      }
 
       await loadAppointments();
       setShowBookModal(false);
@@ -298,6 +309,11 @@ export default function PetParentDashboard() {
     const speciesMap = {
       'Canine': 'DOG',
       'Feline': 'CAT',
+      'Bovine (Cattle)': 'CATTLE',
+      'Bovine (Buffalo)': 'BUFFALO',
+      'Equine (Horse)': 'HORSE',
+      'Caprine (Goat)': 'GOAT',
+      'Ovine (Sheep)': 'SHEEP',
       'Avian': 'BIRD',
       'Small Mammal': 'RABBIT',
       'Other': 'OTHER',
@@ -314,11 +330,20 @@ export default function PetParentDashboard() {
 
     if (newPetForm.weight) {
       const wt = parseFloat(newPetForm.weight);
-      if (isNaN(wt) || wt <= 0 || wt > 300) {
+      if (isNaN(wt) || wt <= 0 || wt > 1000) {
         setAddPetError('Weight must be a valid positive number in kilograms.');
         return;
       }
     }
+
+    const getPhotoForSpecies = (spec) => {
+      if (spec === 'Feline') return 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=300&q=80';
+      if (spec?.includes('Bovine') || spec?.includes('Cattle') || spec?.includes('Buffalo')) return 'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?auto=format&fit=crop&w=300&q=80';
+      if (spec?.includes('Equine') || spec?.includes('Horse')) return 'https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?auto=format&fit=crop&w=300&q=80';
+      if (spec?.includes('Goat') || spec?.includes('Sheep')) return 'https://images.unsplash.com/photo-1524024973431-2ad916746881?auto=format&fit=crop&w=300&q=80';
+      if (spec === 'Avian') return 'https://images.unsplash.com/photo-1552728089-57bdde30beb3?auto=format&fit=crop&w=300&q=80';
+      return 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=300&q=80';
+    };
 
     const payload = {
       name: newPetForm.name.trim(),
@@ -326,9 +351,7 @@ export default function PetParentDashboard() {
       gender: newPetForm.gender || 'UNKNOWN',
       breed: newPetForm.breed?.trim() || null,
       dob: newPetForm.dob || null,
-      photoUrl: newPetForm.species === 'Feline'
-        ? 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=300&q=80'
-        : 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=300&q=80',
+      photoUrl: getPhotoForSpecies(newPetForm.species),
       registrationNo: regNo,
     };
 
@@ -872,6 +895,11 @@ export default function PetParentDashboard() {
                   >
                     <option value="Canine">Canine (Dog)</option>
                     <option value="Feline">Feline (Cat)</option>
+                    <option value="Bovine (Cattle)">Bovine (Cattle)</option>
+                    <option value="Bovine (Buffalo)">Bovine (Buffalo)</option>
+                    <option value="Equine (Horse)">Equine (Horse)</option>
+                    <option value="Caprine (Goat)">Caprine (Goat)</option>
+                    <option value="Ovine (Sheep)">Ovine (Sheep)</option>
                     <option value="Avian">Avian (Bird)</option>
                     <option value="Small Mammal">Small Mammal (Rabbit/Hamster)</option>
                     <option value="Other">Other Species</option>
@@ -965,63 +993,13 @@ export default function PetParentDashboard() {
         </div>
       )}
 
-      {/* ── View Pet Passport Modal ── */}
+      {/* ── View Digital Pet Health Passport Modal ── */}
       {selectedPet && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-[32px] max-w-lg w-full p-6 sm:p-8 shadow-vetalya border border-[#10324E]/10 animate-in zoom-in-95 text-left space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#10324E]/10">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-[#2D8A7A]" />
-                <h3 className="text-lg font-extrabold text-[#10324E]">Digital Pet Passport</h3>
-              </div>
-              <button onClick={() => setSelectedPet(null)} className="p-1 rounded-lg text-[#242826]/60 hover:bg-slate-100 cursor-pointer">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#FAF8F5] border border-[#10324E]/8">
-              <img
-                src={selectedPet.avatar}
-                alt={selectedPet.name}
-                className="w-16 h-16 rounded-2xl object-cover ring-2 ring-[#2D8A7A]/30"
-              />
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-base font-extrabold text-[#10324E]">{selectedPet.name}</h4>
-                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${selectedPet.statusColor}`}>
-                    {selectedPet.status}
-                  </span>
-                </div>
-                <p className="text-xs text-[#242826]/70 mt-0.5">{selectedPet.breed} • {selectedPet.species}</p>
-                <p className="text-[11px] text-[#242826]/60">{selectedPet.age} • {selectedPet.weight}</p>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-[#E0F2EB]/40 border border-[#2D8A7A]/20 space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-[#242826]/70">Microchip RFID:</span>
-                <span className="font-mono font-bold text-[#10324E]">{selectedPet.microchip}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#242826]/70">Passport Status:</span>
-                <span className="font-bold text-[#2D8A7A]">Active & Digitally Verified</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#242826]/70">National Health ID:</span>
-                <span className="font-mono text-[#10324E]">VT-{selectedPet.id ? selectedPet.id.slice(-8).toUpperCase() : 'PASS-01'}</span>
-              </div>
-            </div>
-
-            <div className="pt-2 flex justify-end gap-2">
-              <button
-                onClick={() => setSelectedPet(null)}
-                className="px-5 py-2.5 rounded-xl bg-[#10324E] hover:bg-[#0c273e] text-white text-xs font-bold shadow-md cursor-pointer"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
+        <PetPassportModal
+          pet={selectedPet}
+          onClose={() => setSelectedPet(null)}
+          onPetUpdated={loadPets}
+        />
       )}
 
       {/* ── View Prescription Modal ── */}

@@ -240,3 +240,163 @@ export async function cancelOwnerAppointmentApi(appointmentId, reason = '') {
     body: JSON.stringify({ reason }),
   });
 }
+
+// ── Universal Pet Health Passport & Medical Records Sharing APIs ──
+
+export async function getPetPassportApi(petId) {
+  return request(`/v1/pets/${petId}/passport`);
+}
+
+export async function updatePetPassportApi(petId, data) {
+  return request(`/v1/pets/${petId}/passport`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getPetTimelineApi(petId) {
+  return request(`/v1/pets/${petId}/passport/timeline`);
+}
+
+export async function createShareRequestApi(petId, targetHospitalId, scope = 'FULL_TIMELINE', expiryHours = 72) {
+  return request(`/v1/pets/${petId}/passport/share-requests`, {
+    method: 'POST',
+    body: JSON.stringify({ petId, targetHospitalId, scope, expiryHours }),
+  });
+}
+
+export async function approveShareRequestApi(requestId) {
+  return request(`/v1/pets/share-requests/${requestId}/approve`, {
+    method: 'POST',
+  });
+}
+
+export async function revokeShareRequestApi(requestId) {
+  return request(`/v1/pets/share-requests/${requestId}/revoke`, {
+    method: 'POST',
+  });
+}
+
+export async function getPetDocumentsApi(petId) {
+  return request(`/v1/pets/${petId}/documents`);
+}
+
+export async function uploadPetDocumentApi(petId, documentData) {
+  return request(`/v1/pets/${petId}/documents`, {
+    method: 'POST',
+    body: JSON.stringify(documentData),
+  });
+}
+
+export async function getEmergencyProfileApi(qrHash) {
+  return request(`/v1/pets/emergency/${qrHash}`);
+}
+
+// ── Clinical Encounters & SOAP Records APIs ──
+
+export async function createEncounterApi(encounterData) {
+  return request('/v1/encounters', {
+    method: 'POST',
+    body: JSON.stringify(encounterData),
+  });
+}
+
+export async function getEncounterApi(encounterId) {
+  return request(`/v1/encounters/${encounterId}`);
+}
+
+export async function updateDraftEncounterApi(encounterId, encounterData) {
+  return request(`/v1/encounters/${encounterId}`, {
+    method: 'PUT',
+    body: JSON.stringify(encounterData),
+  });
+}
+
+export async function signEncounterApi(encounterId) {
+  return request(`/v1/encounters/${encounterId}/sign`, {
+    method: 'POST',
+  });
+}
+
+export async function amendEncounterApi(encounterId, amendmentData) {
+  return request(`/v1/encounters/${encounterId}/amend`, {
+    method: 'POST',
+    body: JSON.stringify(amendmentData),
+  });
+}
+
+export async function getPetEncountersApi(petId) {
+  return request(`/v1/encounters/pet/${petId}`);
+}
+
+// ── Appointment Slots & Concurrency APIs ──
+
+export async function generateSlotsApi(slotConfig) {
+  return request('/v1/slots/generate', {
+    method: 'POST',
+    body: JSON.stringify(slotConfig),
+  });
+}
+
+export async function getAvailableSlotsApi(vetUserId, fromDate, toDate) {
+  const params = new URLSearchParams();
+  if (vetUserId) params.append('vetUserId', vetUserId);
+  if (fromDate) params.append('fromDate', fromDate);
+  if (toDate) params.append('toDate', toDate);
+  return request(`/v1/slots/available?${params.toString()}`);
+}
+
+export async function bookSlotApi(bookingData) {
+  return request('/v1/slots/book', {
+    method: 'POST',
+    body: JSON.stringify(bookingData),
+  });
+}
+
+export async function checkInAppointmentApi(appointmentId) {
+  return request(`/v1/slots/appointments/${appointmentId}/check-in`, {
+    method: 'POST',
+  });
+}
+
+export async function startConsultationApi(appointmentId) {
+  return request(`/v1/slots/appointments/${appointmentId}/start-consultation`, {
+    method: 'POST',
+  });
+}
+
+export async function endConsultationApi(appointmentId) {
+  return request(`/v1/slots/appointments/${appointmentId}/end-consultation`, {
+    method: 'POST',
+  });
+}
+
+// ── Diagnostics & Laboratory APIs ──
+
+export async function createDiagnosticOrderApi(orderData) {
+  return request('/v1/diagnostics/orders', {
+    method: 'POST',
+    body: JSON.stringify(orderData),
+  });
+}
+
+export async function getDiagnosticOrderApi(orderId) {
+  return request(`/v1/diagnostics/orders/${orderId}`);
+}
+
+export async function getPetDiagnosticsApi(petId) {
+  return request(`/v1/diagnostics/pet/${petId}`);
+}
+
+export async function updateDiagnosticResultApi(itemId, resultData) {
+  return request(`/v1/diagnostics/items/${itemId}/results`, {
+    method: 'PUT',
+    body: JSON.stringify(resultData),
+  });
+}
+
+export async function getDiagnosticCatalogApi(category) {
+  const query = category ? `?category=${encodeURIComponent(category)}` : '';
+  return request(`/v1/diagnostics/catalog${query}`);
+}
+

@@ -19,4 +19,12 @@ public interface PetRepository extends JpaRepository<Pet, String> {
     long countByOwnerUserIdAndDeletedAtIsNull(String ownerUserId);
 
     boolean existsByRegistrationNoAndDeletedAtIsNull(String registrationNo);
+
+    Optional<Pet> findByPassportNumberAndDeletedAtIsNull(String passportNumber);
+
+    Optional<Pet> findByMicrochipNumberAndDeletedAtIsNull(String microchipNumber);
+
+    boolean existsByMicrochipNumberAndDeletedAtIsNull(String microchipNumber);
+
+    boolean existsByPassportNumberAndDeletedAtIsNull(String passportNumber);
 }
