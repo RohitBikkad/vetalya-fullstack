@@ -34,8 +34,8 @@ Changing code, environment or database state is not proof of a successful deploy
 - URL: https://vetalya-staging-z0u9.onrender.com
 - Render service: srv-dbr7s4d6e07s73aqsq20
 - Blueprint: exs-dbr7k3tg1s2s73fltvlg (automatic infrastructure sync is off; application branch auto-deploy is on).
-- Live application commit: b04a70a9e4f96c429382390933c16565f671a8ae
-- Successful deploy: dep-dbr85nl6e07s73arqtk0
+- Live application commit: 9349385b7d627b6e99be4d7f0a4b4c6bfe8c0b89
+- Successful deploy: dep-dbr8f62vcj2c73eko8d0
 - Database: existing Supabase staging project, V1–V14 checksums matched; normal Hibernate validation completed.
 - Runtime uses IPv4 and TLS 1.2 explicitly for the Supabase session pooler. TLS remains required.
 - Public HTTP checks verify UI entry points, logo/font assets, DB readiness, unauthenticated owner denial, and 404 responses for database inspection and privileged demo login.
@@ -43,3 +43,5 @@ Changing code, environment or database state is not proof of a successful deploy
 Native preview builds use EAS profile `staging`; both Android and iOS receive this same backend URL. Native store binaries have not been built or submitted.
 
 Future infrastructure changes should be planned/reviewed through the Blueprint before approval. Documentation/client-only configuration commits may use `[skip render]` to preserve the verified application deploy.
+
+Repeat the credential-free internet smoke checks with `python3 deploy/check-staging.py`. They require non-empty React HTML for direct links, successful JS/CSS/font/logo assets, database readiness UP, owner API 401 without a session, and 404 for public DB inspection and privileged demo login. The browser check verified the rendered sign-in page after the direct-link regression fix. Authentication and clinical writes should be tested using your own staging test account; this release did not recover or guess account passwords.

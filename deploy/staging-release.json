@@ -1,0 +1,14 @@
+{
+  "url": "https://vetalya-staging-z0u9.onrender.com",
+  "apiBaseUrl": "https://vetalya-staging-z0u9.onrender.com/api",
+  "workspaceId": "tea-dboq70psrm7s73cp8r5g",
+  "serviceId": "srv-dbr7s4d6e07s73aqsq20",
+  "blueprintId": "exs-dbr7k3tg1s2s73fltvlg",
+  "applicationCommit": "9349385b7d627b6e99be4d7f0a4b4c6bfe8c0b89",
+  "deployId": "dep-dbr8f62vcj2c73eko8d0",
+  "status": "live",
+  "verifiedAtUtc": "2026-11-13T03:54:53.683774+00:00",
+  "supabaseProject": "lihsmcgfxjuldjenjdti",
+  "smokeChecks": "passed",
+  "nativeBinariesBuilt": false
+}
