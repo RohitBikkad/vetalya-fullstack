@@ -4,7 +4,7 @@ Spring Boot remains the authentication server and uses the same Supabase staging
 
 ## Main branch configuration reviewed
 
-Main uses Brevo HTTPS transactional email (`BREVO_API_KEY`, `SPRING_MAIL_FROM`) and optionally SMTP. Staging uses Brevo because SMTP ports are unsuitable for the Render free service. Real provider keys must be supplied in Render Environment, never recovered from Git history or committed. Staging no longer blanks the Brevo configuration. A provider failure returns a delivery error; no simulated email success is reported.
+Main uses Brevo HTTPS transactional email (`BREVO_API_KEY`, `SPRING_MAIL_FROM`) and optionally SMTP. Staging supports Brevo HTTPS and the main deployment’s Brevo SMTP relay on port 2525 with required STARTTLS. Render blocks SMTP ports 25, 465 and 587 on free services; 2525 is used here. Real provider keys must be supplied in Render Environment, never recovered from Git history or committed. Staging reads the provider environment settings and requires TLS for SMTP. A provider failure returns a delivery error; no simulated email success is reported.
 
 Google uses public web client ID `1030204623930-s3t2s597p2rvf5nal0i3552vh8t10h23.apps.googleusercontent.com`, matching main’s frontend. The web build receives `VITE_GOOGLE_CLIENT_ID` as a Docker ARG; the API receives `GOOGLE_CLIENT_ID`. Google ID token signature, issuer, expiry, audience, subject and verified email are checked server-side. Browser sessions use HttpOnly refresh cookies; Android uses SecureStore refresh tokens.
 

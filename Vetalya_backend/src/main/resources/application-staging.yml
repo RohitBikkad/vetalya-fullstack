@@ -12,9 +12,23 @@ spring:
   flyway:
     baseline-on-migrate: false
   mail:
-    host: ""
-    username: ""
-    password: ""
+    host: ${MAIL_HOST:${SPRING_MAIL_HOST:}}
+    port: ${MAIL_PORT:${SPRING_MAIL_PORT:2525}}
+    username: ${MAIL_USERNAME:${SPRING_MAIL_USERNAME:}}
+    password: ${MAIL_PASSWORD:${SPRING_MAIL_PASSWORD:}}
+    from: ${MAIL_FROM:${SPRING_MAIL_FROM:}}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            checkserveridentity: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 8000
+          timeout: 8000
+          writetimeout: 8000
   security:
     oauth2:
       client:
