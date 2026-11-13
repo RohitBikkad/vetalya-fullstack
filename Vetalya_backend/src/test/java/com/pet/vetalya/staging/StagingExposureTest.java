@@ -13,6 +13,12 @@ class StagingExposureTest {
         assertEquals(404,new SystemController(jdbc).dbInspect().getStatusCode().value());
         verifyNoInteractions(jdbc);
     }
+    @Test void frontendDeepLinksUseTheReactEntryPoint() throws Exception {
+        var mvc=org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(new com.pet.vetalya.auth.controller.StagingSpaController()).build();
+        for(var path:java.util.List.of("/owner/login","/owner/register","/vet/login","/vet/register","/login"))
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(path))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl("/index.html"));
+    }
     @Test void anonymousDemoCannotObtainPlatformAdminSession() {
         var controller=mock(AuthController.class,CALLS_REAL_METHODS);
         assertEquals(404,controller.demoLogin(java.util.Map.of("role","PLATFORM_ADMIN"),null,null).getStatusCode().value());
