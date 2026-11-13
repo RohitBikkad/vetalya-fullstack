@@ -17,7 +17,9 @@ class StagingExposureTest {
         var mvc=org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(new com.pet.vetalya.auth.controller.StagingSpaController()).build();
         for(var path:java.util.List.of("/owner/login","/owner/register","/vet/login","/vet/register","/login"))
             mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(path))
-                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl("/index.html"));
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().contentTypeCompatibleWith("text/html"))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(org.hamcrest.Matchers.containsString("id=\"root\"")));
     }
     @Test void anonymousDemoCannotObtainPlatformAdminSession() {
         var controller=mock(AuthController.class,CALLS_REAL_METHODS);
