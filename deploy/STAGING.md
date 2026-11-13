@@ -28,3 +28,18 @@ The user approved `deploy/sql/staging-api-access.sql`; it was applied through Su
 A dedicated staging branch carries the current app snapshot and deployment files. Existing main-linked services are not changed. After the staging deploy becomes live, check `/`, `/owner/login`, frontend assets, `/api/auth/health`, and `/actuator/health/readiness`. Confirm `/api/public/db-inspect` and `/api/auth/demo-login` return 404. Then use a normal test account to verify pet records, booking and sharing through the public URL.
 
 Changing code, environment or database state is not proof of a successful deploy. Record the returned Render deploy ID and wait for live status and HTTP checks before reporting an internet test URL as ready.
+
+## Verified live deployment
+
+- URL: https://vetalya-staging-z0u9.onrender.com
+- Render service: srv-dbr7s4d6e07s73aqsq20
+- Blueprint: exs-dbr7k3tg1s2s73fltvlg (automatic infrastructure sync is off; application branch auto-deploy is on).
+- Live application commit: b04a70a9e4f96c429382390933c16565f671a8ae
+- Successful deploy: dep-dbr85nl6e07s73arqtk0
+- Database: existing Supabase staging project, V1–V14 checksums matched; normal Hibernate validation completed.
+- Runtime uses IPv4 and TLS 1.2 explicitly for the Supabase session pooler. TLS remains required.
+- Public HTTP checks verify UI entry points, logo/font assets, DB readiness, unauthenticated owner denial, and 404 responses for database inspection and privileged demo login.
+
+Native preview builds use EAS profile `staging`; both Android and iOS receive this same backend URL. Native store binaries have not been built or submitted.
+
+Future infrastructure changes should be planned/reviewed through the Blueprint before approval. Documentation/client-only configuration commits may use `[skip render]` to preserve the verified application deploy.

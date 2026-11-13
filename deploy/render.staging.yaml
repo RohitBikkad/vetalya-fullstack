@@ -28,5 +28,7 @@ services:
         sync: false
       - key: MANAGEMENT_SECURITY_PASSWORD
         generateValue: true
+      - key: JAVA_TOOL_OPTIONS
+        value: -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv4Addresses=true -Djdk.tls.client.protocols=TLSv1.2
       - key: APP_SEED_DEMO_DATA
         value: "false"
