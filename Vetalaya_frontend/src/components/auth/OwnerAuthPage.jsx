@@ -113,13 +113,12 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
             onNavigate("/");
           }}
         >
-          <img src="/vetalya-logo.png" alt="Vetalya emblem" />
-          <div>
-            <strong>
-              Vetalya<span>®</span>
-            </strong>
-            <small>EVERY PET. HEALTH. ALWAYS.</small>
-          </div>
+          <img className="brand-emblem" src="/vetalya-logo.png" alt="" />
+          <img
+            className="brand-wordmark"
+            src="/vetalya-wordmark.png"
+            alt="Vetalya · Every Pet. Health. Always."
+          />
         </a>
         <div className="owner-auth-story-content">
           <span className="owner-hero-kicker">

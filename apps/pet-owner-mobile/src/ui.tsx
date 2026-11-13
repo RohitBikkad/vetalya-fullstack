@@ -14,17 +14,15 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
 import { useOwner, type Data } from "./OwnerContext";
-import {
-  safeExternalUrl,
-  } from "../../../packages/owner-domain/src/model.js";
+import { safeExternalUrl } from "../../../packages/owner-domain/src/model.js";
 export const color = {
-  navy: "#123F70",
-  teal: "#079D96",
+  navy: "#0B6B4F",
+  teal: "#0B6B4F",
   orange: "#FF843F",
-  ink: "#1C334A",
-  muted: "#8191A1",
-  line: "#E5EDF2",
-  canvas: "#F5F7FA",
+  ink: "#12221B",
+  muted: "#64766D",
+  line: "#E4ECE7",
+  canvas: "#F4F7F5",
 };
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.canvas },
@@ -45,16 +43,33 @@ export const styles = StyleSheet.create({
     gap: 14,
   },
   title: {
+    fontFamily: "Manrope-Bold",
     fontSize: 28,
     fontWeight: "700",
     letterSpacing: -0.8,
     color: color.ink,
     lineHeight: 36,
   },
-  heading: { fontSize: 17, fontWeight: "700", color: color.ink },
-  body: { fontSize: 13, color: color.muted, lineHeight: 21 },
-  small: { fontSize: 11, color: color.muted, lineHeight: 18 },
+  heading: {
+    fontFamily: "Manrope-Bold",
+    fontSize: 17,
+    fontWeight: "700",
+    color: color.ink,
+  },
+  body: {
+    fontFamily: "Manrope-Regular",
+    fontSize: 13,
+    color: color.muted,
+    lineHeight: 21,
+  },
+  small: {
+    fontFamily: "Manrope-Regular",
+    fontSize: 11,
+    color: color.muted,
+    lineHeight: 18,
+  },
   eyebrow: {
+    fontFamily: "Manrope-SemiBold",
     fontSize: 9,
     fontWeight: "700",
     letterSpacing: 1.7,
@@ -76,10 +91,21 @@ export const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 6,
   },
-  badgeText: { fontSize: 10, fontWeight: "600", color: color.teal },
+  badgeText: {
+    fontFamily: "Manrope-SemiBold",
+    fontSize: 10,
+    fontWeight: "600",
+    color: color.teal,
+  },
   field: { gap: 8 },
-  label: { fontSize: 12, fontWeight: "600", color: "#61788D" },
+  label: {
+    fontFamily: "Manrope-Medium",
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#61788D",
+  },
   input: {
+    fontFamily: "Manrope-Regular",
     backgroundColor: "white",
     borderColor: color.line,
     borderWidth: 1,
@@ -99,7 +125,12 @@ export const styles = StyleSheet.create({
     gap: 9,
     minHeight: 48,
   },
-  buttonText: { color: "white", fontSize: 13, fontWeight: "700" },
+  buttonText: {
+    fontFamily: "Manrope-Bold",
+    color: "white",
+    fontSize: 13,
+    fontWeight: "700",
+  },
   secondary: {
     backgroundColor: "white",
     borderColor: color.line,
@@ -122,7 +153,12 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 7,
   },
-  errorText: { color: "#A25742", fontSize: 12, lineHeight: 19 },
+  errorText: {
+    fontFamily: "Manrope-Regular",
+    color: "#A25742",
+    fontSize: 12,
+    lineHeight: 19,
+  },
   divider: { height: 1, backgroundColor: color.line },
   hero: {
     backgroundColor: color.navy,
@@ -132,6 +168,7 @@ export const styles = StyleSheet.create({
     overflow: "hidden",
   },
   heroTitle: {
+    fontFamily: "Manrope-Bold",
     fontSize: 34,
     fontWeight: "700",
     letterSpacing: -1,
@@ -147,10 +184,20 @@ export const styles = StyleSheet.create({
     borderColor: color.line,
     gap: 10,
   },
-  statNumber: { fontSize: 27, fontWeight: "700", color: color.navy },
+  statNumber: {
+    fontFamily: "Manrope-Bold",
+    fontSize: 27,
+    fontWeight: "700",
+    color: color.navy,
+  },
   empty: { paddingVertical: 30, alignItems: "center", gap: 12 },
   logo: { width: 43, height: 43 },
-  link: { fontSize: 12, color: color.teal, fontWeight: "600" },
+  link: {
+    fontFamily: "Manrope-SemiBold",
+    fontSize: 12,
+    color: color.teal,
+    fontWeight: "600",
+  },
 });
 export function Icon({
   name,
@@ -317,23 +364,11 @@ export function Screen({
               source={require("../assets/vetalya-logo.png")}
               style={styles.logo}
             />
-            <View>
-              <Text
-                style={{
-                  fontSize: 23,
-                  fontWeight: "800",
-                  letterSpacing: -1,
-                  color: color.navy,
-                }}
-              >
-                Vetalya
-              </Text>
-              <Text
-                style={{ fontSize: 7, letterSpacing: 0.8, color: color.muted }}
-              >
-                EVERY PET. HEALTH. ALWAYS.
-              </Text>
-            </View>
+            <Image
+              source={require("../assets/vetalya-wordmark.png")}
+              style={{ width: 120, height: 48, resizeMode: "contain" }}
+              accessibilityLabel="Vetalya · Every Pet. Health. Always."
+            />
           </View>
           <Icon name="heart" size={21} />
         </View>

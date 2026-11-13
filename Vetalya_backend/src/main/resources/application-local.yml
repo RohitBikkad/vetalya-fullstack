@@ -1,0 +1,9 @@
+# Persistent local PostgreSQL profile: combine with dev for development logging.
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    baseline-on-migrate: false
+app:
+  seed-demo-data: ${APP_SEED_DEMO_DATA:false}

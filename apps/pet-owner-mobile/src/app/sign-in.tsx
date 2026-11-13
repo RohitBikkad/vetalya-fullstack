@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Redirect } from "expo-router";
 import { useOwner } from "../OwnerContext";
-import { Button, Input, ErrorNotice, styles, color } from "../ui";
+import { Button, Input, ErrorNotice, styles } from "../ui";
 import { apiBaseUrl } from "../api";
 export default function SignIn() {
   const { user, signIn } = useOwner();
@@ -77,19 +77,11 @@ export default function SignIn() {
               source={require("../../assets/vetalya-logo.png")}
               style={{ width: 50, height: 50 }}
             />
-            <View>
-              <Text
-                style={{
-                  fontSize: 32,
-                  color: color.navy,
-                  fontWeight: "800",
-                  letterSpacing: -1,
-                }}
-              >
-                Vetalya
-              </Text>
-              <Text style={styles.eyebrow}>EVERY PET. HEALTH. ALWAYS.</Text>
-            </View>
+            <Image
+              source={require("../../assets/vetalya-wordmark.png")}
+              style={{ width: 125, height: 50, resizeMode: "contain" }}
+              accessibilityLabel="Vetalya · Every Pet. Health. Always."
+            />
           </View>
           <View style={styles.hero}>
             <Text style={[styles.eyebrow, { color: "#A7D9D1" }]}>

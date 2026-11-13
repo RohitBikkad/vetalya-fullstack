@@ -6,9 +6,9 @@ spring:
 
   # ── PostgreSQL ──
   datasource:
-    url: ${DB_URL:${DATABASE_URL:jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require&sslfactory=org.postgresql.ssl.NonValidatingFactory&prepareThreshold=0}}
-    username: ${DB_USERNAME:postgres.lihsmcgfxjuldjenjdti}
-    password: ${DB_PASSWORD:Vetalya@1409}
+    url: ${DB_URL:${DATABASE_URL:jdbc:postgresql://localhost:5432/vetalya}}
+    username: ${DB_USERNAME:vetalya}
+    password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
     hikari:
       pool-name: VetalyaHikariPool
@@ -18,8 +18,6 @@ spring:
       connection-timeout: 20000
       max-lifetime: 1200000
       data-source-properties:
-        sslmode: require
-        sslfactory: org.postgresql.ssl.NonValidatingFactory
         prepareThreshold: 0
 
   # ── JPA / Hibernate ──
@@ -60,7 +58,7 @@ spring:
         registration:
           google:
             client-id: ${GOOGLE_CLIENT_ID:1030204623930-s3t2s597p2rvf5nal0i3552vh8t10h23.apps.googleusercontent.com}
-            client-secret: ${GOOGLE_CLIENT_SECRET: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}
+            client-secret: ${GOOGLE_CLIENT_SECRET:}
             scope: openid, profile, email
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
 
@@ -125,12 +123,13 @@ management:
 
 # ── App-specific properties ──
 app:
+  seed-demo-data: ${APP_SEED_DEMO_DATA:false}
   version: 0.0.1
   web-redirect-url: ${WEB_REDIRECT_URL:http://localhost:3000}
   mobile-redirect-scheme: ${MOBILE_REDIRECT_SCHEME:myvetapp}
 
   fast2sms:
-    api-key: ${FAST2SMS_API_KEY:5FWBTq1UHXEVQklkkBsMPSNRpNXgiJJYhifxeUrqriydM9YFMOx1JTHWwTrq7kA2mPgEUPoqLFkpcIbQ}
+    api-key: ${FAST2SMS_API_KEY:}
     enabled: ${FAST2SMS_ENABLED:true}
 
   brevo:

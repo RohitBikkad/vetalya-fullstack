@@ -49,6 +49,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+    @org.springframework.beans.factory.annotation.Value("${app.demo-login-enabled:false}")
+    private boolean demoLoginEnabled;
 
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
     private static final String REFRESH_COOKIE_NAME = "refresh_token";
@@ -401,6 +403,7 @@ public class AuthController {
             @RequestBody(required = false) Map<String, Object> request,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
+        if (!demoLoginEnabled) return ResponseEntity.notFound().build();
         String roleParam = getString(request, "role");
         if (roleParam == null) roleParam = "PET_PARENT";
         String normalizedRole;
@@ -589,6 +592,7 @@ public class AuthController {
         String email = getString(request, "email");
         String password = getString(request, "password");
         String phone = getString(request, "phone");
+        if (!demoLoginEnabled) return ResponseEntity.notFound().build();
         String roleParam = getString(request, "role");
 
         if (fullName == null || fullName.isBlank()) {

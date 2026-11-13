@@ -1,0 +1,5 @@
+# Vetalya refinement prompt
+
+Refine the existing Vetalya Figma design without changing its overall layout. Use Manrope, with real bold heading weights, consistent spacing, aligned cards and clear five-tab navigation. Keep illustrations subtle and use the exact official web emblem and wordmark across Figma, React web and Expo Android/iOS. Preserve real API data, role routing, hospital scoping, owner permissions and all working clinical flows. Never invent health assessments, daily totals, successful writes or payment/verification states.
+
+All clients must use one Spring Boot API and persistent PostgreSQL database. Make local versus production configuration explicit; apply existing Flyway migrations, use JPA validation, and require explicit opt-in for demo seeding. Add schema changes only for an actual feature requirement. Verify web/native builds, typography, asset dimensions, API contracts and backend tests. Report Figma access limits, missing PostgreSQL runtime or untested devices honestly.

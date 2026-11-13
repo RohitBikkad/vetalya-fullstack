@@ -1,0 +1,62 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 4
+      minimum-idle: 1
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    baseline-on-migrate: false
+  mail:
+    host: ""
+    username: ""
+    password: ""
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:staging-google-not-configured}
+            client-secret: ${GOOGLE_CLIENT_SECRET:staging-google-not-configured}
+app:
+  web-redirect-url: ${WEB_REDIRECT_URL:${RENDER_EXTERNAL_URL}}
+  static-ui-enabled: true
+  seed-demo-data: false
+  demo-login-enabled: false
+  debug:
+    database-inspection-enabled: false
+  cors:
+    allowed-origin: ${WEB_REDIRECT_URL:${RENDER_EXTERNAL_URL}}
+  jwt:
+    private-key-path: file:/not-configured/staging-private.pem
+    public-key-path: file:/not-configured/staging-public.pem
+  fast2sms:
+    enabled: false
+    api-key: ""
+  whatsapp:
+    enabled: false
+    access-token: ""
+  brevo:
+    api-key: ""
+  logging:
+    body-logging-paths: []
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      group:
+        readiness:
+          include: readinessState,databaseConnectivity,flywayMigration
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

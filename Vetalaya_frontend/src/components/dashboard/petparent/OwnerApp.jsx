@@ -47,6 +47,7 @@ import {
   availableFutureSlots,
 } from "../../../../../packages/owner-domain/src/model.js";
 import "./owner.css";
+import OwnerHome, { ownerTabs, DesignIcon } from "./OwnerHome";
 
 const navigation = [
   ["home", "Home", Home],
@@ -362,7 +363,7 @@ export default function OwnerApp() {
     if (type === "cancel") setForm({ appointment: value, reason: "" });
     if (type === "profile") setForm({ ...profile });
     if (type === "passport") setForm({ ...passport });
-    if (type === "record") setForm(value);
+    if (["record", "tracking"].includes(type)) setForm(value);
     if (type === "share")
       setForm({
         targetHospitalId: "",
@@ -609,7 +610,9 @@ export default function OwnerApp() {
     );
   }
   return (
-    <div className="owner-app">
+    <div
+      className={`owner-app owner-figma ${page === "home" ? "owner-home-page" : ""}`}
+    >
       <aside
         id="owner-navigation"
         className={`owner-sidebar ${menu ? "open" : ""}`}
@@ -619,13 +622,12 @@ export default function OwnerApp() {
           href="#owner/home"
           onClick={() => navigate("home")}
         >
-          <img src="/vetalya-logo.png" alt="" />
-          <div>
-            <strong>
-              Vetalya<span>®</span>
-            </strong>
-            <small>EVERY PET. HEALTH. ALWAYS.</small>
-          </div>
+          <img className="brand-emblem" src="/vetalya-logo.png" alt="" />
+          <img
+            className="brand-wordmark"
+            src="/vetalya-wordmark.png"
+            alt="Vetalya · Every Pet. Health. Always."
+          />
         </a>
         <div className="owner-portal-label">YOUR PET’S CARE SPACE</div>
         <nav aria-label="Pet owner navigation">
@@ -785,240 +787,19 @@ export default function OwnerApp() {
           ) : (
             <>
               {page === "home" && (
-                <>
-                  <div className="owner-home-grid">
-                    <section className="owner-hero">
-                      <span className="owner-hero-kicker">
-                        <span />
-                        THEIR HEALTH. YOUR PEACE OF MIND.
-                      </span>
-                      <h2>
-                        A little care.
-                        <br />A lifetime <em>together.</em>
-                      </h2>
-                      <p>
-                        From everyday checkups to life’s little surprises,
-                        <br className="owner-desktop" /> we’re here for every
-                        chapter.
-                      </p>
-                      <button onClick={() => open("book")}>
-                        Plan their next visit <ArrowUpRight size={17} />
-                      </button>
-                      <div className="owner-hero-decoration" aria-hidden="true">
-                        <div className="owner-hero-ring" />
-                        <div className="owner-heart-orbit">
-                          <Heart size={42} />
-                        </div>
-                        <PawPrint className="owner-hero-paw" size={85} />
-                        <span className="owner-hero-plus">+</span>
-                      </div>
-                    </section>
-                    <section className="owner-featured-pet">
-                      <div className="owner-card-heading">
-                        <h2>My companion</h2>
-                        <button
-                          className="owner-text-button"
-                          onClick={() => navigate("pets")}
-                        >
-                          View all <ArrowUpRight size={14} />
-                        </button>
-                      </div>
-                      {pet ? (
-                        <>
-                          <PetPicker />
-                          <div className="owner-pet-summary">
-                            <div>
-                              <small>SPECIES</small>
-                              <strong>
-                                {SPECIES[pet.species] || pet.species}
-                              </strong>
-                            </div>
-                            <div>
-                              <small>AGE</small>
-                              <strong>{pet.age || "Not recorded"}</strong>
-                            </div>
-                            <div>
-                              <small>BREED</small>
-                              <strong>{pet.breed || "Not recorded"}</strong>
-                            </div>
-                          </div>
-                          <button
-                            className="owner-passport-link"
-                            onClick={() => navigate("passport")}
-                          >
-                            <ShieldCheck size={18} />
-                            <span>Open health passport</span>
-                            <ArrowRight size={16} />
-                          </button>
-                        </>
-                      ) : (
-                        <Empty
-                          title="Meet your care companion"
-                          action={
-                            <button
-                              className="owner-button"
-                              onClick={() => open("pet")}
-                            >
-                              Add your first pet
-                            </button>
-                          }
-                        >
-                          Add your pet to start their health journey.
-                        </Empty>
-                      )}
-                    </section>
-                  </div>
-                  <div className="owner-stat-grid">
-                    {[
-                      [
-                        PawPrint,
-                        "My pets",
-                        pets.length,
-                        "Companions in your care",
-                      ],
-                      [
-                        CalendarCheck2,
-                        "Upcoming visits",
-                        upcoming.length,
-                        "Appointments scheduled",
-                      ],
-                      [
-                        HeartPulse,
-                        "Care reminders",
-                        due.length,
-                        "Vaccinations due within 60 days",
-                      ],
-                    ].map(([Icon, label, value, caption]) => (
-                      <button
-                        className="owner-stat"
-                        key={label}
-                        onClick={() =>
-                          navigate(
-                            label === "My pets"
-                              ? "pets"
-                              : label === "Upcoming visits"
-                                ? "appointments"
-                                : "care",
-                          )
-                        }
-                      >
-                        <span>
-                          <Icon size={22} />
-                        </span>
-                        <div>
-                          <small>{label}</small>
-                          <strong>{value}</strong>
-                          <p>{caption}</p>
-                        </div>
-                        <ArrowUpRight size={17} />
-                      </button>
-                    ))}
-                  </div>
-                  <div className="owner-content-grid">
-                    <section className="owner-card">
-                      <div className="owner-card-heading">
-                        <div>
-                          <span className="owner-eyebrow">
-                            A DATE FOR THEIR WELLBEING
-                          </span>
-                          <h2>Your next appointment</h2>
-                        </div>
-                        <button
-                          className="owner-text-button"
-                          onClick={() => navigate("appointments")}
-                        >
-                          View all <ArrowRight size={14} />
-                        </button>
-                      </div>
-                      {next ? (
-                        <Appointment item={next} compact />
-                      ) : (
-                        <Empty
-                          icon={CalendarDays}
-                          title="A little space in the calendar"
-                          action={
-                            <button
-                              className="owner-button secondary"
-                              onClick={() => open("book")}
-                            >
-                              Find an appointment <ArrowRight size={15} />
-                            </button>
-                          }
-                        >
-                          Book a visit when your companion needs one. Confirmed
-                          details will appear here.
-                        </Empty>
-                      )}
-                      <div className="owner-soft-note">
-                        <ShieldCheck size={17} />
-                        <span>
-                          Bookings and medical records come directly from your
-                          care providers.
-                        </span>
-                      </div>
-                    </section>
-                    <section className="owner-card">
-                      <div className="owner-card-heading">
-                        <h2>Care on your radar</h2>
-                        <span className="owner-dot-label">NEXT 60 DAYS</span>
-                      </div>
-                      {due.slice(0, 3).map((v, i) => (
-                        <div
-                          className="owner-reminder"
-                          key={v.vaccinationId || i}
-                        >
-                          <span>
-                            <Syringe size={18} />
-                          </span>
-                          <div>
-                            <h3>{v.vaccineName}</h3>
-                            <p>
-                              {v.petName} ·{" "}
-                              {dateLabel(v.nextVaccinationDate || v.dueDate)}
-                            </p>
-                          </div>
-                          <ArrowUpRight size={16} />
-                        </div>
-                      ))}
-                      {!due.length && (
-                        <Empty
-                          icon={HeartPulse}
-                          title="No due vaccinations returned"
-                        >
-                          Your veterinarian’s recorded vaccination due dates
-                          will appear here.
-                        </Empty>
-                      )}
-                      <button
-                        className="owner-wide-link"
-                        onClick={() => navigate("care")}
-                      >
-                        View care records <ArrowRight size={15} />
-                      </button>
-                    </section>
-                  </div>
-                  <section className="owner-record-strip">
-                    <div className="owner-record-symbol">
-                      <FolderHeart size={29} />
-                    </div>
-                    <div>
-                      <span className="owner-eyebrow">
-                        ONE PET. ONE HEALTH STORY.
-                      </span>
-                      <h2>Their whole journey, beautifully together.</h2>
-                      <p>
-                        Consultations, vaccinations and documents. Organized
-                        around the companion you love.
-                      </p>
-                    </div>
-                    <button
-                      className="owner-button secondary"
-                      onClick={() => navigate("records")}
-                    >
-                      Explore health records <ArrowUpRight size={16} />
-                    </button>
-                  </section>
-                </>
+                <OwnerHome
+                  pet={pet}
+                  pets={pets}
+                  passport={passport}
+                  next={next}
+                  due={due}
+                  currentUser={currentUser}
+                  setPetId={setPetId}
+                  navigate={navigate}
+                  open={open}
+                  detailLoading={detailLoading}
+                  detailErrors={detailErrors}
+                />
               )}
               {page === "pets" && (
                 <div className="owner-pets-grid">
@@ -1657,7 +1438,7 @@ export default function OwnerApp() {
         className="owner-bottom-nav"
         aria-label="Mobile pet owner navigation"
       >
-        {navigation.slice(0, 5).map(([key, label, Icon]) => (
+        {ownerTabs.map(([key, label, icon]) => (
           <a
             href={`#owner/${key}`}
             key={key}
@@ -1665,22 +1446,25 @@ export default function OwnerApp() {
             onClick={() => navigate(key)}
             aria-current={page === key ? "page" : undefined}
           >
-            <Icon size={20} />
-            <span>
-              {
-                {
-                  home: "Home",
-                  pets: "Pets",
-                  appointments: "Visits",
-                  records: "Records",
-                  care: "Care",
-                }[key]
-              }
-            </span>
+            <DesignIcon name={icon} size={24} />
+            <span>{label}</span>
           </a>
         ))}
       </nav>
-      {modal && (
+      {modal === "tracking" && (
+        <Modal
+          title={`${form.kind} tracking`}
+          subtitle="Integration pending"
+          onClose={() => setModal(null)}
+          busy={false}
+        >
+          <p>
+            {form.kind} tracking is not connected to a server workflow yet. No
+            daily totals or health assessment are recorded here.
+          </p>
+        </Modal>
+      )}
+      {modal && modal !== "tracking" && (
         <Modal
           title={
             {

@@ -1,0 +1,10 @@
+.git
+**/node_modules
+**/target
+**/dist*
+**/.expo
+**/.env
+**/.env.*
+**/*.log
+docs/figma
+**/keys

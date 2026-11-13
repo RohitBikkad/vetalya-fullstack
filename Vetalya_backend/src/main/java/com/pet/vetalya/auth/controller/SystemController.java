@@ -1,6 +1,9 @@
 package com.pet.vetalya.auth.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,6 +18,10 @@ import java.util.Map;
 @RestController
 public class SystemController {
 
+    @Value("${app.static-ui-enabled:false}")
+    private boolean staticUiEnabled;
+    @Value("${app.debug.database-inspection-enabled:false}")
+    private boolean databaseInspectionEnabled;
     private final JdbcTemplate jdbcTemplate;
 
     public SystemController(JdbcTemplate jdbcTemplate) {
@@ -22,7 +29,8 @@ public class SystemController {
     }
 
     @GetMapping("/")
-    public ResponseEntity<Map<String, Object>> root() {
+    public ResponseEntity<?> root() {
+        if (staticUiEnabled) return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(new ClassPathResource("static/index.html"));
         return ResponseEntity.ok(Map.of(
                 "app", "Vetalya API",
                 "status", "RUNNING",
@@ -47,6 +55,7 @@ public class SystemController {
 
     @GetMapping("/api/public/db-inspect")
     public ResponseEntity<Map<String, Object>> dbInspect() {
+        if (!databaseInspectionEnabled) return ResponseEntity.notFound().build();
         long startTime = System.currentTimeMillis();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("status", "CONNECTED");

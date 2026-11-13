@@ -4,6 +4,7 @@ import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -26,6 +27,11 @@ import java.util.Base64;
  */
 @Configuration
 public class JwtConfig {
+
+    @Value("${JWT_PRIVATE_KEY_PEM:}")
+    private String privateKeyPem;
+    @Value("${JWT_PUBLIC_KEY_PEM:}")
+    private String publicKeyPem;
 
     private final AppProperties appProperties;
     private final ResourceLoader resourceLoader;
@@ -55,7 +61,7 @@ public class JwtConfig {
     }
 
     private RSAPrivateKey loadPrivateKey() throws Exception {
-        String pem = loadPem(appProperties.jwt().privateKeyPath());
+        String pem = privateKeyPem != null && !privateKeyPem.isBlank() ? privateKeyPem : loadPem(appProperties.jwt().privateKeyPath());
         String base64 = pem
                 .replace("-----BEGIN PRIVATE KEY-----", "")
                 .replace("-----END PRIVATE KEY-----", "")
@@ -66,7 +72,7 @@ public class JwtConfig {
     }
 
     private RSAPublicKey loadPublicKey() throws Exception {
-        String pem = loadPem(appProperties.jwt().publicKeyPath());
+        String pem = publicKeyPem != null && !publicKeyPem.isBlank() ? publicKeyPem : loadPem(appProperties.jwt().publicKeyPath());
         String base64 = pem
                 .replace("-----BEGIN PUBLIC KEY-----", "")
                 .replace("-----END PUBLIC KEY-----", "")

@@ -1,0 +1,32 @@
+# Deploy this separate Blueprint from the staging branch; existing live services are untouched.
+# Supabase is the existing managed database. No Render database is created.
+services:
+  - type: web
+    name: vetalya-staging
+    runtime: docker
+    repo: https://github.com/RohitBikkad/vetalya-fullstack
+    branch: staging/vetalya-internet-test
+    dockerfilePath: ./deploy/Dockerfile.staging
+    dockerContext: .
+    region: singapore
+    plan: free
+    numInstances: 1
+    healthCheckPath: /actuator/health/readiness
+    autoDeployTrigger: commit
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod,staging
+      - key: DB_URL
+        value: jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require&prepareThreshold=0
+      - key: DB_USERNAME
+        value: postgres.lihsmcgfxjuldjenjdti
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_PRIVATE_KEY_PEM
+        sync: false
+      - key: JWT_PUBLIC_KEY_PEM
+        sync: false
+      - key: MANAGEMENT_SECURITY_PASSWORD
+        generateValue: true
+      - key: APP_SEED_DEMO_DATA
+        value: "false"
