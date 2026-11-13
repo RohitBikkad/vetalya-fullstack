@@ -14,7 +14,7 @@ public class OtpVerification {
     @Column(nullable = false, length = 255)
     private String target; // Phone number or email
 
-    @Column(name = "otp_code", nullable = false, length = 10)
+    @Column(name = "otp_code", nullable = false, length = 100)
     private String otpCode;
 
     @Column(nullable = false, length = 30)
@@ -31,6 +31,12 @@ public class OtpVerification {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
+
+    @Column(name = "verification_token_hash", length = 64)
+    private String verificationTokenHash;
+
+    public String getVerificationTokenHash() { return verificationTokenHash; }
+    public void setVerificationTokenHash(String value) { verificationTokenHash = value; }
 
     public OtpVerification() {}
 

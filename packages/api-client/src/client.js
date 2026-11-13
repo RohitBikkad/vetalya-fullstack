@@ -89,6 +89,8 @@ export function createApiClient({ baseUrl, platform, tokenStore, fetchImpl = glo
 
   return {
     request, refreshSession, logout,
+    sendEmailOtp: email => request('/auth/otp/send', { method: 'POST', body: { email, purpose: 'REGISTRATION' } }),
+    verifyEmailOtp: (email, code) => request('/auth/otp/verify', { method: 'POST', body: { email, otp: code, purpose: 'REGISTRATION' } }),
     login: data => authenticate('/auth/login', data),
     register: data => authenticate('/auth/register', { ...data, role: 'ROLE_PET_OWNER' }),
     loginWithOtp: data => authenticate('/auth/login-otp', data),

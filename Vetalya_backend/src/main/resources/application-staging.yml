@@ -41,7 +41,7 @@ app:
     enabled: false
     access-token: ""
   brevo:
-    api-key: ""
+    api-key: ${BREVO_API_KEY:}
   logging:
     body-logging-paths: []
 management:

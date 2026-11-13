@@ -27,6 +27,7 @@ type OwnerState = {
   reloadDetails: () => Promise<void>;
   signIn: (data: Data, register?: boolean) => Promise<void>;
   signOut: () => Promise<void>;
+  signInWithGoogle: (idToken: string) => Promise<void>;
 };
 const Context = createContext<OwnerState | null>(null);
 export function OwnerProvider({ children }: { children: React.ReactNode }) {
@@ -141,6 +142,12 @@ export function OwnerProvider({ children }: { children: React.ReactNode }) {
     const result = await (register
       ? client().register(data)
       : client().login(data));
+    await acceptSession(result);
+  }
+  async function signInWithGoogle(idToken: string) {
+    await acceptSession(await client().google({ idToken }));
+  }
+  async function acceptSession(result: Data) {
     let value = result.user;
     if (!value) value = await client().request("/users/profile");
     if (value?.role !== "ROLE_PET_OWNER") {
@@ -188,6 +195,7 @@ export function OwnerProvider({ children }: { children: React.ReactNode }) {
         reload,
         reloadDetails,
         signIn,
+        signInWithGoogle,
         signOut,
       }}
     >

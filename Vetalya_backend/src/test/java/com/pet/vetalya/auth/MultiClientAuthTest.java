@@ -81,13 +81,15 @@ class MultiClientAuthTest {
     @Test void petOwnerRegistrationWorksWithDemoLoginDisabledForWebAndMobile() {
         var social=(SocialLoginService)org.springframework.test.util.ReflectionTestUtils.getField(controller,"socialLoginService");
         var password=(PasswordEncoder)org.springframework.test.util.ReflectionTestUtils.getField(controller,"passwordEncoder");
+        var otp=(OtpService)org.springframework.test.util.ReflectionTestUtils.getField(controller,"otpService");
+        when(otp.consumeEmailVerification(eq("new-owner@example.test"),eq("verified-email-proof"))).thenReturn(true);
         when(password.encode("StagingTest!234")).thenReturn("encoded-password");
         when(social.processLogin(any(ProviderUserInfo.class),eq("ROLE_PET_OWNER"),anyString(),nullable(String.class),anyString()))
             .thenReturn(new SocialLoginService.LoginResult(user,"access","refresh",true,true));
         for(String platform:List.of("web","android","ios")) {
             var request=new MockHttpServletRequest();request.setSecure(true);
             var response=new MockHttpServletResponse();
-            var result=controller.register(Map.of("fullName","Test Owner","email","new-owner@example.test","phone","+12025550199","password","StagingTest!234","clientType",platform),request,response);
+            var result=controller.register(Map.of("fullName","Test Owner","email","new-owner@example.test","phone","+12025550199","password","StagingTest!234","clientType",platform,"emailVerificationToken","verified-email-proof"),request,response);
             assertEquals(201,result.getStatusCode().value());
             assertEquals("encoded-password",user.getPasswordHash());
             var body=(Map<?,?>)result.getBody();
@@ -106,6 +108,24 @@ class MultiClientAuthTest {
         var result=controller.register(Map.of("fullName","Test Owner","email","new-owner@example.test","password","StagingTest!234"),new MockHttpServletRequest(),new MockHttpServletResponse());
         assertEquals(400,result.getStatusCode().value());
         assertTrue(result.getBody().toString().contains("Mobile phone number is required"));
+    }
+
+    @Test void registrationWithoutEmailProofCannotCreateAnAccount() {
+        var result=controller.register(Map.of("fullName","Test Owner","email","new-owner@example.test","phone","+12025550199","password","StagingTest!234"),new MockHttpServletRequest(),new MockHttpServletResponse());
+        assertEquals(400,result.getStatusCode().value());
+        assertTrue(result.getBody().toString().contains("Verify your email"));
+        verify(users,never()).save(any());
+    }
+    @Test void otpResponsesNeverExposeCodesAndDeliveryFailureIsNotSuccess() {
+        var otp=(OtpService)org.springframework.test.util.ReflectionTestUtils.getField(controller,"otpService");
+        when(otp.sendOtp("owner@example.test","REGISTRATION")).thenReturn(new OtpService.OtpResult(true,"sent","123456",600));
+        var result=controller.sendOtp(Map.of("email","owner@example.test","purpose","REGISTRATION"));
+        assertEquals(200,result.getStatusCode().value());
+        assertFalse(result.getBody().toString().contains("123456"));
+        assertFalse(((Map<?,?>)result.getBody()).containsKey("devOtp"));
+        when(otp.sendOtp("owner@example.test","REGISTRATION")).thenThrow(new IllegalStateException("sensitive provider details"));
+        result=controller.sendOtp(Map.of("email","owner@example.test","purpose","REGISTRATION"));
+        assertEquals(503,result.getStatusCode().value());assertFalse(result.getBody().toString().contains("sensitive"));
     }
 
 }

@@ -576,6 +576,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
+    @Transactional
     public ResponseEntity<?> register(
             @RequestBody(required = false) Map<String, Object> request,
             HttpServletRequest httpRequest,
@@ -615,40 +616,14 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("message", "An account with this mobile phone number already exists"));
         }
 
-        // OTP verification for both Email and Mobile Phone (optional to prevent third-party carrier/SMTP outage blocks)
-        String emailOtp = getString(request, "emailOtp");
-        if (emailOtp == null) emailOtp = getString(request, "emailCode");
-        String phoneOtp = getString(request, "phoneOtp");
-        if (phoneOtp == null) phoneOtp = getString(request, "phoneCode");
-        String singleOtp = getString(request, "otp");
-
-        if (emailOtp == null && singleOtp != null && !singleOtp.isBlank()) {
-            emailOtp = singleOtp;
-        }
-        if (phoneOtp == null && singleOtp != null && !singleOtp.isBlank()) {
-            phoneOtp = singleOtp;
-        }
-
-        boolean emailVerified = true;
-        if (emailOtp != null && !emailOtp.isBlank()) {
-            boolean matched = otpService.verifyOtp(email, emailOtp, "REGISTRATION")
-                           || otpService.verifyOtp(email, emailOtp, "VERIFICATION");
-            if (!matched && !otpService.isTargetVerifiedRecently(email, "REGISTRATION")) {
-                log.info("Email OTP verification optional / handled for {}", email);
-            }
-        }
-
-        boolean phoneVerified = true;
-        if (phoneOtp != null && !phoneOtp.isBlank()) {
-            boolean matched = otpService.verifyOtp(phone, phoneOtp, "REGISTRATION")
-                           || otpService.verifyOtp(phone, phoneOtp, "VERIFICATION");
-            if (!matched && !otpService.isTargetVerifiedRecently(phone, "REGISTRATION")) {
-                log.info("Phone OTP verification optional / handled for {}", phone);
-            }
-        }
-
-        String role = (roleParam != null && (roleParam.equalsIgnoreCase("VETERINARIAN") || roleParam.equalsIgnoreCase("ROLE_VET")))
-                ? "ROLE_VET" : "ROLE_PET_OWNER";
+        if (!email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$") || password.length() < 8)
+            return ResponseEntity.badRequest().body(Map.of("message", "Enter a valid email and a password of at least 8 characters"));
+        String role;
+        if (roleParam == null || java.util.Set.of("ROLE_PET_OWNER", "PET_OWNER", "PET_PARENT").contains(roleParam.toUpperCase())) role = "ROLE_PET_OWNER";
+        else if (java.util.Set.of("ROLE_VET", "VETERINARIAN").contains(roleParam.toUpperCase())) role = "ROLE_VET";
+        else return ResponseEntity.badRequest().body(Map.of("message", "Invalid registration role"));
+        if (!otpService.consumeEmailVerification(email, getString(request, "emailVerificationToken")))
+            return ResponseEntity.badRequest().body(Map.of("message", "Verify your email address before creating an account"));
 
         String trimmedName = fullName.trim();
         int spaceIdx = trimmedName.indexOf(' ');
@@ -667,7 +642,7 @@ public class AuthController {
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setPhone(phone);
         user.setEmailVerified(true);
-        user.setPhoneVerified(true);
+        user.setPhoneVerified(false);
         userAuthRepo.save(user);
 
         if ("ROLE_VET".equals(role)) {
@@ -679,7 +654,7 @@ public class AuthController {
                     }
                     v.setFirstName(firstName);
                     v.setLastName(lastName);
-                    v.setVerified(true);
+                    v.setVerified(false);
                     vetRepo.save(v);
                 }
             });
@@ -739,11 +714,10 @@ public class AuthController {
             resp.put("message", result.message());
             resp.put("target", target);
             resp.put("expiresInSeconds", result.expiresInSeconds());
-            resp.put("devOtp", result.otpCode()); // mock SMS delivery for instant testing
             return ResponseEntity.ok(resp);
         } catch (Exception ex) {
             String msg = ex.getMessage() != null ? ex.getMessage() : "Failed to dispatch OTP";
-            return ResponseEntity.badRequest().body(Map.of("message", msg));
+            return ResponseEntity.status(ex instanceof IllegalArgumentException ? 400 : 503).body(Map.of("message", ex instanceof IllegalArgumentException ? msg : "Verification email could not be sent. Please try again later."));
         }
     }
 
@@ -769,6 +743,11 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("message", "Target and 6-digit OTP code are required"));
         }
 
+        if (target.contains("@") && "REGISTRATION".equalsIgnoreCase(purpose)) {
+            String receipt = otpService.verifyEmailRegistration(target, otp);
+            if (receipt == null) return ResponseEntity.status(401).body(Map.of("verified", false, "message", "Invalid or expired code. Request a new code if already used."));
+            return ResponseEntity.ok(Map.of("verified", true, "emailVerificationToken", receipt));
+        }
         boolean valid = otpService.verifyOtp(target, otp, purpose);
         if (valid) {
             return ResponseEntity.ok(Map.of(

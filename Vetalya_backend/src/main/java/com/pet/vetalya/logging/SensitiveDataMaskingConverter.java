@@ -25,7 +25,7 @@ public class SensitiveDataMaskingConverter extends MessageConverter {
     );
 
     private static final Pattern SECRET_PATTERN = Pattern.compile(
-            "(?i)\\b(password|client[-_]?secret|private[-_]?key|p8[-_]?key|token[-_]?hash|refresh[-_]?token)\\b\\s*([:=])\\s*[\"']?([^\\s\"',;]+)[\"']?"
+            "(?i)\\b(email[-_]?verification[-_]?token|id[-_]?token|access[-_]?token|password|client[-_]?secret|private[-_]?key|p8[-_]?key|token[-_]?hash|refresh[-_]?token)\\b\\s*([:=])\\s*[\"']?([^\\s\"',;]+)[\"']?"
     );
 
     private static final Pattern AUTH_HEADER_PATTERN = Pattern.compile(

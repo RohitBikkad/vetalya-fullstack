@@ -20,6 +20,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import EmailVerification from './EmailVerification';
 import VetalyaBrandLogo from './VetalyaBrandLogo';
 
 export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
@@ -29,6 +30,7 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
   // Form Fields
   const [vetName, setVetName] = useState('');
   const [email, setEmail] = useState('');
+  const [emailProof, setEmailProof] = useState('');
   const [phone, setPhone] = useState('');
   const [councilRegNo, setCouncilRegNo] = useState('');
   const [councilState, setCouncilState] = useState('Karnataka Veterinary Council (KVC)');
@@ -100,7 +102,8 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
       return;
     }
 
-    // Form inputs valid -> Directly register veterinarian
+    if (!emailProof) { setError('Verify your email address before registering.'); return; }
+    // Form inputs valid -> Register veterinarian pending professional verification
     setIsSubmitting(true);
     try {
       const cleanEmail = email.trim().toLowerCase();
@@ -113,6 +116,7 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
         phone: cleanPhone,
         password,
         role: 'ROLE_VET',
+        emailVerificationToken: emailProof,
         councilRegNumber: councilRegNo.trim(),
         councilState,
         qualification: degree,
@@ -243,6 +247,7 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
 
           {/* ── Main Form (Login OR Registration) ── */}
           <form onSubmit={handleFormSubmit} className="space-y-4">
+              {mode === 'register' && <EmailVerification email={email} onVerified={setEmailProof} />}
               
               {mode === 'register' && (
                 <>

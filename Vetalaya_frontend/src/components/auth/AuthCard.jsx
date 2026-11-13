@@ -60,6 +60,7 @@ export default function AuthCard({ onToggleForgot }) {
   const [emailOtp, setEmailOtp] = useState('');
   const [phoneOtp, setPhoneOtp] = useState('');
   const [emailVerified, setEmailVerified] = useState(false);
+  const [emailProof, setEmailProof] = useState('');
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [emailDevOtp, setEmailDevOtp] = useState(null);
   const [phoneDevOtp, setPhoneDevOtp] = useState(null);
@@ -203,21 +204,15 @@ export default function AuthCard({ onToggleForgot }) {
     setIsSendingOtp(true);
     try {
       const cleanEmail = email.trim().toLowerCase();
-      const [emailRes, phoneRes] = await Promise.all([
-        sendOtpApi(cleanEmail, 'REGISTRATION'),
-        sendOtpApi(activePhone, 'REGISTRATION'),
-      ]);
-
-      if (emailRes.devOtp) setEmailDevOtp(emailRes.devOtp);
-      if (phoneRes.devOtp) setPhoneDevOtp(phoneRes.devOtp);
-
+      await sendOtpApi(cleanEmail, 'REGISTRATION');
+      setEmailProof('');
       setEmailVerified(false);
       setPhoneVerified(false);
       setEmailOtp('');
       setPhoneOtp('');
       setResendTimer(60);
       setSignupStep('otp_verify');
-      setSuccessNotice(`6-digit verification codes sent to ${cleanEmail} and ${activePhone}!`);
+      setSuccessNotice(`A 6-digit verification code was sent to ${cleanEmail}.`);
     } catch (err) {
       setError(err.message || 'Failed to dispatch verification OTPs. Please check your credentials.');
     } finally {
@@ -234,7 +229,9 @@ export default function AuthCard({ onToggleForgot }) {
     setError(null);
     setIsVerifyingEmail(true);
     try {
-      await verifyOtpApi(email.trim().toLowerCase(), emailOtp.trim(), 'REGISTRATION');
+      const verified = await verifyOtpApi(email.trim().toLowerCase(), emailOtp.trim(), 'REGISTRATION');
+      if (!verified.emailVerificationToken) throw new Error('Email verification failed. Request a new code.');
+      setEmailProof(verified.emailVerificationToken);
       setEmailVerified(true);
       setSuccessNotice('Email address successfully verified!');
     } catch (err) {
@@ -305,15 +302,7 @@ export default function AuthCard({ onToggleForgot }) {
     const activePhone = signupRole === 'PET_OWNER' ? parentPhone.trim() : vetPhone.trim();
     const cleanEmail = email.trim().toLowerCase();
 
-    if (!emailVerified && (!emailOtp || emailOtp.trim().length !== 6)) {
-      setError('Please enter or verify the 6-digit OTP sent to your email.');
-      return;
-    }
-
-    if (!phoneVerified && (!phoneOtp || phoneOtp.trim().length !== 6)) {
-      setError('Please enter or verify the 6-digit OTP sent to your mobile phone.');
-      return;
-    }
+    if (!emailVerified || !emailProof) { setError('Verify the code sent to your email first.'); return; }
 
     try {
       const payload = {
@@ -324,7 +313,7 @@ export default function AuthCard({ onToggleForgot }) {
         password: password,
         phone: activePhone,
         role: signupRole === 'PET_OWNER' ? 'ROLE_PET_OWNER' : 'ROLE_VET',
-        emailOtp: emailOtp.trim(),
+        emailVerificationToken: emailProof,
         phoneOtp: phoneOtp.trim(),
         ...(signupRole === 'PET_OWNER' ? {
           petName: petName.trim() || null,
@@ -613,65 +602,10 @@ export default function AuthCard({ onToggleForgot }) {
             )}
           </div>
 
-          {/* Target 2: Mobile Phone OTP */}
-          <div className={`p-4 rounded-2xl border transition-all ${
-            phoneVerified ? 'bg-[#E0F2EB]/40 border-[#2D8A7A]/40' : 'bg-[#FAF8F5] border-[#10324E]/10'
-          }`}>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-[#10324E]">
-                <Smartphone className="w-3.5 h-3.5 text-[#10324E]" />
-                <span>Mobile Phone Verification</span>
-              </div>
-              {phoneVerified ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-[#2D8A7A] bg-white px-2 py-0.5 rounded-full border border-[#2D8A7A]/30">
-                  <CheckCircle2 className="w-3 h-3" />
-                  Verified
-                </span>
-              ) : (
-                <span className="text-[10px] text-[#242826]/60 font-mono">
-                  {signupRole === 'PET_OWNER' ? parentPhone : vetPhone}
-                </span>
-              )}
-            </div>
-
-            {!phoneVerified && (
-              <div className="space-y-2 mt-2">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    maxLength={6}
-                    value={phoneOtp}
-                    onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, ''))}
-                    placeholder="6-digit Mobile OTP"
-                    className="flex-1 px-3 py-2.5 rounded-xl border border-[#E5E2D8] bg-white text-xs font-mono tracking-widest text-center text-[#10324E] font-bold focus:outline-hidden focus:ring-2 focus:ring-[#10324E]"
-                  />
-                  <button
-                    type="button"
-                    disabled={isVerifyingPhone || phoneOtp.length !== 6}
-                    onClick={handleVerifyPhoneOtp}
-                    className="px-4 py-2.5 rounded-xl bg-[#10324E] hover:bg-[#0c273e] disabled:opacity-40 text-white text-xs font-bold transition-all cursor-pointer"
-                  >
-                    {isVerifyingPhone ? '...' : 'Verify'}
-                  </button>
-                </div>
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    disabled={resendTimer > 0 || isSendingOtp}
-                    onClick={handleResendPhoneOtp}
-                    className="text-[10px] font-bold text-[#10324E] hover:text-[#2D8A7A] disabled:opacity-40 cursor-pointer"
-                  >
-                    {resendTimer > 0 ? `Resend mobile code in ${resendTimer}s` : 'Resend Mobile OTP'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Complete Registration Action Button */}
           <button
             type="button"
-            disabled={isLoading || (!emailVerified && emailOtp.length !== 6) || (!phoneVerified && phoneOtp.length !== 6)}
+            disabled={isLoading || !emailVerified || !emailProof}
             onClick={handleCompleteRegistration}
             className="w-full py-3.5 px-4 rounded-2xl bg-[#10324E] hover:bg-[#0c273e] text-white font-bold text-xs shadow-md transition-all cursor-pointer disabled:opacity-40 mt-3"
           >
@@ -702,7 +636,7 @@ export default function AuthCard({ onToggleForgot }) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#10324E] mb-1">Mobile Phone (for OTP Verification) *</label>
+                <label className="block text-xs font-bold text-[#10324E] mb-1">Mobile Phone *</label>
                 <div className="relative">
                   <Phone className="w-4 h-4 absolute left-3.5 top-3 text-[#242826]/40" />
                   <input
@@ -763,7 +697,7 @@ export default function AuthCard({ onToggleForgot }) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#10324E] mb-1">Clinic / Doctor Mobile (for OTP Verification) *</label>
+                <label className="block text-xs font-bold text-[#10324E] mb-1">Clinic / Doctor Mobile *</label>
                 <div className="relative">
                   <Phone className="w-4 h-4 absolute left-3.5 top-3 text-[#242826]/40" />
                   <input
@@ -950,7 +884,7 @@ export default function AuthCard({ onToggleForgot }) {
             className="w-full py-3.5 px-4 rounded-2xl bg-[#10324E] hover:bg-[#0c273e] text-white font-bold text-xs shadow-md transition-all cursor-pointer disabled:opacity-50 mt-2"
           >
             {isLoading || isSendingOtp
-              ? 'Sending OTP Codes...'
+              ? 'Sending email code...'
               : mode === 'login'
               ? 'Sign In'
               : 'Proceed to OTP Verification →'}

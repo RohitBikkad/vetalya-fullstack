@@ -17,6 +17,20 @@ public class OtpService {
 
     private static final Logger log = LoggerFactory.getLogger(OtpService.class);
     private static final SecureRandom random = new SecureRandom();
+    private final org.springframework.security.crypto.password.PasswordEncoder codeEncoder = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
+    private static String target(String value) {
+        if (value == null || value.isBlank()) throw new IllegalArgumentException("Email or phone is required");
+        return value.contains("@") ? value.trim().toLowerCase(java.util.Locale.ROOT) : value.trim();
+    }
+    private static String purpose(String value) {
+        String result = value == null || value.isBlank() ? "VERIFICATION" : value.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!java.util.Set.of("REGISTRATION", "VERIFICATION", "LOGIN").contains(result)) throw new IllegalArgumentException("Invalid verification purpose");
+        return result;
+    }
+    private static String hash(String value) {
+        try { return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8))); }
+        catch (java.security.NoSuchAlgorithmException e) { throw new IllegalStateException(e); }
+    }
 
     private final OtpVerificationRepository otpRepo;
     private final EmailService emailService;
@@ -42,8 +56,14 @@ public class OtpService {
         if (target == null || target.isBlank()) {
             throw new IllegalArgumentException("Mobile phone number or email target is required");
         }
-        String cleanTarget = target.trim();
-        String cleanPurpose = (purpose == null || purpose.isBlank()) ? "VERIFICATION" : purpose.trim().toUpperCase();
+        String cleanTarget = target(target);
+        String cleanPurpose = purpose(purpose);
+
+        if (cleanTarget.contains("@") && !cleanTarget.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"))
+            throw new IllegalArgumentException("Enter a valid email address");
+        var previous = otpRepo.findTopByTargetAndPurposeOrderByCreatedAtDesc(cleanTarget, cleanPurpose);
+        if (previous.isPresent() && previous.get().getCreatedAt().isAfter(Instant.now().minusSeconds(60)))
+            throw new IllegalArgumentException("Wait 60 seconds before requesting another code");
 
         // Generate 6-digit cryptographic OTP code
         int code = 100000 + random.nextInt(900000);
@@ -59,14 +79,14 @@ public class OtpService {
 
         OtpVerification otp = new OtpVerification();
         otp.setTarget(cleanTarget);
-        otp.setOtpCode(otpCode);
+        otp.setOtpCode(codeEncoder.encode(otpCode));
         otp.setPurpose(cleanPurpose);
         otp.setAttempts(0);
         otp.setVerified(false);
         otp.setExpiresAt(Instant.now().plus(Duration.ofMinutes(10)));
         otpRepo.save(otp);
 
-        log.info("📲 [Vetalya Gateway] Generated OTP: {} for Target: [{}] (Purpose: {})", otpCode, cleanTarget, cleanPurpose);
+
 
         // If target is an email address, dispatch email; otherwise dispatch WhatsApp & SMS
         if (cleanTarget.contains("@")) {
@@ -76,7 +96,7 @@ public class OtpService {
             fast2SmsService.sendOtpSms(cleanTarget, otpCode);
         }
 
-        return new OtpResult(true, "Verification code sent to " + cleanTarget, otpCode, 600);
+        return new OtpResult(true, "Verification code sent to " + cleanTarget, null, 600);
     }
 
     /**
@@ -84,39 +104,41 @@ public class OtpService {
      */
     @Transactional
     public boolean verifyOtp(String target, String inputCode, String purpose) {
-        if (target == null || inputCode == null) return false;
-        String cleanTarget = target.trim();
-        String cleanPurpose = (purpose == null || purpose.isBlank()) ? "VERIFICATION" : purpose.trim().toUpperCase();
+        return verify(target, inputCode, purpose, false) != null;
+    }
 
-        Optional<OtpVerification> latestOpt = otpRepo.findTopByTargetAndPurposeAndVerifiedFalseOrderByCreatedAtDesc(cleanTarget, cleanPurpose);
-        if (latestOpt.isEmpty()) {
-            log.warn("No active OTP found for target: {}", cleanTarget);
-            return false;
-        }
+    @Transactional
+    public String verifyEmailRegistration(String email, String code) {
+        return verify(email, code, "REGISTRATION", true);
+    }
 
-        OtpVerification otp = latestOpt.get();
-        if (otp.getExpiresAt().isBefore(Instant.now())) {
-            log.warn("OTP for {} expired at {}", cleanTarget, otp.getExpiresAt());
-            return false;
-        }
-
-        if (otp.getAttempts() >= 5) {
-            log.warn("Max OTP verification attempts exceeded for target: {}", cleanTarget);
-            return false;
-        }
-
+    private String verify(String rawTarget, String code, String rawPurpose, boolean receipt) {
+        if (rawTarget == null || code == null || !code.matches("[0-9]{6}")) return null;
+        var latest = otpRepo.findTopByTargetAndPurposeOrderByCreatedAtDesc(target(rawTarget), purpose(rawPurpose));
+        if (latest.isEmpty()) return null;
+        var otp = latest.get();
+        if (otp.isVerified() || !otp.getExpiresAt().isAfter(Instant.now()) || otp.getAttempts() >= 5) return null;
         otp.setAttempts(otp.getAttempts() + 1);
+        if (!codeEncoder.matches(code, otp.getOtpCode())) { otpRepo.save(otp); return null; }
+        otp.setVerified(true);
+        String token = receipt ? java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(random.generateSeed(32)) : "verified";
+        if (receipt) otp.setVerificationTokenHash(hash(token));
+        otpRepo.save(otp);
+        return token;
+    }
 
-        if (otp.getOtpCode().equals(inputCode.trim())) {
-            otp.setVerified(true);
-            otpRepo.save(otp);
-            log.info("✅ OTP successfully verified for target: {}", cleanTarget);
-            return true;
-        } else {
-            otpRepo.save(otp);
-            log.warn("❌ Incorrect OTP attempt {}/5 for target: {}", otp.getAttempts(), cleanTarget);
-            return false;
-        }
+    @Transactional
+    public boolean consumeEmailVerification(String email, String token) {
+        if (email == null || token == null || token.length() < 32 || token.length() > 128) return false;
+        var latest = otpRepo.findTopByTargetAndPurposeOrderByCreatedAtDesc(target(email), "REGISTRATION");
+        if (latest.isEmpty()) return false;
+        var otp = latest.get();
+        if (!otp.isVerified() || !otp.getExpiresAt().isAfter(Instant.now()) || otp.getVerificationTokenHash() == null
+            || !java.security.MessageDigest.isEqual(hash(token).getBytes(java.nio.charset.StandardCharsets.US_ASCII), otp.getVerificationTokenHash().getBytes(java.nio.charset.StandardCharsets.US_ASCII))) return false;
+        otp.setVerificationTokenHash(null);
+        otp.setExpiresAt(Instant.now());
+        otpRepo.save(otp);
+        return true;
     }
 
     /**
@@ -124,7 +146,7 @@ public class OtpService {
      */
     public boolean isTargetVerifiedRecently(String target, String purpose) {
         if (target == null || target.isBlank()) return false;
-        String cleanTarget = target.trim();
+        String cleanTarget = target(target);
         String cleanPurpose = (purpose == null || purpose.isBlank()) ? "REGISTRATION" : purpose.trim().toUpperCase();
 
         var verified = otpRepo.findTopByTargetAndPurposeAndVerifiedTrueOrderByCreatedAtDesc(cleanTarget, cleanPurpose);

@@ -8,6 +8,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import EmailVerification from "./EmailVerification";
 import VetalyaBrandLogo from "./VetalyaBrandLogo";
 import "./owner-auth.css";
 
@@ -24,6 +25,7 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
   const [visible, setVisible] = useState(false),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
+  const [emailProof, setEmailProof] = useState("");
   const google = useRef();
   const registering = mode === "register";
   useEffect(() => {
@@ -86,6 +88,7 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
       );
       return;
     }
+    if (registering && !emailProof) { setError("Verify your email address before creating an account."); return; }
     setBusy(true);
     try {
       if (registering)
@@ -94,6 +97,7 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
           fullName: form.fullName.trim(),
           email: form.email.trim().toLowerCase(),
           role: "ROLE_PET_OWNER",
+          emailVerificationToken: emailProof,
         });
       else await login(form.email.trim().toLowerCase(), form.password);
     } catch (e) {
@@ -144,6 +148,7 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
                   onChange={(e) => change("email", e.target.value)}
                 />
               </label>
+              {registering && <EmailVerification email={form.email} onVerified={setEmailProof} />}
               {registering && (
                 <label className="wide">
                   <span>Mobile phone</span>
@@ -199,7 +204,7 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
               )}
               <button
                 className="owner-button wide"
-                disabled={busy}
+                disabled={busy || (registering && !emailProof)}
                 style={{ width: "100%", marginTop: 4 }}
               >
                 {busy

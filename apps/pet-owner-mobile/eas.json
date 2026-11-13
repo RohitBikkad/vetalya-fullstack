@@ -26,7 +26,8 @@
       "extends": "preview",
       "env": {
         "APP_VARIANT": "preview",
-        "EXPO_PUBLIC_API_BASE_URL": "https://vetalya-staging-z0u9.onrender.com/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://vetalya-staging-z0u9.onrender.com/api",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "1030204623930-s3t2s597p2rvf5nal0i3552vh8t10h23.apps.googleusercontent.com"
       }
     }
   }

@@ -51,10 +51,9 @@ public class EmailService {
      * Prioritizes Brevo HTTPS REST API (port 443 - works on Render Free/Starter where SMTP port 587 is blocked).
      * Falls back to JavaMailSender SMTP, then simulated logger.
      */
-    @Async
     public void sendOtpEmail(String toEmail, String otpCode, String purpose) {
         if (toEmail == null || !toEmail.contains("@")) {
-            return;
+            throw new IllegalArgumentException("Invalid email address");
         }
 
         String sender = (fromEmail != null && !fromEmail.isBlank()) ? fromEmail : "noreply@vetalya.com";
@@ -88,10 +87,10 @@ public class EmailService {
                     log.info("✅ [Brevo API HTTP 443] Verification email successfully delivered to [{}]", toEmail);
                     return;
                 } else {
-                    log.warn("⚠️ [Brevo API Error] HTTP {}: {}", response.statusCode(), response.body());
+                    log.warn("Brevo rejected verification email: HTTP {}", response.statusCode());
                 }
             } catch (Exception ex) {
-                log.warn("⚠️ [Brevo API Exception] Failed to send email via Brevo REST API to [{}]: {}", toEmail, ex.getMessage());
+                log.warn("Brevo verification email delivery failed");
             }
         }
 
@@ -114,7 +113,7 @@ public class EmailService {
         }
 
         // ── 3. Final Fallback: Simulated Delivery ──
-        log.info("📲 [EmailService Simulated] OTP Code [{}] for [{}] (Purpose: {})", otpCode, toEmail, cleanPurpose);
+        throw new IllegalStateException("Verification email could not be sent. Please try again later.");
     }
 
     private String buildOtpHtmlContent(String cleanPurpose, String otpCode) {

@@ -54,6 +54,7 @@ public class NativeTokenVerificationService {
             // Validate audience
             List<String> aud = jwt.getAudience();
             List<String> allowedClientIds = appProperties.google() != null ? appProperties.google().clientIds() : null;
+            if (allowedClientIds == null || allowedClientIds.stream().noneMatch(c -> c != null && !c.isBlank())) throw new IllegalArgumentException("Google sign-in is not configured");
             if (allowedClientIds != null && !allowedClientIds.isEmpty()) {
                 boolean matches = aud != null && aud.stream().anyMatch(a -> allowedClientIds.stream().anyMatch(c -> c != null && c.equals(a)));
                 if (!matches) {
@@ -69,6 +70,7 @@ public class NativeTokenVerificationService {
             String familyName = jwt.getClaimAsString("family_name");
             String picture = jwt.getClaimAsString("picture");
 
+            if (sub == null || sub.isBlank() || email == null || email.isBlank() || !Boolean.TRUE.equals(emailVerified)) throw new IllegalArgumentException("Google must verify your email address");
             return new ProviderUserInfo(
                     "GOOGLE",
                     sub,

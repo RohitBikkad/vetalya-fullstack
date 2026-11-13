@@ -31,6 +31,10 @@ module.exports = ({ config = {} } = {}) => {
       usesAppleSignIn: true,
     },
     android: { ...config.android, package: `${id}${suffix}` },
-    extra: { ...config.extra, appVariant: variant },
+    extra: {
+      ...config.extra,
+      appVariant: variant,
+      eas: { ...config.extra?.eas, projectId: "ecb6f326-b9a2-493d-bb68-474705608fc5" },
+    },
   };
 };

@@ -30,5 +30,13 @@ services:
         generateValue: true
       - key: JAVA_TOOL_OPTIONS
         value: -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv4Addresses=true -Djdk.tls.client.protocols=TLSv1.2 -XX:TieredStopAtLevel=1 -XX:ActiveProcessorCount=1 -Djava.security.egd=file:/dev/urandom
+      - key: GOOGLE_CLIENT_ID
+        value: 1030204623930-s3t2s597p2rvf5nal0i3552vh8t10h23.apps.googleusercontent.com
+      - key: VITE_GOOGLE_CLIENT_ID
+        value: 1030204623930-s3t2s597p2rvf5nal0i3552vh8t10h23.apps.googleusercontent.com
+      - key: BREVO_API_KEY
+        sync: false
+      - key: SPRING_MAIL_FROM
+        sync: false
       - key: APP_SEED_DEMO_DATA
         value: "false"
