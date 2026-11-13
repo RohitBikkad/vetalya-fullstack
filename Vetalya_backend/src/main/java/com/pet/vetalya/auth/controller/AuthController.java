@@ -716,6 +716,7 @@ public class AuthController {
             resp.put("expiresInSeconds", result.expiresInSeconds());
             return ResponseEntity.ok(resp);
         } catch (Exception ex) {
+            log.warn("OTP dispatch failed ({})", ex.getClass().getSimpleName());
             String msg = ex.getMessage() != null ? ex.getMessage() : "Failed to dispatch OTP";
             return ResponseEntity.status(ex instanceof IllegalArgumentException ? 400 : 503).body(Map.of("message", ex instanceof IllegalArgumentException ? msg : "Verification email could not be sent. Please try again later."));
         }

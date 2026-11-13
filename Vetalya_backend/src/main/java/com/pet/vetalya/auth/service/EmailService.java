@@ -56,6 +56,11 @@ public class EmailService {
             throw new IllegalArgumentException("Invalid email address");
         }
 
+        if ((brevoApiKey == null || brevoApiKey.isBlank()) && (mailSender == null || mailHost == null || mailHost.isBlank())) {
+            log.warn("Verification email is not configured on this service: Brevo key absent and SMTP disabled");
+            throw new IllegalStateException("Verification email is not configured");
+        }
+
         String sender = (fromEmail != null && !fromEmail.isBlank()) ? fromEmail : "noreply@vetalya.com";
         String cleanPurpose = (purpose != null) ? purpose.replace("_", " ").toUpperCase() : "VERIFICATION";
         String htmlContent = buildOtpHtmlContent(cleanPurpose, otpCode);
