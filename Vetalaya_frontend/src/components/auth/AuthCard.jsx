@@ -508,44 +508,12 @@ export default function AuthCard({ onToggleForgot }) {
           <div>
             <h3 className="text-lg font-extrabold text-[#10324E] font-display flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-[#2D8A7A]" />
-              Verify Email &amp; Mobile Phone
+              Verify Your Email
             </h3>
             <p className="text-xs text-[#242826]/70 mt-1">
-              Enter the 6-digit OTP verification codes sent to confirm your email and phone number.
+              Enter the 6-digit code sent to your email address.
             </p>
           </div>
-
-          {/* Dev/Simulated Gateway Codes Display */}
-          {(emailDevOtp || phoneDevOtp) && (
-            <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-200/80 text-amber-900 text-xs space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-extrabold text-[11px] uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
-                  <span>🧪</span> Simulated Gateway OTPs
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (emailDevOtp) setEmailOtp(emailDevOtp);
-                    if (phoneDevOtp) setPhoneOtp(phoneDevOtp);
-                    setError(null);
-                  }}
-                  className="text-[11px] font-extrabold text-amber-800 hover:text-amber-950 underline cursor-pointer"
-                >
-                  Auto-fill Codes
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
-                <div className="bg-white/80 p-2 rounded-xl border border-amber-200/60">
-                  <span className="text-amber-700 block text-[9px] uppercase font-sans font-bold">Email OTP:</span>
-                  <span className="text-sm font-extrabold text-[#10324E]">{emailDevOtp || '—'}</span>
-                </div>
-                <div className="bg-white/80 p-2 rounded-xl border border-amber-200/60">
-                  <span className="text-amber-700 block text-[9px] uppercase font-sans font-bold">Mobile OTP:</span>
-                  <span className="text-sm font-extrabold text-[#10324E]">{phoneDevOtp || '—'}</span>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Target 1: Email OTP */}
           <div className={`p-4 rounded-2xl border transition-all ${
