@@ -29,6 +29,6 @@ services:
       - key: MANAGEMENT_SECURITY_PASSWORD
         generateValue: true
       - key: JAVA_TOOL_OPTIONS
-        value: -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv4Addresses=true -Djdk.tls.client.protocols=TLSv1.2
+        value: -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv4Addresses=true -Djdk.tls.client.protocols=TLSv1.2 -XX:TieredStopAtLevel=1 -XX:ActiveProcessorCount=1 -Djava.security.egd=file:/dev/urandom
       - key: APP_SEED_DEMO_DATA
         value: "false"
