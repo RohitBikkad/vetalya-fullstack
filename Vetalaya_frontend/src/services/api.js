@@ -32,7 +32,7 @@ export async function request(endpoint, options = {}) {
 
   if (response.status === 401) {
     // If token is invalid or expired, clear local storage
-    if (endpoint !== '/auth/login' && endpoint !== '/auth/google') {
+    if (!['/auth/login', '/auth/google', '/auth/register', '/auth/otp/send', '/auth/otp/verify'].includes(endpoint)) {
       localStorage.removeItem('vetalya_jwt_token');
       localStorage.removeItem('vetalya_auth_user');
     }
