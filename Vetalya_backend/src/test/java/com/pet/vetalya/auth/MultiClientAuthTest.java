@@ -78,4 +78,34 @@ class MultiClientAuthTest {
         var replay=controller.exchange(new CodeExchangeRequest("sample-code","phone-1"),new MockHttpServletRequest(),new MockHttpServletResponse());
         assertEquals(401,replay.getStatusCode().value());
     }
+    @Test void petOwnerRegistrationWorksWithDemoLoginDisabledForWebAndMobile() {
+        var social=(SocialLoginService)org.springframework.test.util.ReflectionTestUtils.getField(controller,"socialLoginService");
+        var password=(PasswordEncoder)org.springframework.test.util.ReflectionTestUtils.getField(controller,"passwordEncoder");
+        when(password.encode("StagingTest!234")).thenReturn("encoded-password");
+        when(social.processLogin(any(ProviderUserInfo.class),eq("ROLE_PET_OWNER"),anyString(),nullable(String.class),anyString()))
+            .thenReturn(new SocialLoginService.LoginResult(user,"access","refresh",true,true));
+        for(String platform:List.of("web","android","ios")) {
+            var request=new MockHttpServletRequest();request.setSecure(true);
+            var response=new MockHttpServletResponse();
+            var result=controller.register(Map.of("fullName","Test Owner","email","new-owner@example.test","phone","+12025550199","password","StagingTest!234","clientType",platform),request,response);
+            assertEquals(201,result.getStatusCode().value());
+            assertEquals("encoded-password",user.getPasswordHash());
+            var body=(Map<?,?>)result.getBody();
+            assertEquals("access",body.get("accessToken"));
+            if(platform.equals("web")) {
+                assertFalse(body.containsKey("refreshToken"));
+                assertTrue(response.getHeader("Set-Cookie").contains("HttpOnly"));
+            } else {
+                assertEquals("refresh",body.get("refreshToken"));
+                assertNull(response.getHeader("Set-Cookie"));
+            }
+        }
+        verify(users,times(3)).save(user);
+    }
+    @Test void registrationValidatesRequiredPhoneWithDemoLoginDisabled() {
+        var result=controller.register(Map.of("fullName","Test Owner","email","new-owner@example.test","password","StagingTest!234"),new MockHttpServletRequest(),new MockHttpServletResponse());
+        assertEquals(400,result.getStatusCode().value());
+        assertTrue(result.getBody().toString().contains("Mobile phone number is required"));
+    }
+
 }

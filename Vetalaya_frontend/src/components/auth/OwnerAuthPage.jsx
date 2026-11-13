@@ -6,10 +6,10 @@ import {
   ShieldCheck,
   Eye,
   EyeOff,
-  PawPrint,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import "../dashboard/petparent/owner.css";
+import VetalyaBrandLogo from "./VetalyaBrandLogo";
+import "./owner-auth.css";
 
 export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
   const { login, signup, loginWithGoogle } = useAuth();
@@ -103,96 +103,21 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
     }
   }
   return (
-    <div className="owner-app owner-auth">
-      <section className="owner-auth-story">
-        <a
-          className="owner-brand"
-          href="/"
-          onClick={(e) => {
-            e.preventDefault();
-            onNavigate("/");
-          }}
-        >
-          <img className="brand-emblem" src="/vetalya-logo.png" alt="" />
-          <img
-            className="brand-wordmark"
-            src="/vetalya-wordmark.png"
-            alt="Vetalya · Every Pet. Health. Always."
-          />
-        </a>
-        <div className="owner-auth-story-content">
-          <span className="owner-hero-kicker">
-            <span />A HEALTHIER, HAPPIER LIFE TOGETHER
-          </span>
-          <h1>
-            A little care.
-            <br />A lifetime
-            <br />
-            <em>together.</em>
-          </h1>
-          <p>
-            Their first checkup. Their next adventure.
-            <br />
-            Their whole health story, close to your heart.
-          </p>
-          <div className="owner-auth-benefits">
-            <div>
-              <ShieldCheck size={19} />
-              <span>One companion. One health passport.</span>
-            </div>
-            <div>
-              <Heart size={19} />
-              <span>Thoughtful care, every step of the way.</span>
-            </div>
+    <div className="owner-auth-page">
+      <header className="owner-auth-nav">
+        <a href="/" onClick={(e) => { e.preventDefault(); onNavigate("/"); }} aria-label="Vetalya home"><VetalyaBrandLogo /></a>
+        <button className="owner-auth-home" onClick={() => onNavigate("/")}><ArrowLeft size={14} /> Home</button>
+      </header>
+      <main className="owner-auth-main">
+        <section className="owner-auth-card" aria-labelledby="owner-auth-title">
+          <div className="owner-auth-badge"><Heart size={14} /> Pet parent portal</div>
+          <h1 id="owner-auth-title">{registering ? "Create your account" : "Pet Parent Login"}</h1>
+          <p className="owner-auth-intro">{registering ? "One account for your pets, appointments and health records." : "Welcome back. Your pet’s care, all in one place."}</p>
+          <div className="owner-auth-tabs" aria-label="Account access">
+            <button type="button" aria-pressed={!registering} className={!registering ? "active" : ""} onClick={() => { setMode("login"); setError(""); }}>Log in</button>
+            <button type="button" aria-pressed={registering} className={registering ? "active" : ""} onClick={() => { setMode("register"); setError(""); }}>Sign up</button>
           </div>
-        </div>
-        <div className="owner-auth-art" aria-hidden="true">
-          <Heart size={95} />
-          <PawPrint size={55} />
-        </div>
-        <footer>Made for the ones who make your life whole.</footer>
-      </section>
-      <section className="owner-auth-form-panel">
-        <header>
-          <button className="owner-text-button" onClick={() => onNavigate("/")}>
-            <ArrowLeft size={15} />
-            Back to Vetalya
-          </button>
-          <span>For pet parents</span>
-        </header>
-        <div className="owner-auth-form">
-          <p className="owner-eyebrow">YOUR COMPANION’S CARE SPACE</p>
-          <h2>{registering ? "A beautiful beginning." : "Welcome back."}</h2>
-          <p>
-            {registering
-              ? "Create your account. Their health story starts here."
-              : "Your companion’s world is waiting for you."}
-          </p>
-          <div className="owner-auth-switch">
-            <button
-              className={!registering ? "active" : ""}
-              onClick={() => {
-                setMode("login");
-                setError("");
-              }}
-            >
-              Sign in
-            </button>
-            <button
-              className={registering ? "active" : ""}
-              onClick={() => {
-                setMode("register");
-                setError("");
-              }}
-            >
-              Create an account
-            </button>
-          </div>
-          {error && (
-            <div role="alert" className="owner-alert">
-              {error}
-            </div>
-          )}
+          {error && <div role="alert" className="owner-auth-error">{error}</div>}
           <form onSubmit={submit}>
             <div className="owner-form-grid">
               {registering && (
@@ -280,31 +205,19 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
                 {busy
                   ? "Please wait…"
                   : registering
-                    ? "Create my care space"
+                    ? "Create account"
                     : "Sign in to Vetalya"}
                 <ArrowUpRight size={16} />
               </button>
             </div>
           </form>
           <div ref={google} className="owner-google-button" />
-          {!registering && (
-            <p className="owner-auth-help">
-              Account recovery is not connected in this build. Use your existing
-              account credentials.
-            </p>
-          )}
-          <div className="owner-auth-trust">
-            <ShieldCheck size={16} />
-            <span>Your records stay connected to your account.</span>
-          </div>
-        </div>
-        <footer>
-          © {new Date().getFullYear()} Vetalya · Every Pet. Health. Always.
-          <button onClick={() => onNavigate("/vet/login")}>
-            Staff portal <ArrowUpRight size={12} />
-          </button>
-        </footer>
-      </section>
+
+          <p className="owner-auth-security"><ShieldCheck size={15} /> Your pet’s records stay connected to your account.</p>
+        </section>
+        <p className="owner-auth-staff">Veterinarian or hospital staff? <button onClick={() => onNavigate("/vet/login")}>Visit the staff portal <ArrowUpRight size={13} /></button></p>
+      </main>
+      <footer className="owner-auth-footer">© {new Date().getFullYear()} Vetalya · Every Pet. Health. Always.</footer>
     </div>
   );
 }

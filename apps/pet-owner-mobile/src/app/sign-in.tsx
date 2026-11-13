@@ -7,11 +7,12 @@ import {
   View,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Redirect } from "expo-router";
 import { useOwner } from "../OwnerContext";
-import { Button, Input, ErrorNotice, styles } from "../ui";
+import { Input, ErrorNotice, styles } from "../ui";
 import { apiBaseUrl } from "../api";
 export default function SignIn() {
   const { user, signIn } = useOwner();
@@ -63,14 +64,14 @@ export default function SignIn() {
     }
   }
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={[styles.screen, auth.screen]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={[styles.content, { paddingTop: 35, gap: 25 }]}
+          contentContainerStyle={[styles.content, auth.content]}
         >
           <View style={styles.row}>
             <Image
@@ -83,26 +84,14 @@ export default function SignIn() {
               accessibilityLabel="Vetalya · Every Pet. Health. Always."
             />
           </View>
-          <View style={styles.hero}>
-            <Text style={[styles.eyebrow, { color: "#A7D9D1" }]}>
-              A HEALTHIER LIFE TOGETHER
-            </Text>
-            <Text style={styles.heroTitle}>
-              A little care.{"\n"}A lifetime together.
-            </Text>
-            <Text style={[styles.body, { color: "#C2D5E3" }]}>
-              Your companion’s health story, always close to you.
-            </Text>
+          <View style={auth.card}>
+          <Text style={auth.badge}>PET PARENT PORTAL</Text>
+          <View style={{ gap: 8 }}>
+            <Text style={[styles.title, auth.title]}>{register ? "Create your account" : "Pet Parent Login"}</Text>
+            <Text style={styles.body}>{register ? "One account for your pets, appointments and health records." : "Welcome back. Your pet’s care, all in one place."}</Text>
           </View>
-          <View style={{ gap: 9 }}>
-            <Text style={styles.title}>
-              {register ? "Join your care space." : "Welcome back."}
-            </Text>
-            <Text style={styles.body}>
-              {register
-                ? "Create your pet-parent account."
-                : "Sign in to your companion’s world."}
-            </Text>
+          <View style={auth.tabs}>
+            {[false, true].map((value) => <Pressable key={String(value)} accessibilityRole="button" accessibilityState={{ selected: register === value }} disabled={busy} onPress={() => { setRegister(value); setError(""); }} style={[auth.tab, register === value && auth.activeTab]}><Text style={[auth.tabText, register === value && { color: "#10324E" }]}>{value ? "Sign up" : "Log in"}</Text></Pressable>)}
           </View>
           {error && <ErrorNotice message={error} />}
           <View style={{ gap: 17 }}>
@@ -146,11 +135,7 @@ export default function SignIn() {
                 secureTextEntry
               />
             )}
-            <Button
-              title={register ? "Create my account" : "Sign in"}
-              busy={busy}
-              onPress={submit}
-            />
+            <Pressable accessibilityRole="button" disabled={busy} onPress={submit} style={[auth.submit, busy && { opacity: 0.6 }]}><Text style={auth.submitText}>{busy ? "Please wait…" : register ? "Create account" : "Sign in to Vetalya"}</Text></Pressable>
             <Pressable
               onPress={() => {
                 setRegister(!register);
@@ -164,10 +149,9 @@ export default function SignIn() {
               </Text>
             </Pressable>
           </View>
-          <Text style={styles.small}>
-            Google/Apple sign-in and account recovery need provider setup. This
-            build uses your existing email/password account.
-          </Text>
+          <Text style={[styles.small, { textAlign: "center" }]}>Your pet’s records stay connected to your account.</Text>
+          </View>
+          <Text style={[styles.small, { textAlign: "center" }]}>Every Pet. Health. Always.</Text>
           {__DEV__ && (
             <Text style={styles.small}>
               Development API: {apiBaseUrl || "Set EXPO_PUBLIC_API_BASE_URL"}
@@ -178,3 +162,17 @@ export default function SignIn() {
     </SafeAreaView>
   );
 }
+
+const auth = StyleSheet.create({
+  screen: { backgroundColor: "#F7F5EE" },
+  content: { flexGrow: 1, paddingTop: 25, gap: 26, width: "100%", maxWidth: 540, alignSelf: "center" },
+  card: { backgroundColor: "white", borderRadius: 28, borderWidth: 1, borderColor: "#10324E14", padding: 23, gap: 20 },
+  badge: { color: "#10324E", backgroundColor: "#EFF6FF", borderRadius: 20, paddingVertical: 7, paddingHorizontal: 12, alignSelf: "flex-start", fontFamily: "Manrope-Bold", fontSize: 9, letterSpacing: 1 },
+  title: { color: "#10324E", fontSize: 25, lineHeight: 33 },
+  tabs: { flexDirection: "row", backgroundColor: "#F5F2EB", padding: 4, borderRadius: 15 },
+  tab: { flex: 1, paddingVertical: 11, borderRadius: 11, alignItems: "center" },
+  activeTab: { backgroundColor: "white" },
+  tabText: { fontFamily: "Manrope-Bold", fontSize: 12, color: "#778089" },
+  submit: { backgroundColor: "#10324E", padding: 15, borderRadius: 12, alignItems: "center" },
+  submitText: { fontFamily: "Manrope-Bold", fontSize: 13, color: "white" },
+});

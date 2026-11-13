@@ -592,7 +592,6 @@ public class AuthController {
         String email = getString(request, "email");
         String password = getString(request, "password");
         String phone = getString(request, "phone");
-        if (!demoLoginEnabled) return ResponseEntity.notFound().build();
         String roleParam = getString(request, "role");
 
         if (fullName == null || fullName.isBlank()) {
