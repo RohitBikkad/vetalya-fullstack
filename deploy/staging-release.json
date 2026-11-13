@@ -4,11 +4,16 @@
   "workspaceId": "tea-dboq70psrm7s73cp8r5g",
   "serviceId": "srv-dbr7s4d6e07s73aqsq20",
   "blueprintId": "exs-dbr7k3tg1s2s73fltvlg",
-  "applicationCommit": "9349385b7d627b6e99be4d7f0a4b4c6bfe8c0b89",
-  "deployId": "dep-dbr8f62vcj2c73eko8d0",
+  "applicationCommit": "ced387de84a72a506952d8e7cf4adb70d36ecaaa",
+  "deployId": "dep-dbr9q6mtlv9c73fsv2qg",
   "status": "live",
-  "verifiedAtUtc": "2026-11-13T03:54:53.683774+00:00",
+  "verifiedAtUtc": "2026-11-13T05:21:14.865846+00:00",
   "supabaseProject": "lihsmcgfxjuldjenjdti",
   "smokeChecks": "passed",
-  "nativeBinariesBuilt": false
+  "nativeBinariesBuilt": {
+    "android": true,
+    "ios": false
+  },
+  "androidBuildUrl": "https://expo.dev/accounts/rohitbikkad/projects/vetalya-pet-owner/builds/b82fafdf-edb1-4dcb-898e-9aecd5644dd2",
+  "registrationAndLoginChecks": "passed for web, android and ios API clients"
 }

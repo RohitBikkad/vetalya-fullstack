@@ -45,3 +45,14 @@ Native preview builds use EAS profile `staging`; both Android and iOS receive th
 Future infrastructure changes should be planned/reviewed through the Blueprint before approval. Documentation/client-only configuration commits may use `[skip render]` to preserve the verified application deploy.
 
 Repeat the credential-free internet smoke checks with `python3 deploy/check-staging.py`. They require non-empty React HTML for direct links, successful JS/CSS/font/logo assets, database readiness UP, owner API 401 without a session, and 404 for public DB inspection and privileged demo login. The browser check verified the rendered sign-in page after the direct-link regression fix. Authentication and clinical writes should be tested using your own staging test account; this release did not recover or guess account passwords.
+
+
+## Account access update — 13 November 2026
+
+Normal registration no longer depends on the disabled demo-login feature. The demo endpoint stays disabled. Pet-owner sign-in and registration use the existing vet portal’s cream canvas, compact white card, navy controls, and official branding on web and mobile.
+
+Application commit `ced387de84a72a506952d8e7cf4adb70d36ecaaa` is live in deployment `dep-dbr9q6mtlv9c73fsv2qg`. The first rollout timed out before a replacement process started; one retry succeeded. The reduced-overhead JVM settings preserve required TLS and are retained in the Blueprint.
+
+Validation: 29 focused backend tests passed; web production build and mobile TypeScript/lint passed. Live API tests created a dedicated pet-owner test account, accessed its empty pet list, rejected duplicate email and missing phone, and verified web cookie and Android/iOS token login behavior. Credentials are not committed. All public staging smoke checks passed, and the rendered registration page was verified in the browser.
+
+Updated Android staging APK: https://expo.dev/accounts/rohitbikkad/projects/vetalya-pet-owner/builds/b82fafdf-edb1-4dcb-898e-9aecd5644dd2 . This build is complete; physical-device testing is still pending. iOS source is updated, but a signed iOS build still requires Apple signing setup.
