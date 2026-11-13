@@ -25,4 +25,4 @@ Google uses public web client ID `1030204623930-s3t2s597p2rvf5nal0i3552vh8t10h23
 
 Flyway V15 widens hashed OTP storage, adds a hashed receipt field, indexes latest target/purpose lookup, and expires in-flight codes from the previous plaintext format. Existing accounts and signed clinical records are preserved. Verified email does not assert verified phone or professional credentials. Veterinarian registration remains pending professional verification.
 
-User-reported secure environment and Google Cloud settings still require live delivery and device sign-in checks. Test results and release links are recorded in the staging release notes after deployment.
+Live SMTP dispatch passed after the main deployment’s relay configuration was supplied to staging. Code-entry verification and actual Google account selection on a physical Android device remain user tests. Release links and validation results are recorded in `deploy/STAGING.md`.

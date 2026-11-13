@@ -56,3 +56,18 @@ Application commit `ced387de84a72a506952d8e7cf4adb70d36ecaaa` is live in deploym
 Validation: 29 focused backend tests passed; web production build and mobile TypeScript/lint passed. Live API tests created a dedicated pet-owner test account, accessed its empty pet list, rejected duplicate email and missing phone, and verified web cookie and Android/iOS token login behavior. Credentials are not committed. All public staging smoke checks passed, and the rendered registration page was verified in the browser.
 
 Updated Android staging APK: https://expo.dev/accounts/rohitbikkad/projects/vetalya-pet-owner/builds/b82fafdf-edb1-4dcb-898e-9aecd5644dd2 . This build is complete; physical-device testing is still pending. iOS source is updated, but a signed iOS build still requires Apple signing setup.
+
+
+## Google and email verification release — 13 November 2026
+
+Live application: `c85cfbc192f9e08a64048db53fb3e4fa19130d24`; successful deploy: `dep-dbrks8ijnfac73ar9hcg`. Google client IDs on main’s deployed web app and staging were compared and match. Android uses the same server web client ID with native Google Sign-In. No iOS authentication build was requested.
+
+Brevo SMTP settings from main were applied only to staging’s email configuration. Port 2525 supports required STARTTLS and certificate hostname checking. The provided database, CORS, port and production-only profile values were not bulk-applied. Mail credentials and Google secrets are not stored in this repository or bundled in public clients.
+
+Flyway V15 applied successfully; OTP RLS remains enabled. Live SMTP dispatch to the user-selected test address succeeded. Codes are stored as hashes; the send API does not expose them. The user deferred entering the code, so manual receipt verification remains pending. Google account selection on a physical Android device also remains a manual release check; do not interpret build success as proof of that interaction.
+
+Validation passed: 36 focused backend tests, 15 shared JavaScript tests, web production build, mobile TypeScript/lint, Android bundle export and native prebuild/autolinking. Live API probes reject missing email proof, invalid codes and forged Google tokens, while preserving existing owner login. Final public staging smoke checks passed.
+
+Google-enabled Android APK build is finished: https://expo.dev/accounts/rohitbikkad/projects/vetalya-pet-owner/builds/f6b7d226-a5a2-4a17-aeed-12274d7a6cc4 . Its native source matches `947fc5b`; subsequent commits affect only server/web behavior or documentation. Install this APK instead of earlier password-only builds. The earlier test email code expires after ten minutes; request a fresh code when testing registration.
+
+Configuration and Google Cloud package/certificate details: `docs/GOOGLE_AND_EMAIL_VERIFICATION.md`. Credentials shared in chat should be rotated through the relevant providers and updated securely in Render; rotation was not performed as part of this release.

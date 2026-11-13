@@ -4,16 +4,21 @@
   "workspaceId": "tea-dboq70psrm7s73cp8r5g",
   "serviceId": "srv-dbr7s4d6e07s73aqsq20",
   "blueprintId": "exs-dbr7k3tg1s2s73fltvlg",
-  "applicationCommit": "ced387de84a72a506952d8e7cf4adb70d36ecaaa",
-  "deployId": "dep-dbr9q6mtlv9c73fsv2qg",
+  "applicationCommit": "c85cfbc192f9e08a64048db53fb3e4fa19130d24",
+  "deployId": "dep-dbrks8ijnfac73ar9hcg",
   "status": "live",
-  "verifiedAtUtc": "2026-11-13T05:21:14.865846+00:00",
+  "verifiedAtUtc": "2026-11-13T18:03:15.928213+00:00",
   "supabaseProject": "lihsmcgfxjuldjenjdti",
   "smokeChecks": "passed",
   "nativeBinariesBuilt": {
     "android": true,
     "ios": false
   },
-  "androidBuildUrl": "https://expo.dev/accounts/rohitbikkad/projects/vetalya-pet-owner/builds/b82fafdf-edb1-4dcb-898e-9aecd5644dd2",
-  "registrationAndLoginChecks": "passed for web, android and ios API clients"
+  "androidBuildUrl": "https://expo.dev/accounts/rohitbikkad/projects/vetalya-pet-owner/builds/f6b7d226-a5a2-4a17-aeed-12274d7a6cc4",
+  "registrationAndLoginChecks": "unverified registration, invalid OTP and forged Google token denied; existing owner login preserved",
+  "androidNativeSourceCommit": "947fc5b6e06bc5b7de427c835b6c2c5a55748d09",
+  "androidBuildStatus": "finished",
+  "emailOtpDispatch": "passed via Brevo SMTP port 2525",
+  "emailOtpManualVerification": "pending user code entry",
+  "googleDeviceSignIn": "pending physical-device account selection"
 }
