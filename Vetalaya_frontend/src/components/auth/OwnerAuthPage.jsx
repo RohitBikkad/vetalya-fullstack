@@ -8,7 +8,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import EmailVerification from "./EmailVerification";
+import { sendOtpApi, verifyOtpApi } from "../../services/api";
 import VetalyaBrandLogo from "./VetalyaBrandLogo";
 import "./owner-auth.css";
 
@@ -26,7 +26,62 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const [emailProof, setEmailProof] = useState("");
+  const [verificationEmail, setVerificationEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [resendIn, setResendIn] = useState(0);
   const google = useRef();
+  useEffect(() => {
+    if (!resendIn) return;
+    const timer = setTimeout(() => setResendIn(resendIn - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendIn]);
+  function editDetails() {
+    setVerificationEmail("");
+    setEmailProof("");
+    setCode("");
+    setError("");
+  }
+  async function resend() {
+    setBusy(true);
+    setError("");
+    try {
+      await sendOtpApi(verificationEmail, "REGISTRATION");
+      setCode("");
+      setEmailProof("");
+      setResendIn(60);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function finishSignup(event) {
+    event.preventDefault();
+    if (busy || (!emailProof && code.length !== 6)) return;
+    setBusy(true);
+    setError("");
+    try {
+      let proof = emailProof;
+      if (!proof) {
+        const result = await verifyOtpApi(verificationEmail, code, "REGISTRATION");
+        proof = result.emailVerificationToken;
+        if (!proof) throw new Error("Couldn’t verify your email. Request a new code.");
+        setEmailProof(proof);
+      }
+      await signup({
+        fullName: form.fullName.trim(),
+        email: verificationEmail,
+        phone: form.phone.trim(),
+        password: form.password,
+        role: "ROLE_PET_OWNER",
+        emailVerificationToken: proof,
+      });
+    } catch (e) {
+      setError(e.message || "Couldn’t create your account. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
   const registering = mode === "register";
   useEffect(() => {
     setMode(initialMode);
@@ -64,10 +119,11 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
     );
     script?.addEventListener("load", initialize);
     return () => script?.removeEventListener("load", initialize);
-  }, [loginWithGoogle, mode]);
+  }, [loginWithGoogle, mode, verificationEmail]);
   const change = (key, value) => setForm((f) => ({ ...f, [key]: value }));
   async function submit(e) {
     e.preventDefault();
+    if (busy) return;
     setError("");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       setError("Enter a valid email address.");
@@ -88,20 +144,18 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
       );
       return;
     }
-    if (registering && !emailProof) { setError("Verify your email address before creating an account."); return; }
     setBusy(true);
     try {
-      if (registering)
-        await signup({
-          ...form,
-          fullName: form.fullName.trim(),
-          email: form.email.trim().toLowerCase(),
-          role: "ROLE_PET_OWNER",
-          emailVerificationToken: emailProof,
-        });
-      else await login(form.email.trim().toLowerCase(), form.password);
+      if (registering) {
+        const email = form.email.trim().toLowerCase();
+        await sendOtpApi(email, "REGISTRATION");
+        setVerificationEmail(email);
+        setResendIn(60);
+      } else {
+        await login(form.email.trim().toLowerCase(), form.password);
+      }
     } catch (e) {
-      setError(e.message || "We couldn’t sign you in. Please try again.");
+      setError(e.message || (registering ? "Couldn’t send the code. Try again." : "Couldn’t sign you in. Try again."));
     } finally {
       setBusy(false);
     }
@@ -114,15 +168,35 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
       </header>
       <main className="owner-auth-main">
         <section className="owner-auth-card" aria-labelledby="owner-auth-title">
+          {verificationEmail ? <>
+            <h1 id="owner-auth-title">Verify your email</h1>
+            <p className="owner-auth-intro">Enter the 6-digit code sent to <strong>{verificationEmail}</strong>. The code expires in 10 minutes.</p>
+            {error && <div role="alert" className="owner-auth-error">{error}</div>}
+            <form className="owner-form-grid" onSubmit={finishSignup}>
+              {!emailProof && <label>
+                <span>Email verification code</span>
+                <input autoFocus autoComplete="one-time-code" inputMode="numeric" maxLength={6} disabled={busy}
+                  value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} />
+              </label>}
+              <button className="owner-button" disabled={busy || (!emailProof && code.length !== 6)}>
+                {busy ? "Please wait…" : emailProof ? "Retry account creation" : "Verify and create account"}
+              </button>
+              <button type="button" disabled={busy || resendIn > 0} onClick={resend}>
+                {resendIn ? `Resend in ${resendIn}s` : "Resend code"}
+              </button>
+              <button type="button" disabled={busy} onClick={editDetails}>Back to account details</button>
+            </form>
+          </> : <>
           <div className="owner-auth-badge"><Heart size={14} /> Pet parent portal</div>
           <h1 id="owner-auth-title">{registering ? "Create your account" : "Pet Parent Login"}</h1>
           <p className="owner-auth-intro">{registering ? "One account for your pets, appointments and health records." : "Welcome back. Your pet’s care, all in one place."}</p>
           <div className="owner-auth-tabs" aria-label="Account access">
-            <button type="button" aria-pressed={!registering} className={!registering ? "active" : ""} onClick={() => { setMode("login"); setError(""); }}>Log in</button>
-            <button type="button" aria-pressed={registering} className={registering ? "active" : ""} onClick={() => { setMode("register"); setError(""); }}>Sign up</button>
+            <button type="button" aria-pressed={!registering} className={!registering ? "active" : ""} disabled={busy} onClick={() => { setMode("login"); setError(""); }}>Log in</button>
+            <button type="button" aria-pressed={registering} className={registering ? "active" : ""} disabled={busy} onClick={() => { setMode("register"); setError(""); }}>Sign up</button>
           </div>
           {error && <div role="alert" className="owner-auth-error">{error}</div>}
           <form onSubmit={submit}>
+            <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0 }}>
             <div className="owner-form-grid">
               {registering && (
                 <label className="wide">
@@ -148,7 +222,6 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
                   onChange={(e) => change("email", e.target.value)}
                 />
               </label>
-              {registering && <EmailVerification email={form.email} onVerified={setEmailProof} />}
               {registering && (
                 <label className="wide">
                   <span>Mobile phone</span>
@@ -204,7 +277,7 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
               )}
               <button
                 className="owner-button wide"
-                disabled={busy || (registering && !emailProof)}
+                disabled={busy}
                 style={{ width: "100%", marginTop: 4 }}
               >
                 {busy
@@ -215,8 +288,10 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
                 <ArrowUpRight size={16} />
               </button>
             </div>
+            </fieldset>
           </form>
           <div ref={google} className="owner-google-button" />
+          </>}
 
           <p className="owner-auth-security"><ShieldCheck size={15} /> Your pet’s records stay connected to your account.</p>
         </section>

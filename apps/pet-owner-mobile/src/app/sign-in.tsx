@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Image,
   Pressable,
@@ -27,21 +27,53 @@ export default function SignIn() {
     password: "",
     confirmation: "",
   });
-  const currentEmail = useRef(form.email);
+  const [verificationEmail, setVerificationEmail] = useState("");
   const [emailCode, setEmailCode] = useState("");
   const [emailProof, setEmailProof] = useState("");
-  const [codeSent, setCodeSent] = useState(false);
   const [resendIn, setResendIn] = useState(0);
   useEffect(() => { if (resendIn <= 0) return; const timer = setTimeout(() => setResendIn(resendIn - 1), 1000); return () => clearTimeout(timer); }, [resendIn]);
-  async function emailAction(verify: boolean) {
-    setBusy(true); setError("");
+  async function sendCode(email: string) {
+    await client().sendEmailOtp(email);
+    setVerificationEmail(email);
+    setEmailCode("");
+    setEmailProof("");
+    setResendIn(60);
+  }
+  async function resend() {
+    setBusy(true);
+    setError("");
     try {
-      const email = form.email.trim().toLowerCase();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Enter a valid email address first.");
-      if (verify) { const result = await client().verifyEmailOtp(email, emailCode); if (currentEmail.current.trim().toLowerCase() === email) setEmailProof(result.emailVerificationToken); }
-      else { await client().sendEmailOtp(email); if (currentEmail.current.trim().toLowerCase() !== email) return; setCodeSent(true); setEmailProof(""); setResendIn(60); }
-    } catch (e) { setError(e instanceof Error ? e.message : "Email verification failed."); }
-    finally { setBusy(false); }
+      await sendCode(verificationEmail);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn’t send the code.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function finishSignup() {
+    if (busy || (!emailProof && emailCode.length !== 6)) return;
+    setBusy(true);
+    setError("");
+    try {
+      let proof = emailProof;
+      if (!proof) {
+        const result = await client().verifyEmailOtp(verificationEmail, emailCode);
+        proof = result.emailVerificationToken;
+        if (!proof) throw new Error("Couldn’t verify your email. Request a new code.");
+        setEmailProof(proof);
+      }
+      await signIn({
+        fullName: form.fullName.trim(),
+        email: verificationEmail,
+        phone: form.phone.trim(),
+        password: form.password,
+        emailVerificationToken: proof,
+      }, true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn’t create your account.");
+    } finally {
+      setBusy(false);
+    }
   }
   async function googleSignIn() {
     setBusy(true); setError("");
@@ -51,10 +83,10 @@ export default function SignIn() {
   }
   if (user) return <Redirect href="/(tabs)" />;
   function field(key: keyof typeof form, value: string) {
-    if (key === "email") { currentEmail.current = value; setEmailProof(""); setEmailCode(""); setCodeSent(false); setResendIn(0); }
     setForm((v) => ({ ...v, [key]: value }));
   }
   async function submit() {
+    if (busy) return;
     setError("");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       setError("Enter a valid email address.");
@@ -75,13 +107,11 @@ export default function SignIn() {
       );
       return;
     }
-    if (register && !emailProof) { setError("Verify your email address before creating an account."); return; }
     setBusy(true);
     try {
-      await signIn(
-        { ...form, email: form.email.trim().toLowerCase(), emailVerificationToken: emailProof },
-        register,
-      );
+      const email = form.email.trim().toLowerCase();
+      if (register) await sendCode(email);
+      else await signIn({ email, password: form.password });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to sign in.");
     } finally {
@@ -110,6 +140,29 @@ export default function SignIn() {
             />
           </View>
           <View style={auth.card}>
+          {verificationEmail ? <>
+            <Text accessibilityRole="header" style={[styles.title, auth.title]}>Verify your email</Text>
+            <Text style={styles.body}>Enter the 6-digit code sent to {verificationEmail}. The code expires in 10 minutes.</Text>
+            {error && <ErrorNotice message={error} />}
+            {!emailProof && <Input label="Email verification code" autoFocus editable={!busy}
+              value={emailCode} onChangeText={(value) => setEmailCode(value.replace(/\D/g, ""))}
+              keyboardType="number-pad" maxLength={6} autoComplete="one-time-code" />}
+            <Pressable accessibilityRole="button" disabled={busy || (!emailProof && emailCode.length !== 6)}
+              onPress={finishSignup} style={auth.submit}>
+              <Text style={auth.submitText}>{busy ? "Please wait…" : emailProof ? "Retry account creation" : "Verify and create account"}</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" disabled={busy || resendIn > 0} onPress={resend}>
+              <Text style={styles.link}>{resendIn ? `Resend in ${resendIn}s` : "Resend code"}</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" disabled={busy} onPress={() => {
+              setVerificationEmail("");
+              setEmailProof("");
+              setEmailCode("");
+              setError("");
+            }}>
+              <Text style={styles.link}>Back to account details</Text>
+            </Pressable>
+          </> : <>
           <Text style={auth.badge}>PET PARENT PORTAL</Text>
           <View style={{ gap: 8 }}>
             <Text style={[styles.title, auth.title]}>{register ? "Create your account" : "Pet Parent Login"}</Text>
@@ -125,6 +178,7 @@ export default function SignIn() {
                 label="Your full name"
                 value={form.fullName}
                 onChangeText={(v) => field("fullName", v)}
+                editable={!busy}
                 autoComplete="name"
               />
             )}
@@ -132,25 +186,17 @@ export default function SignIn() {
               label="Email address"
               value={form.email}
               onChangeText={(v) => field("email", v)}
+              editable={!busy}
               autoCapitalize="none"
               keyboardType="email-address"
               autoComplete="email"
             />
-            {register && <View style={{ gap: 12 }}>
-              {emailProof ? <Text style={[styles.body, { color: "#167355" }]}>Email verified</Text> : <>
-                <Pressable accessibilityRole="button" disabled={busy || resendIn > 0} onPress={() => emailAction(false)}><Text style={styles.link}>{resendIn > 0 ? `Resend in ${resendIn}s` : codeSent ? "Resend email code" : "Send email verification code"}</Text></Pressable>
-                {codeSent && <>
-                  <Text style={styles.small}>Check your inbox and spam folder. The code expires in 10 minutes.</Text>
-                  <Input label="6-digit email code" value={emailCode} onChangeText={setEmailCode} keyboardType="number-pad" maxLength={6} autoComplete="one-time-code" />
-                  <Pressable accessibilityRole="button" disabled={busy || emailCode.length !== 6} onPress={() => emailAction(true)}><Text style={styles.link}>Verify email</Text></Pressable>
-                </>}
-              </>}
-            </View>}
             {register && (
               <Input
                 label="Mobile phone"
                 value={form.phone}
                 onChangeText={(v) => field("phone", v)}
+                editable={!busy}
                 keyboardType="phone-pad"
                 autoComplete="tel"
               />
@@ -159,6 +205,7 @@ export default function SignIn() {
               label="Password"
               value={form.password}
               onChangeText={(v) => field("password", v)}
+              editable={!busy}
               secureTextEntry
               autoComplete={register ? "new-password" : "current-password"}
             />
@@ -167,11 +214,13 @@ export default function SignIn() {
                 label="Confirm password"
                 value={form.confirmation}
                 onChangeText={(v) => field("confirmation", v)}
-                secureTextEntry
+                editable={!busy}
+              secureTextEntry
               />
             )}
-            <Pressable accessibilityRole="button" disabled={busy || (register && !emailProof)} onPress={submit} style={[auth.submit, busy && { opacity: 0.6 }]}><Text style={auth.submitText}>{busy ? "Please wait…" : register ? "Create account" : "Sign in to Vetalya"}</Text></Pressable>
+            <Pressable accessibilityRole="button" disabled={busy} onPress={submit} style={[auth.submit, busy && { opacity: 0.6 }]}><Text style={auth.submitText}>{busy ? "Please wait…" : register ? "Create account" : "Sign in to Vetalya"}</Text></Pressable>
             <Pressable
+              disabled={busy}
               onPress={() => {
                 setRegister(!register);
                 setError("");
@@ -186,6 +235,7 @@ export default function SignIn() {
           </View>
           {googleSignInAvailable && <Pressable accessibilityRole="button" disabled={busy} onPress={googleSignIn} style={[auth.tab, { borderWidth: 1, borderColor: "#D8DFE5", padding: 14 }]}><Text style={[auth.tabText, { color: "#10324E" }]}>Continue with Google</Text></Pressable>}
           <Text style={[styles.small, { textAlign: "center" }]}>Your pet’s records stay connected to your account.</Text>
+          </>}
           </View>
           <Text style={[styles.small, { textAlign: "center" }]}>Every Pet. Health. Always.</Text>
           {__DEV__ && (
