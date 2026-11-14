@@ -1,13 +1,14 @@
 .owner-app {
-  --navy: #123f70;
-  --ink: #1c334a;
-  --muted: #7e8b9a;
-  --teal: #079d96;
-  --orange: #ff843f;
-  --line: #e7edf2;
-  font-family: Manrope, system-ui, sans-serif;
+  --navy: #10324e;
+  --ink: #242826;
+  --muted: #5f6a67;
+  --teal: #247466;
+  --orange: #e99a7c;
+  --line: #10324e1a;
+  --owner-card-shadow: 0 12px 32px rgb(16 50 78 / 6%);
+  @apply font-sans;
   min-height: 100vh;
-  background: #f5f7fa;
+  background: #f7f5ee;
   color: var(--ink);
   font-size: 14px;
   text-align: left;
@@ -34,7 +35,7 @@
   cursor: not-allowed;
 }
 .owner-app :focus-visible {
-  outline: 3px solid #079d9666;
+  outline: 3px solid #24746666;
   outline-offset: 3px;
 }
 .owner-app h1,
@@ -115,15 +116,15 @@
   color: #778492;
   font-weight: 550;
   font-size: 13px;
-  transition: 0.2s;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
 .owner-sidebar nav a:hover {
-  background: #f3f8f8;
+  background: #faf8f5;
   color: var(--teal);
 }
 .owner-sidebar nav a.active {
-  color: var(--teal);
-  background: #eaf6f4;
+  color: var(--navy);
+  background: #e8eef4;
   font-weight: 700;
 }
 .owner-sidebar nav a i {
@@ -138,7 +139,7 @@
   padding-top: 35px;
 }
 .owner-help {
-  background: #f5f8fb;
+  background: #faf8f5;
   padding: 17px 15px;
   border-radius: 12px;
 }
@@ -323,11 +324,10 @@
   padding: 12px 17px;
   border-radius: 8px;
   white-space: nowrap;
-  transition: 0.2s;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
 .owner-button:hover {
-  background: #0b315c;
-  transform: translateY(-1px);
+  background: #0c273e;
 }
 .owner-button.secondary {
   background: #fff;
@@ -335,7 +335,7 @@
   border-color: #e0e8ef;
 }
 .owner-button.secondary:hover {
-  background: #f0f8f7;
+  background: #e0f2eb;
 }
 .owner-text-button {
   display: inline-flex;
@@ -352,8 +352,9 @@
 .owner-featured-pet {
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 24px;
   padding: 24px;
+  box-shadow: var(--owner-card-shadow);
 }
 .owner-card h2,
 .owner-featured-pet h2 {
@@ -378,7 +379,7 @@
 }
 .owner-hero {
   border-radius: 14px;
-  background: linear-gradient(115deg, #123f70, #133958);
+  background: linear-gradient(115deg, #10324e, #133958);
   min-height: 268px;
   padding: 31px 32px;
   color: white;
@@ -985,7 +986,7 @@
 .owner-segmented button.active {
   background: white;
   color: var(--navy);
-  box-shadow: 0 1px 5px #123f7010;
+  box-shadow: 0 1px 5px #10324e10;
   font-weight: 600;
 }
 .owner-search {
@@ -1368,7 +1369,7 @@
 .owner-form-grid textarea:focus,
 .owner-form-grid select:focus {
   border-color: var(--teal);
-  box-shadow: 0 0 0 3px #079d9610;
+  box-shadow: 0 0 0 3px #24746610;
 }
 .owner-form-grid input::placeholder,
 .owner-form-grid textarea::placeholder {
@@ -1599,7 +1600,7 @@
   .owner-sidebar {
     transform: translateX(-100%);
     visibility: hidden;
-    transition: 0.2s;
+    transition: transform 150ms ease, visibility 150ms ease;
     width: 244px;
   }
   .owner-sidebar.open {
@@ -1982,7 +1983,7 @@
 }
 .owner-auth-story {
   position: relative;
-  background: #123f70;
+  background: #10324e;
   min-height: 100vh;
   padding: 48px 60px;
   color: white;
@@ -2129,7 +2130,7 @@
 .owner-auth-switch > button.active {
   background: white;
   color: var(--navy);
-  box-shadow: 0 2px 8px #123f7010;
+  box-shadow: 0 2px 8px #10324e10;
   font-weight: 600;
 }
 .owner-password {
@@ -2312,4 +2313,38 @@
   display: block;
   margin-bottom: 9px;
   color: #607a8d;
+}
+
+.owner-app :is(h1, h2, h3, .figma-pet-select select) {
+  @apply font-display;
+  color: var(--navy);
+}
+
+.owner-app :is(.owner-page-heading h1, .figma-greeting h1) {
+  font-weight: 800;
+}
+
+.owner-app :is(.owner-button, .owner-icon-btn, .owner-user, .owner-segmented button) {
+  border-radius: 12px;
+}
+
+.owner-app :is(button, .owner-bottom-nav a, input, select, textarea) {
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.owner-app .owner-modal {
+  border: 1px solid var(--line);
+  border-radius: 32px;
+  box-shadow: 0 24px 55px rgb(16 50 78 / 8%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .owner-app .owner-modal {
+    animation: owner-dialog-enter 150ms ease-out;
+  }
+}
+
+@keyframes owner-dialog-enter {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
 }

@@ -1,5 +1,5 @@
 
-.owner-auth-page{min-height:100dvh;display:flex;flex-direction:column;background:#F7F5EE;color:#10324E;font-family:Manrope,system-ui,sans-serif;text-align:left}
+.owner-auth-page{min-height:100dvh;display:flex;flex-direction:column;background:#F7F5EE;color:#10324E;text-align:left;@apply font-sans;}
 .owner-auth-page *{box-sizing:border-box}
 .owner-auth-page button,.owner-auth-page input{font:inherit}
 .owner-auth-page button{cursor:pointer}
@@ -32,3 +32,21 @@
 .owner-auth-staff button{border:0;background:none;color:#10324E;display:inline-flex;align-items:center;gap:3px;font-weight:800;font-size:11px}
 .owner-auth-footer{text-align:center;padding:20px 16px;font-size:10px;color:#87908f}
 @media(max-width:480px){.owner-auth-nav{padding:20px}.owner-auth-card{padding:25px 22px;border-radius:26px}.owner-auth-main{padding-top:8px}.owner-auth-card h1{font-size:24px}.owner-auth-nav img{max-height:42px}}
+
+.owner-auth-card h1 {
+  @apply font-display;
+}
+
+.owner-auth-page :is(button, input) {
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.owner-auth-page .owner-button:hover:not(:disabled) {
+  background: #0c273e;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .owner-auth-page :is(button, input) {
+    transition: none;
+  }
+}
