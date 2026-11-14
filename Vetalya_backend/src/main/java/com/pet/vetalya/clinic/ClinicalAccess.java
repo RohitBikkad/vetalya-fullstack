@@ -4,21 +4,65 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class ClinicalAccess {
     private final JdbcTemplate db;
-    public ClinicalAccess(JdbcTemplate db) { this.db=db; }
-    public void appointmentVet(String userId,String appointmentId) {
-        require(db.queryForObject("SELECT COUNT(*) FROM appointment WHERE appointment_id=? AND vet_user_id=?", Integer.class,appointmentId,userId));
+    private final ClinicWorkspaceService clinics;
+
+    public ClinicalAccess(JdbcTemplate db, ClinicWorkspaceService clinics) {
+        this.db = db;
+        this.clinics = clinics;
     }
-    public void diagnosticRead(String userId,String orderId) {
-        require(db.queryForObject("SELECT COUNT(*) FROM diagnostic_order d JOIN pet p ON p.pet_id=d.pet_id WHERE d.order_id=? AND (d.vet_user_id=? OR (p.owner_user_id=? AND d.status='COMPLETED'))",Integer.class,orderId,userId,userId));
+
+    public void requireVeterinarian(String userId, String hospitalId) {
+        if (!"ROLE_VET".equals(clinics.role(userId))) throw denied();
+        if (hospitalId != null) clinics.requireAccess(userId, hospitalId);
     }
-    public void diagnosticWrite(String userId,String itemId) {
-        require(db.queryForObject("SELECT COUNT(*) FROM diagnostic_order_item i JOIN diagnostic_order d ON d.order_id=i.order_id WHERE i.item_id=? AND d.vet_user_id=?",Integer.class,itemId,userId));
+
+    public List<String> veterinarianHospitalIds(String userId) {
+        requireVeterinarian(userId, null);
+        return clinics.hospitals(userId).stream()
+                .map(hospital -> (String) hospital.get("hospitalId"))
+                .toList();
     }
-    public void encounterRead(String userId,String encounterId) {
-        require(db.queryForObject("SELECT COUNT(*) FROM clinical_encounter e JOIN pet p ON p.pet_id=e.pet_id WHERE e.encounter_id=? AND (e.vet_user_id=? OR (p.owner_user_id=? AND e.is_signed=TRUE))",Integer.class,encounterId,userId,userId));
+
+    public void appointmentVet(String userId, String appointmentId) {
+        var matches = db.query("""
+            SELECT hospital_id FROM appointment WHERE appointment_id=? AND vet_user_id=?
+            """, (row, index) -> row.getString("hospital_id"), appointmentId, userId);
+        if (matches.isEmpty()) throw denied();
+        requireVeterinarian(userId, matches.getFirst());
     }
-    private void require(Integer count) { if(count==null || count==0) throw new AccessDeniedException("Clinical record is outside your care scope"); }
+
+    public void diagnosticRead(String userId, String orderId) {
+        checkRead(userId, db.query("""
+            SELECT d.hospital_id, p.owner_user_id=? AND d.status='COMPLETED' AS owner_access
+            FROM diagnostic_order d JOIN pet p ON p.pet_id=d.pet_id
+            WHERE d.order_id=? AND (d.vet_user_id=? OR (p.owner_user_id=? AND d.status='COMPLETED'))
+            """, (row, index) -> new RecordScope(row.getString("hospital_id"), row.getBoolean("owner_access")),
+            userId, orderId, userId, userId));
+    }
+
+    public void encounterRead(String userId, String encounterId) {
+        checkRead(userId, db.query("""
+            SELECT e.hospital_id, p.owner_user_id=? AND e.is_signed AS owner_access
+            FROM clinical_encounter e JOIN pet p ON p.pet_id=e.pet_id
+            WHERE e.encounter_id=? AND (e.vet_user_id=? OR (p.owner_user_id=? AND e.is_signed))
+            """, (row, index) -> new RecordScope(row.getString("hospital_id"), row.getBoolean("owner_access")),
+            userId, encounterId, userId, userId));
+    }
+
+    private void checkRead(String userId, List<RecordScope> matches) {
+        if (matches.isEmpty()) throw denied();
+        RecordScope scope = matches.getFirst();
+        if (!scope.ownerAccess()) requireVeterinarian(userId, scope.hospitalId());
+    }
+
+    private AccessDeniedException denied() {
+        return new AccessDeniedException("Clinical record is outside your care scope");
+    }
+
+    private record RecordScope(String hospitalId, boolean ownerAccess) {}
 }

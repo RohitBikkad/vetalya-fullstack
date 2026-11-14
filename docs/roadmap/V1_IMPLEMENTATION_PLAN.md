@@ -102,4 +102,3 @@ Every feature is validated against three acceptance tiers:
 1. **Unit & Isolation Tests:** All business logic, tax calculations, dosage mathematics, and state transitions tested in isolation (JUnit 5, Mockito, Vitest).
 2. **Integration & API Contract Tests:** Full Spring Security mock MVC and real PostgreSQL testcontainers verifying authorization, tenant isolation, and Flyway migrations.
 3. **End-to-End Workflow Verification:** Cypress / Playwright and React Native testing library ensuring user-facing screens properly display loading, empty, error, and permission-denied states.
-

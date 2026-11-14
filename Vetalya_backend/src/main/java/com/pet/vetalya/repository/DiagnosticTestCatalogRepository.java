@@ -12,4 +12,3 @@ public interface DiagnosticTestCatalogRepository extends JpaRepository<Diagnosti
     Optional<DiagnosticTestCatalog> findByTestCode(String testCode);
     List<DiagnosticTestCatalog> findByCategoryOrderByTestNameAsc(String category);
 }
-

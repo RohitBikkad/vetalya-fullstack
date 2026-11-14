@@ -27,6 +27,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
             JOIN FETCH a.pet p
             JOIN FETCH a.owner o
             WHERE a.vetUserId = :vetUserId
+              AND (a.hospitalId IS NULL OR a.hospitalId IN :hospitalIds)
               AND (:status IS NULL OR a.status = :status)
               AND (:hospitalId IS NULL OR a.hospitalId = :hospitalId)
               AND (CAST(:from AS timestamp) IS NULL OR a.appointmentAt >= :from)
@@ -34,6 +35,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
             """)
     Page<Appointment> findVetAppointments(
             String vetUserId,
+            List<String> hospitalIds,
             String status,
             String hospitalId,
             Instant from,
@@ -46,9 +48,10 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
     @Query("""
             SELECT a.status, COUNT(a) FROM Appointment a
             WHERE a.vetUserId = :vetUserId
+              AND (a.hospitalId IS NULL OR a.hospitalId IN :hospitalIds)
             GROUP BY a.status
             """)
-    List<Object[]> countByStatusForVet(String vetUserId);
+    List<Object[]> countByStatusForVet(String vetUserId, List<String> hospitalIds);
 
     /**
      * Dashboard: today's appointment count for a vet.
@@ -56,10 +59,11 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
     @Query("""
             SELECT COUNT(a) FROM Appointment a
             WHERE a.vetUserId = :vetUserId
+              AND (a.hospitalId IS NULL OR a.hospitalId IN :hospitalIds)
               AND a.appointmentAt >= :dayStart
               AND a.appointmentAt < :dayEnd
             """)
-    long countTodayForVet(String vetUserId, Instant dayStart, Instant dayEnd);
+    long countTodayForVet(String vetUserId, List<String> hospitalIds, Instant dayStart, Instant dayEnd);
 
     /**
      * Dashboard: count upcoming appointments for next 7 days.
@@ -67,11 +71,12 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
     @Query("""
             SELECT COUNT(a) FROM Appointment a
             WHERE a.vetUserId = :vetUserId
+              AND (a.hospitalId IS NULL OR a.hospitalId IN :hospitalIds)
               AND a.status IN ('BOOKED', 'CONFIRMED')
               AND a.appointmentAt >= :start
               AND a.appointmentAt < :end
             """)
-    long countUpcoming7Days(String vetUserId, Instant start, Instant end);
+    long countUpcoming7Days(String vetUserId, List<String> hospitalIds, Instant start, Instant end);
 
     /**
      * Dashboard: count pending (BOOKED) requests for a vet.
@@ -79,9 +84,10 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
     @Query("""
             SELECT COUNT(a) FROM Appointment a
             WHERE a.vetUserId = :vetUserId
+              AND (a.hospitalId IS NULL OR a.hospitalId IN :hospitalIds)
               AND a.status = 'BOOKED'
             """)
-    long countPendingRequests(String vetUserId);
+    long countPendingRequests(String vetUserId, List<String> hospitalIds);
 
     /**
      * Check if any future non-cancelled appointments exist for a hospital.

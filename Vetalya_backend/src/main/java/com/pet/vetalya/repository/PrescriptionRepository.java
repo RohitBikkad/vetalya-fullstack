@@ -15,4 +15,3 @@ public interface PrescriptionRepository extends JpaRepository<Prescription, Stri
 
     Optional<Prescription> findByEncounterId(String encounterId);
 }
-

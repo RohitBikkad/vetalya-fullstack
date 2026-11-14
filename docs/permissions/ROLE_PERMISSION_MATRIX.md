@@ -42,4 +42,3 @@ Vetalya enforces a multi-dimensional security model combining:
 ## 3. Data Protection & Elevation Safeguards
 * **Vetalya Support "Break-Glass" Elevation:** In production, platform support engineers do not have blanket `SELECT *` access on medical tables. When troubleshooting a ticket, a time-limited elevation token (max 60 minutes) must be explicitly requested and authorized, linking the technician's identity to a verified Zendesk/Jira ticket ID with full session keystroke audit logging.
 * **Immutability of Signed Records:** Once a veterinarian signs a clinical encounter (`is_signed = TRUE`), the database rejects all `UPDATE` operations via trigger and Spring JPA pre-update hooks. Corrections require an entry in `encounter_amendment` retaining before-and-after snapshots and veterinary justification.
-

@@ -17,4 +17,3 @@ public interface PetDocumentRepository extends JpaRepository<PetDocument, String
 
     Optional<PetDocument> findByDocumentIdAndIsDeletedIsFalse(String documentId);
 }
-

@@ -13,4 +13,3 @@ public interface PetIdentifierRepository extends JpaRepository<PetIdentifier, Lo
 
     boolean existsByIdentifierValue(String identifierValue);
 }
-

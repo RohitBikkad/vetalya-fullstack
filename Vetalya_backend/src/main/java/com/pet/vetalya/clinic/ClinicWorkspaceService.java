@@ -31,8 +31,9 @@ public class ClinicWorkspaceService {
         return db.queryForList("""
             SELECT h.hospital_id AS "hospitalId", h.name, h.city, h.mobile, h.address1,
                    h.vet_user_id AS "ownerId"
-            FROM hospital h WHERE h.is_active=TRUE AND (h.vet_user_id=? OR EXISTS (
-              SELECT 1 FROM clinic_staff_assignment s WHERE s.hospital_id=h.hospital_id AND s.user_id=? AND s.active=TRUE))
+            FROM hospital h WHERE h.is_active=TRUE AND COALESCE(
+              (SELECT s.active FROM clinic_staff_assignment s WHERE s.hospital_id=h.hospital_id AND s.user_id=?),
+              h.vet_user_id=?)
             ORDER BY h.name
             """, userId,userId);
     }
@@ -40,8 +41,9 @@ public class ClinicWorkspaceService {
         role(userId);
         Integer count = db.queryForObject("""
             SELECT COUNT(*) FROM hospital h WHERE h.hospital_id=? AND h.is_active=TRUE
-              AND (h.vet_user_id=? OR EXISTS (SELECT 1 FROM clinic_staff_assignment s
-                WHERE s.hospital_id=h.hospital_id AND s.user_id=? AND s.active=TRUE))
+              AND COALESCE(
+                (SELECT s.active FROM clinic_staff_assignment s WHERE s.hospital_id=h.hospital_id AND s.user_id=?),
+                h.vet_user_id=?)
             """, Integer.class, hospitalId,userId,userId);
         if (count == null || count == 0) throw new AccessDeniedException("No active assignment to this hospital");
     }

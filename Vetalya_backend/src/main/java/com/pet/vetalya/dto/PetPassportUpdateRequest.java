@@ -30,4 +30,3 @@ public record PetPassportUpdateRequest(
         @Size(max = 50, message = "Microchip number cannot exceed 50 characters")
         String microchipNumber
 ) {}
-

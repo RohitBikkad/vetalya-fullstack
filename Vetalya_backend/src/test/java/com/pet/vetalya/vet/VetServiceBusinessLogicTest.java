@@ -40,6 +40,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class VetServiceBusinessLogicTest {
 
+    @Mock private com.pet.vetalya.clinic.ClinicalAccess clinicalAccess;
     @Mock private HospitalRepository hospitalRepo;
     @Mock private AppointmentRepository appointmentRepo;
     @Mock private UserAuthRepository userAuthRepo;
@@ -59,7 +60,7 @@ class VetServiceBusinessLogicTest {
     @BeforeEach
     void setUp() {
         hospitalService = new HospitalService(hospitalRepo, appointmentRepo, idGenerator);
-        appointmentService = new AppointmentService(appointmentRepo, reviewRepo);
+        appointmentService = new AppointmentService(appointmentRepo, reviewRepo, null, null, clinicalAccess);
         vaccinationService = new VaccinationService(vaccinationRepo, appointmentRepo, petRepo, idGenerator);
         vetProfileService = new VetProfileService(vetRepo, userAuthRepo, appointmentRepo, refreshTokenRepo);
         vetSearchService = new VetSearchService(vetRepo, hospitalRepo, reviewRepo, userAuthRepo);

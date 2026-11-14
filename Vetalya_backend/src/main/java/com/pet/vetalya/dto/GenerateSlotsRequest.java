@@ -13,4 +13,3 @@ public record GenerateSlotsRequest(
         String slotType,
         Integer capacity
 ) {}
-

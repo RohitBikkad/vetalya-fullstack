@@ -60,4 +60,3 @@ public class DiagnosticTestCatalog {
 
     public Instant getCreatedAt() { return createdAt; }
 }
-

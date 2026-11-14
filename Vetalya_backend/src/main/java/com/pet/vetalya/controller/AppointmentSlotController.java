@@ -107,4 +107,3 @@ public class AppointmentSlotController {
         return ResponseEntity.noContent().build();
     }
 }
-

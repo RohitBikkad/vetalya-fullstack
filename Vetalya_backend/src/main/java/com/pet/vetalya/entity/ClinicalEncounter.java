@@ -191,4 +191,3 @@ public class ClinicalEncounter {
     public Appointment getAppointment() { return appointment; }
     public void setAppointment(Appointment appointment) { this.appointment = appointment; }
 }
-

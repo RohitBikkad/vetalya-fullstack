@@ -46,6 +46,38 @@ class ClinicWorkspaceIsolationTest {
         db.update("UPDATE clinic_staff_assignment SET active=FALSE WHERE user_id='reception'");
         assertThrows(AccessDeniedException.class,()->service.requireAccess("reception","a"));
     }
+    @Test void revocationBlocksClinicalAccessButPreservesPublishedOwnerRecords() {
+        var access = new ClinicalAccess(db, service);
+        db.execute("ALTER TABLE pet ADD owner_user_id VARCHAR");
+        db.execute("CREATE TABLE clinical_encounter(encounter_id VARCHAR,hospital_id VARCHAR,pet_id VARCHAR,vet_user_id VARCHAR,is_signed BOOLEAN)");
+        db.execute("CREATE TABLE diagnostic_order(order_id VARCHAR,hospital_id VARCHAR,pet_id VARCHAR,vet_user_id VARCHAR,status VARCHAR)");
+        db.update("INSERT INTO pet(pet_id,owner_user_id) VALUES ('pet','owner')");
+        db.update("INSERT INTO appointment(appointment_id,hospital_id,vet_user_id) VALUES ('visit','b','vet')");
+        db.update("INSERT INTO clinical_encounter VALUES ('enc','b','pet','vet',TRUE)");
+        db.update("INSERT INTO diagnostic_order VALUES ('order','b','pet','vet','COMPLETED')");
+        db.update("INSERT INTO clinic_staff_assignment(hospital_id,user_id,active) VALUES ('b','vet',TRUE)");
+        access.appointmentVet("vet", "visit");
+        access.encounterRead("vet", "enc");
+        access.diagnosticRead("vet", "order");
+
+        db.update("UPDATE clinic_staff_assignment SET active=FALSE WHERE hospital_id='b' AND user_id='vet'");
+        assertThrows(AccessDeniedException.class, () -> access.appointmentVet("vet", "visit"));
+        assertThrows(AccessDeniedException.class, () -> access.encounterRead("vet", "enc"));
+        assertThrows(AccessDeniedException.class, () -> access.diagnosticRead("vet", "order"));
+        assertThrows(AccessDeniedException.class, () -> access.requireVeterinarian("vet", "b"));
+        assertEquals(java.util.List.of("a"), access.veterinarianHospitalIds("vet"));
+        assertThrows(AccessDeniedException.class, () -> access.encounterRead("admin", "enc"));
+        access.encounterRead("owner", "enc");
+        access.diagnosticRead("owner", "order");
+    }
+
+    @Test void explicitRevocationOverridesLegacyHospitalOwnership() {
+        service.requireAccess("vet", "a");
+        db.update("INSERT INTO clinic_staff_assignment(hospital_id,user_id,active) VALUES ('a','vet',FALSE)");
+        assertThrows(AccessDeniedException.class, () -> service.requireAccess("vet", "a"));
+        assertTrue(service.hospitals("vet").isEmpty());
+    }
+
     @Test void onlyHospitalManagersCanManageStaff() {
         service.requireManager("vet","a");
         service.requireManager("admin","a");

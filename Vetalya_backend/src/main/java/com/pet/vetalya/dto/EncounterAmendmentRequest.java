@@ -23,4 +23,3 @@ public record EncounterAmendmentRequest(
         LocalDate followUpDate,
         List<EncounterRequest.PrescriptionItemRequest> medications
 ) {}
-

@@ -19,4 +19,3 @@ public record DiagnosticOrderRequest(
         @NotEmpty(message = "At least one diagnostic item is required")
         List<DiagnosticItemRequest> items
 ) {}
-

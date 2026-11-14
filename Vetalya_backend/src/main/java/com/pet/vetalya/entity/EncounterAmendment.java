@@ -63,4 +63,3 @@ public class EncounterAmendment {
     public ClinicalEncounter getEncounter() { return encounter; }
     public void setEncounter(ClinicalEncounter encounter) { this.encounter = encounter; }
 }
-

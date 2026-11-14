@@ -29,6 +29,7 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
   const [verificationEmail, setVerificationEmail] = useState("");
   const [code, setCode] = useState("");
   const [resendIn, setResendIn] = useState(0);
+  const [pendingEmail, setPendingEmail] = useState("");
   const google = useRef();
   useEffect(() => {
     if (!resendIn) return;
@@ -37,8 +38,6 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
   }, [resendIn]);
   function editDetails() {
     setVerificationEmail("");
-    setEmailProof("");
-    setCode("");
     setError("");
   }
   async function resend() {
@@ -148,9 +147,14 @@ export default function OwnerAuthPage({ initialMode = "login", onNavigate }) {
     try {
       if (registering) {
         const email = form.email.trim().toLowerCase();
-        await sendOtpApi(email, "REGISTRATION");
+        if (email !== pendingEmail) {
+          await sendOtpApi(email, "REGISTRATION");
+          setPendingEmail(email);
+          setCode("");
+          setEmailProof("");
+          setResendIn(60);
+        }
         setVerificationEmail(email);
-        setResendIn(60);
       } else {
         await login(form.email.trim().toLowerCase(), form.password);
       }

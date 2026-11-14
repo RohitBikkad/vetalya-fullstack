@@ -14,4 +14,3 @@ public interface PetHealthPassportRepository extends JpaRepository<PetHealthPass
 
     boolean existsByPassportNumber(String passportNumber);
 }
-

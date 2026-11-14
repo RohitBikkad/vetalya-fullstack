@@ -93,4 +93,3 @@ The existing code is well-structured and provides a strong foundation. **All exi
 
 ### Step 9: Mobile App Setup (React Native + Expo)
 - Create `apps/pet-parent-mobile` and `apps/vet-staff-mobile` consuming the unified `/api/v1` backend.
-

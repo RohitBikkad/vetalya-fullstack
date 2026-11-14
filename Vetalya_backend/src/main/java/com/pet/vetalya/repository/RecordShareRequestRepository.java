@@ -17,4 +17,3 @@ public interface RecordShareRequestRepository extends JpaRepository<RecordShareR
 
     Optional<RecordShareRequest> findByRequestIdAndPetId(String requestId, String petId);
 }
-

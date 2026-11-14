@@ -188,7 +188,7 @@ export default function PetPassportModal({ pet, onClose, onPetUpdated }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
       <div className="bg-white rounded-[32px] max-w-2xl w-full my-auto shadow-2xl border border-[#10324E]/10 animate-in zoom-in-95 text-left flex flex-col max-h-[92vh]">
-        
+
         {/* Modal Header */}
         <div className="p-6 border-b border-[#10324E]/10 flex items-start justify-between gap-4 shrink-0 bg-[#FAF8F5] rounded-t-[32px]">
           <div className="flex items-center gap-4">
@@ -290,7 +290,7 @@ export default function PetPassportModal({ pet, onClose, onPetUpdated }) {
               {/* ── TAB 1: OVERVIEW ── */}
               {activeTab === 'overview' && (
                 <div className="space-y-4">
-                  
+
                   {/* Critical Medical Alerts Banner */}
                   {(passport?.allergiesSummary || passport?.chronicConditionsSummary) && (
                     <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-300 text-amber-950 text-xs space-y-1">

@@ -81,4 +81,3 @@
 | **WEB-SA-05** | SaaS Subscription & Billing Hub | Clinic SaaS tier management (Starter, Clinic Pro, Hospital Enterprise), billing cycles, Razorpay subscription sync. |
 | **WEB-SA-06** | Support Escalation & Dispute Center | Clinic disputes, owner complaints, provider dispute resolution, audited temporary break-glass access authorization. |
 | **WEB-SA-07** | Platform Security & Audit Hub | Global immutable audit trail, failed login brute-force alerts, suspicious export detection, DPDP compliance data requests. |
-

@@ -397,4 +397,3 @@ export async function getDiagnosticCatalogApi(category) {
   const query = category ? `?category=${encodeURIComponent(category)}` : '';
   return request(`/v1/diagnostics/catalog${query}`);
 }
-

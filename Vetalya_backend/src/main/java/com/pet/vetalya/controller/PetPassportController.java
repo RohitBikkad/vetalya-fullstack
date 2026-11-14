@@ -144,4 +144,3 @@ public class PetPassportController {
         return ResponseEntity.ok(res);
     }
 }
-

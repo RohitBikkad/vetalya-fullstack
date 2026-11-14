@@ -5,6 +5,8 @@ import com.pet.vetalya.common.IdGenerator;
 import com.pet.vetalya.dto.*;
 import com.pet.vetalya.entity.*;
 import com.pet.vetalya.repository.*;
+import com.pet.vetalya.clinic.ClinicalAccess;
+import com.pet.vetalya.common.GlobalExceptionHandler.ForbiddenException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -25,12 +27,17 @@ public class DiagnosticService {
     private final PetRepository petRepo;
     private final IdGenerator idGenerator;
     private final AppointmentRepository appointmentRepo;
+    private final ClinicalEncounterRepository encounterRepo;
+    private final ClinicalAccess access;
 
     public DiagnosticService(DiagnosticOrderRepository orderRepo,
                              DiagnosticOrderItemRepository itemRepo,
                              DiagnosticTestCatalogRepository catalogRepo,
                              PetRepository petRepo,
-                             IdGenerator idGenerator, AppointmentRepository appointmentRepo) {
+                             IdGenerator idGenerator, AppointmentRepository appointmentRepo,
+                             ClinicalEncounterRepository encounterRepo, ClinicalAccess access) {
+        this.encounterRepo = encounterRepo;
+        this.access = access;
         this.appointmentRepo=appointmentRepo;
         this.orderRepo = orderRepo;
         this.itemRepo = itemRepo;
@@ -45,7 +52,13 @@ public class DiagnosticService {
                 .orElseThrow(() -> new ResourceNotFoundException("Pet not found: " + req.petId()));
 
         boolean assigned = appointmentRepo.existsByVetUserIdAndPetIdAndHospitalId(vetUserId,req.petId(),req.hospitalId());
-        if (req.hospitalId()==null || !assigned) throw new com.pet.vetalya.common.GlobalExceptionHandler.ForbiddenException("An assigned patient and hospital are required");
+        if (req.hospitalId() == null || !assigned)
+            throw new ForbiddenException("An assigned patient and hospital are required");
+        access.requireVeterinarian(vetUserId, req.hospitalId());
+        if (req.encounterId() != null && !encounterRepo.existsByEncounterIdAndPetIdAndHospitalIdAndVetUserId(
+                req.encounterId(), req.petId(), req.hospitalId(), vetUserId)) {
+            throw new ForbiddenException("Encounter does not belong to this patient, hospital, and veterinarian");
+        }
         String orderId = idGenerator.newId();
         String orderNumber = "DX-" + Year.now().getValue() + "-" + orderId.substring(orderId.length() - 6).toUpperCase();
 
@@ -77,9 +90,14 @@ public class DiagnosticService {
     }
 
     @Transactional
-    public DiagnosticOrderResponse updateItemResult(String itemId, DiagnosticResultUpdateRequest req) {
+    public DiagnosticOrderResponse updateItemResult(String vetUserId, String itemId, DiagnosticResultUpdateRequest req) {
         DiagnosticOrderItem item = itemRepo.findById(itemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Diagnostic item not found: " + itemId));
+
+        DiagnosticOrder order = item.getOrder();
+        if (!vetUserId.equals(order.getVetUserId()))
+            throw new ForbiddenException("Only the ordering veterinarian can update results");
+        access.requireVeterinarian(vetUserId, order.getHospitalId());
 
         item.setResultValue(req.resultValue());
         if (req.referenceRange() != null) item.setReferenceRange(req.referenceRange());
@@ -87,11 +105,9 @@ public class DiagnosticService {
         if (req.flag() != null) item.setFlag(req.flag());
         if (req.interpretation() != null) item.setInterpretation(req.interpretation());
         if (req.reportFileUrl() != null) item.setReportFileUrl(req.reportFileUrl());
-        item.setVerifiedBy(req.verifiedBy());
+        item.setVerifiedBy(vetUserId);
         item.setVerifiedAt(Instant.now());
         item.setStatus("COMPLETED");
-
-        DiagnosticOrder order = item.getOrder();
 
         // Check if all items in order are completed
         boolean allCompleted = order.getItems().stream().allMatch(i -> "COMPLETED".equals(i.getStatus()));
@@ -163,4 +179,3 @@ public class DiagnosticService {
         );
     }
 }
-

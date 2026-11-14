@@ -17,4 +17,3 @@ public record DiagnosticOrderResponse(
         Instant createdAt,
         Instant updatedAt
 ) {}
-

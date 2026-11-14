@@ -10,4 +10,3 @@ import java.util.List;
 public interface DiagnosticOrderItemRepository extends JpaRepository<DiagnosticOrderItem, String> {
     List<DiagnosticOrderItem> findByOrder_OrderId(String orderId);
 }
-

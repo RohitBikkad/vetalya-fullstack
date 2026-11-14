@@ -114,13 +114,13 @@ graph TD
         Org1["Veterinary Organization / Hospital Network<br/>(e.g., Crown Vet India)"]
         Org2["Independent Clinic<br/>(e.g., Pune Pet Clinic)"]
         Org3["Independent Pharmacy<br/>(MedShop Tenant)"]
-        
+
         Branch1["Branch A (Koregaon Park)"]
         Branch2["Branch B (Aundh)"]
-        
+
         Org1 --> Branch1
         Org1 --> Branch2
-        
+
         Platform -.->|Audited, Time-Limited Governance| Org1
         Platform -.->|Audited, Time-Limited Governance| Org2
         Platform -.->|Audited, Time-Limited Governance| Org3
@@ -129,7 +129,7 @@ graph TD
 
 ### Data Isolation Guarantees:
 1. **Clinic/Hospital Level:** Every encounter, prescription, internal note, price list, inventory movement, and invoice belongs to a designated `organization_id` and `branch_id`.
-2. **Passport Record Splitting:** 
+2. **Passport Record Splitting:**
    - **Public/Caregiver Viewable:** Verified vaccinations, signed diagnosis summaries, dispensed medications, lab results (when explicitly published), and owner uploads.
    - **Private Clinic Internal:** Sensitive veterinary differential diagnoses, triage internal notes, and preliminary staff communications remain sequestered to the attending clinic unless explicitly released to the shared Health Passport.
 3. **Cross-Tenant Prevention:** Spring Data JPA `@Filter` or Hibernate tenancy filter injected dynamically from `TenantContext.getTenantId()` and checked at the Spring Security method security boundary (`@PreAuthorize("@securityService.canAccessBranch(#branchId)")`).
@@ -148,4 +148,3 @@ While Vetalya runs as a high-throughput Modular Monolith for operational simplic
   - `marketplace.*` (Providers, Listings, Bookings)
   - `audit.*` (Immutable tamper-evident audit logs)
 When transaction volume justifies independent horizontal scaling, `medshop` and `marketplace` can be decoupled into microservices with zero database restructuring.
-

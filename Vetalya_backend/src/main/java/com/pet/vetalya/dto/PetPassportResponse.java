@@ -42,4 +42,3 @@ public record PetPassportResponse(
             Instant verifiedAt
     ) {}
 }
-

@@ -101,4 +101,3 @@ public class ClinicalEncounterController {
         return ResponseEntity.ok(list);
     }
 }
-

@@ -101,4 +101,3 @@ public class Prescription {
     public List<PrescriptionItem> getItems() { return items; }
     public void setItems(List<PrescriptionItem> items) { this.items = items; }
 }
-

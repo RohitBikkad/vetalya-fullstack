@@ -120,4 +120,3 @@ flowchart TD
 | **3. Veterinary Web Portal** | React / TypeScript | M1, M3, M4, M5, M7, M8, M9, M10, M11, M12, M13, M14, M15, M16, M20, M21 |
 | **4. Clinic Admin Portal** | React / TypeScript | M1, M3, M4, M14, M15, M16, M23, M24, M26 |
 | **5. Vetalya Super Admin** | React / TypeScript | M1, M3, M4, M17, M18, M19, M23, M24, M25, M26 |
-

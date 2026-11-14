@@ -1,6 +1,9 @@
 package com.pet.vetalya.repository;
 
 import com.pet.vetalya.entity.ClinicalEncounter;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,6 +20,13 @@ public interface ClinicalEncounterRepository extends JpaRepository<ClinicalEncou
 
     List<ClinicalEncounter> findAllByVetUserIdOrderByCreatedAtDesc(String vetUserId);
 
-    Optional<ClinicalEncounter> findByAppointmentId(String appointmentId);
-}
+    boolean existsByEncounterIdAndPetIdAndHospitalIdAndVetUserId(
+            String encounterId, String petId, String hospitalId, String vetUserId);
 
+    @Query("SELECT e.encounterId FROM ClinicalEncounter e WHERE e.appointmentId = :appointmentId")
+    Optional<String> findEncounterIdByAppointmentId(String appointmentId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT e FROM ClinicalEncounter e WHERE e.encounterId = :encounterId")
+    Optional<ClinicalEncounter> findByIdForUpdate(String encounterId);
+}

@@ -69,9 +69,7 @@ public class DiagnosticController {
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable String itemId,
             @Valid @RequestBody DiagnosticResultUpdateRequest request) {
-        access.diagnosticWrite(jwt.getSubject(),itemId);
-        var attributed = new DiagnosticResultUpdateRequest(request.resultValue(),request.referenceRange(),request.unit(),request.flag(),request.interpretation(),request.reportFileUrl(),jwt.getSubject());
-        DiagnosticOrderResponse response = diagnosticService.updateItemResult(itemId, attributed);
+        DiagnosticOrderResponse response = diagnosticService.updateItemResult(jwt.getSubject(), itemId, request);
         return ResponseEntity.ok(response);
     }
 
@@ -86,4 +84,3 @@ public class DiagnosticController {
         return ResponseEntity.ok(catalog);
     }
 }
-

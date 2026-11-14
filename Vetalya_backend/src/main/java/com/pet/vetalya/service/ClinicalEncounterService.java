@@ -1,6 +1,7 @@
 package com.pet.vetalya.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pet.vetalya.clinic.ClinicalAccess;
 import com.pet.vetalya.common.GlobalExceptionHandler.ConflictException;
 import com.pet.vetalya.common.GlobalExceptionHandler.ForbiddenException;
 import com.pet.vetalya.common.GlobalExceptionHandler.ResourceNotFoundException;
@@ -34,6 +35,7 @@ public class ClinicalEncounterService {
     private final HospitalRepository hospitalRepo;
     private final IdGenerator idGenerator;
     private final ObjectMapper objectMapper;
+    private final ClinicalAccess access;
 
     public ClinicalEncounterService(ClinicalEncounterRepository encounterRepo,
                                     EncounterAmendmentRepository amendmentRepo,
@@ -43,7 +45,8 @@ public class ClinicalEncounterService {
                                     VetRepository vetRepo,
                                     HospitalRepository hospitalRepo,
                                     IdGenerator idGenerator,
-                                    ObjectMapper objectMapper) {
+                                    ObjectMapper objectMapper, ClinicalAccess access) {
+        this.access = access;
         this.encounterRepo = encounterRepo;
         this.amendmentRepo = amendmentRepo;
         this.prescriptionRepo = prescriptionRepo;
@@ -70,8 +73,9 @@ public class ClinicalEncounterService {
             .orElseThrow(() -> new ForbiddenException("Appointment is not assigned to this veterinarian"));
         if (!pet.getPetId().equals(appointment.getPetId()) || !Objects.equals(req.hospitalId(),appointment.getHospitalId()))
             throw new ForbiddenException("Patient or hospital does not match the appointment");
-        var existing = encounterRepo.findByAppointmentId(req.appointmentId());
-        if (existing.isPresent()) return updateDraftEncounter(vetUserId,existing.get().getEncounterId(),req);
+        access.requireVeterinarian(vetUserId, appointment.getHospitalId());
+        var existing = encounterRepo.findEncounterIdByAppointmentId(req.appointmentId());
+        if (existing.isPresent()) return updateDraftEncounter(vetUserId,existing.get(),req);
         if (Set.of("COMPLETED","CANCELLED","NO_SHOW").contains(appointment.getStatus()))
             throw new ConflictException("This appointment is finalized");
 
@@ -110,12 +114,14 @@ public class ClinicalEncounterService {
      */
     @Transactional
     public EncounterResponse updateDraftEncounter(String vetUserId, String encounterId, EncounterRequest req) {
-        ClinicalEncounter encounter = encounterRepo.findById(encounterId)
+        ClinicalEncounter encounter = encounterRepo.findByIdForUpdate(encounterId)
                 .orElseThrow(() -> new ResourceNotFoundException("Encounter not found with ID: " + encounterId));
 
         if (!encounter.getVetUserId().equals(vetUserId)) {
             throw new ForbiddenException("Only the authoring veterinarian can update this encounter draft");
         }
+
+        access.requireVeterinarian(vetUserId, encounter.getHospitalId());
 
         if (encounter.isSigned()) {
             throw new ConflictException("Signed clinical records are immutable. Use the amendment workflow to document corrections.");
@@ -141,12 +147,14 @@ public class ClinicalEncounterService {
      */
     @Transactional
     public EncounterResponse signEncounter(String vetUserId, String encounterId) {
-        ClinicalEncounter encounter = encounterRepo.findById(encounterId)
+        ClinicalEncounter encounter = encounterRepo.findByIdForUpdate(encounterId)
                 .orElseThrow(() -> new ResourceNotFoundException("Encounter not found with ID: " + encounterId));
 
         if (!encounter.getVetUserId().equals(vetUserId)) {
             throw new ForbiddenException("Only the attending veterinarian can sign and finalize this encounter");
         }
+
+        access.requireVeterinarian(vetUserId, encounter.getHospitalId());
 
         if (encounter.isSigned()) {
             return toEncounterResponse(encounter);
@@ -194,12 +202,14 @@ public class ClinicalEncounterService {
      */
     @Transactional
     public EncounterResponse amendEncounter(String vetUserId, String encounterId, EncounterAmendmentRequest req) {
-        ClinicalEncounter encounter = encounterRepo.findById(encounterId)
+        ClinicalEncounter encounter = encounterRepo.findByIdForUpdate(encounterId)
                 .orElseThrow(() -> new ResourceNotFoundException("Encounter not found with ID: " + encounterId));
 
         if (!encounter.getVetUserId().equals(vetUserId)) {
             throw new ForbiddenException("Only the authoring veterinarian may amend this record");
         }
+
+        access.requireVeterinarian(vetUserId, encounter.getHospitalId());
 
         if (!encounter.isSigned()) {
             throw new ConflictException("Encounter is not yet signed. Update draft directly instead of creating an amendment.");
@@ -419,4 +429,3 @@ public class ClinicalEncounterService {
         );
     }
 }
-

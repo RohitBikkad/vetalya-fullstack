@@ -43,4 +43,3 @@ public class PetDocumentDto {
             Instant createdAt
     ) {}
 }
-

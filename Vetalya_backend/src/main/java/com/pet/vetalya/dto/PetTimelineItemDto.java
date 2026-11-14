@@ -13,4 +13,3 @@ public record PetTimelineItemDto(
         String downloadUrl,
         Instant eventTimestamp
 ) {}
-

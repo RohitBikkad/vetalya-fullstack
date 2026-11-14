@@ -98,4 +98,3 @@ public class DiagnosticOrder {
     public List<DiagnosticOrderItem> getItems() { return items; }
     public void setItems(List<DiagnosticOrderItem> items) { this.items = items; }
 }
-

@@ -12,4 +12,3 @@ public record DiagnosticItemRequest(
         @NotBlank(message = "category is required")
         String category
 ) {}
-

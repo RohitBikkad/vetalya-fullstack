@@ -3,7 +3,7 @@
 ## 1. Global API Standards & Conventions
 
 ### Base URI
-`https://api.vetalya.com/api/v1` (Production)  
+`https://api.vetalya.com/api/v1` (Production)
 `http://localhost:8080/api/v1` (Local Development)
 
 ### Standard Headers
@@ -158,4 +158,3 @@
 * `POST /admin/clinics/{clinicId}/verify` — Approve or reject clinic registration with audit rationale.
 * `GET /admin/audit-logs` — Tamper-evident platform security event log.
 * `GET /admin/subscriptions` — SaaS billing and clinic subscription plan management.
-

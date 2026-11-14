@@ -8,4 +8,3 @@ public interface EncounterAmendmentRepository extends JpaRepository<EncounterAme
 
     List<EncounterAmendment> findAllByEncounterIdOrderByCreatedAtDesc(String encounterId);
 }
-

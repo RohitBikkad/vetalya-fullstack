@@ -29,4 +29,3 @@ public interface AppointmentSlotRepository extends JpaRepository<AppointmentSlot
     @Query("SELECT s FROM AppointmentSlot s WHERE s.vetUserId = :vetUserId AND s.slotDate >= :fromDate AND s.slotDate <= :toDate AND s.status = 'AVAILABLE' ORDER BY s.slotDate ASC, s.startTime ASC")
     List<AppointmentSlot> findAvailableSlots(@Param("vetUserId") String vetUserId, @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
 }
-

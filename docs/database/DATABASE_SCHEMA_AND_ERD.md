@@ -113,4 +113,3 @@ erDiagram
 ### Group I: Insurance Discovery & Dossier
 * **`insurance_plan`**: `plan_id` (PK), `insurer_name`, `plan_name`, `species_eligibility`, `annual_limit_inr`, `coverage_summary_jsonb`, `waiting_period_days`, `brochure_pdf_url`.
 * **`insurance_policy_dossier`**: `dossier_id` (PK), `pet_id` (FK), `user_id` (FK), `policy_number`, `insurer_name`, `premium_amount`, `commencement_date`, `expiry_date`, `policy_document_url`, `claim_history_jsonb`.
-

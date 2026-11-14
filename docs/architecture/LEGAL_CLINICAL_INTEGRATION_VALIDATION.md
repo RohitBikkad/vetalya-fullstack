@@ -44,4 +44,3 @@ Software code alone does not constitute legal or statutory compliance. The techn
 ### 2.6 Government Pet & Livestock Identity Integration (Pashu Aadhaar / INAPH / NDDB)
 * **Current Status:** Government animal identity systems (e.g. 12-digit Pashu Aadhaar ear tags for livestock) are administered under Department of Animal Husbandry and Dairying (DAHD) and National Dairy Development Board (NDDB).
 * **Architectural Boundary:** Vetalya provides an abstracted identifier model (`identifier_type = PASHU_AADHAAR`) with manual vet verification. Direct government API integration remains an architectural adapter hook that will only be activated when formal public API access, security clearances, and official data-sharing agreements are signed with relevant government authorities. Vetalya does not claim official government endorsement.
-

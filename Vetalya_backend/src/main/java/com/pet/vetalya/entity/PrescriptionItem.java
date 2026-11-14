@@ -87,4 +87,3 @@ public class PrescriptionItem {
     public Prescription getPrescription() { return prescription; }
     public void setPrescription(Prescription prescription) { this.prescription = prescription; }
 }
-

@@ -1,5 +1,6 @@
 package com.pet.vetalya.vet.service;
 
+import com.pet.vetalya.clinic.ClinicalAccess;
 import com.pet.vetalya.common.GlobalExceptionHandler.*;
 import com.pet.vetalya.common.PageResponse;
 import com.pet.vetalya.entity.Appointment;
@@ -41,16 +42,14 @@ public class AppointmentService {
     private final com.pet.vetalya.audit.service.AuditService auditService;
     private final com.pet.vetalya.metrics.AppMetrics appMetrics;
 
-    public AppointmentService(AppointmentRepository appointmentRepo,
-                              com.pet.vetalya.repository.ReviewRepository reviewRepo) {
-        this(appointmentRepo, reviewRepo, null, null);
-    }
+    private final ClinicalAccess access;
 
-    @org.springframework.beans.factory.annotation.Autowired
     public AppointmentService(AppointmentRepository appointmentRepo,
                               com.pet.vetalya.repository.ReviewRepository reviewRepo,
                               com.pet.vetalya.audit.service.AuditService auditService,
-                              com.pet.vetalya.metrics.AppMetrics appMetrics) {
+                              com.pet.vetalya.metrics.AppMetrics appMetrics,
+                              ClinicalAccess access) {
+        this.access = access;
         this.appointmentRepo = appointmentRepo;
         this.reviewRepo = reviewRepo;
         this.auditService = auditService;
@@ -71,8 +70,10 @@ public class AppointmentService {
         Instant fromInstant = from != null ? from.atStartOfDay(IST).toInstant() : null;
         Instant toInstant = to != null ? to.plusDays(1).atStartOfDay(IST).toInstant() : null;
 
+        if (hospitalId != null) access.requireVeterinarian(vetUserId, hospitalId);
+        List<String> hospitalIds = access.veterinarianHospitalIds(vetUserId);
         Page<Appointment> appointments = appointmentRepo.findVetAppointments(
-                vetUserId, status, hospitalId, fromInstant, toInstant, pageable);
+                vetUserId, hospitalIds, status, hospitalId, fromInstant, toInstant, pageable);
 
         Page<AppointmentResponse> responsePage = appointments.map(a -> toResponse(a));
         return PageResponse.of(responsePage);
@@ -150,8 +151,9 @@ public class AppointmentService {
 
     @Transactional(readOnly = true)
     public DashboardResponse getDashboard(String vetUserId) {
+        List<String> hospitalIds = access.veterinarianHospitalIds(vetUserId);
         // Status counts
-        List<Object[]> statusCounts = appointmentRepo.countByStatusForVet(vetUserId);
+        List<Object[]> statusCounts = appointmentRepo.countByStatusForVet(vetUserId, hospitalIds);
         Map<String, Long> counts = new LinkedHashMap<>();
         for (Object[] row : statusCounts) {
             counts.put((String) row[0], (Long) row[1]);
@@ -161,14 +163,14 @@ public class AppointmentService {
         LocalDate today = LocalDate.now(IST);
         Instant dayStart = today.atStartOfDay(IST).toInstant();
         Instant dayEnd = today.plusDays(1).atStartOfDay(IST).toInstant();
-        long todayCount = appointmentRepo.countTodayForVet(vetUserId, dayStart, dayEnd);
+        long todayCount = appointmentRepo.countTodayForVet(vetUserId, hospitalIds, dayStart, dayEnd);
 
         // Upcoming 7 days (from today's start up to 7 days later)
         Instant upcomingEnd = today.plusDays(8).atStartOfDay(IST).toInstant();
-        long upcoming7Days = appointmentRepo.countUpcoming7Days(vetUserId, dayStart, upcomingEnd);
+        long upcoming7Days = appointmentRepo.countUpcoming7Days(vetUserId, hospitalIds, dayStart, upcomingEnd);
 
         // Pending (BOOKED) requests
-        long pendingRequests = appointmentRepo.countPendingRequests(vetUserId);
+        long pendingRequests = appointmentRepo.countPendingRequests(vetUserId, hospitalIds);
 
         // Ratings & review count
         double avgRating = reviewRepo.averageRatingForVet(vetUserId);
@@ -185,8 +187,10 @@ public class AppointmentService {
     }
 
     private Appointment findOwnOrThrow(String vetUserId, String appointmentId) {
-        return appointmentRepo.findByAppointmentIdAndVetUserId(appointmentId, vetUserId)
+        Appointment appointment = appointmentRepo.findByAppointmentIdAndVetUserId(appointmentId, vetUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
+        access.requireVeterinarian(vetUserId, appointment.getHospitalId());
+        return appointment;
     }
 
     private AppointmentResponse toResponse(Appointment a) {

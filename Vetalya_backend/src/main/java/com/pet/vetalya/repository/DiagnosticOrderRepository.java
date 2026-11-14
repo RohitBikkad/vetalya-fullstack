@@ -14,4 +14,3 @@ public interface DiagnosticOrderRepository extends JpaRepository<DiagnosticOrder
     List<DiagnosticOrder> findByHospitalIdOrderByCreatedAtDesc(String hospitalId);
     Optional<DiagnosticOrder> findByOrderNumber(String orderNumber);
 }
-

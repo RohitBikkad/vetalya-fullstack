@@ -31,9 +31,11 @@ export default function SignIn() {
   const [emailCode, setEmailCode] = useState("");
   const [emailProof, setEmailProof] = useState("");
   const [resendIn, setResendIn] = useState(0);
+  const [pendingEmail, setPendingEmail] = useState("");
   useEffect(() => { if (resendIn <= 0) return; const timer = setTimeout(() => setResendIn(resendIn - 1), 1000); return () => clearTimeout(timer); }, [resendIn]);
   async function sendCode(email: string) {
     await client().sendEmailOtp(email);
+    setPendingEmail(email);
     setVerificationEmail(email);
     setEmailCode("");
     setEmailProof("");
@@ -110,8 +112,12 @@ export default function SignIn() {
     setBusy(true);
     try {
       const email = form.email.trim().toLowerCase();
-      if (register) await sendCode(email);
-      else await signIn({ email, password: form.password });
+      if (register) {
+        if (email === pendingEmail) setVerificationEmail(email);
+        else await sendCode(email);
+      } else {
+        await signIn({ email, password: form.password });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to sign in.");
     } finally {
@@ -156,8 +162,6 @@ export default function SignIn() {
             </Pressable>
             <Pressable accessibilityRole="button" disabled={busy} onPress={() => {
               setVerificationEmail("");
-              setEmailProof("");
-              setEmailCode("");
               setError("");
             }}>
               <Text style={styles.link}>Back to account details</Text>
