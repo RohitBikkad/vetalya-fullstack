@@ -1,6 +1,7 @@
 package com.pet.vetalya.clinic;
 
 import com.pet.vetalya.common.IdGenerator;
+import com.pet.vetalya.vet.service.AppointmentWorkflow;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -17,7 +18,13 @@ public class ClinicWorkspaceService {
         "ROLE_RECEPTIONIST", "ROLE_PHARMACIST", "ROLE_ACCOUNTANT", "ROLE_CLINIC_STAFF", "ROLE_CLINIC_ADMIN", "ROLE_CLINIC_MANAGER");
     private final JdbcTemplate db;
     private final IdGenerator ids;
-    public ClinicWorkspaceService(JdbcTemplate db, IdGenerator ids) { this.db = db; this.ids = ids; }
+    private final AppointmentWorkflow appointments;
+
+    public ClinicWorkspaceService(JdbcTemplate db, IdGenerator ids, AppointmentWorkflow appointments) {
+        this.db = db;
+        this.ids = ids;
+        this.appointments = appointments;
+    }
 
     // The database identity, rather than request parameters, controls the effective role.
     public String role(String userId) {
@@ -135,11 +142,7 @@ public class ClinicWorkspaceService {
         requireAccess(userId,hospitalId);
         if (!Set.of("ROLE_VET","ROLE_RECEPTIONIST","ROLE_CLINIC_ADMIN","ROLE_CLINIC_MANAGER").contains(role(userId)))
             throw new AccessDeniedException("Check-in permission required");
-        int changed=db.update("""
-            UPDATE appointment SET check_in_time=NOW(),status='CONFIRMED',updated_at=NOW(),version=version+1
-            WHERE appointment_id=? AND hospital_id=? AND status IN ('BOOKED','CONFIRMED') AND check_in_time IS NULL
-            """,appointmentId,hospitalId);
-        if(changed!=1) throw new ResponseStatusException(HttpStatus.CONFLICT,"Appointment cannot be checked in");
+        appointments.checkInAtHospital(hospitalId, appointmentId);
         event(userId,hospitalId,"PATIENT_CHECKED_IN",appointmentId);
     }
     private void event(String userId,String hospitalId,String action,String targetId) {

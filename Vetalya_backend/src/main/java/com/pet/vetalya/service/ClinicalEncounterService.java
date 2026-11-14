@@ -9,6 +9,7 @@ import com.pet.vetalya.common.IdGenerator;
 import com.pet.vetalya.dto.*;
 import com.pet.vetalya.entity.*;
 import com.pet.vetalya.repository.*;
+import com.pet.vetalya.vet.service.AppointmentWorkflow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -30,7 +31,7 @@ public class ClinicalEncounterService {
     private final EncounterAmendmentRepository amendmentRepo;
     private final PrescriptionRepository prescriptionRepo;
     private final PetRepository petRepo;
-    private final AppointmentRepository appointmentRepo;
+    private final AppointmentWorkflow appointments;
     private final VetRepository vetRepo;
     private final HospitalRepository hospitalRepo;
     private final IdGenerator idGenerator;
@@ -41,7 +42,7 @@ public class ClinicalEncounterService {
                                     EncounterAmendmentRepository amendmentRepo,
                                     PrescriptionRepository prescriptionRepo,
                                     PetRepository petRepo,
-                                    AppointmentRepository appointmentRepo,
+                                    AppointmentWorkflow appointments,
                                     VetRepository vetRepo,
                                     HospitalRepository hospitalRepo,
                                     IdGenerator idGenerator,
@@ -51,7 +52,7 @@ public class ClinicalEncounterService {
         this.amendmentRepo = amendmentRepo;
         this.prescriptionRepo = prescriptionRepo;
         this.petRepo = petRepo;
-        this.appointmentRepo = appointmentRepo;
+        this.appointments = appointments;
         this.vetRepo = vetRepo;
         this.hospitalRepo = hospitalRepo;
         this.idGenerator = idGenerator;
@@ -69,8 +70,7 @@ public class ClinicalEncounterService {
         if (req.appointmentId() == null || req.appointmentId().isBlank()) {
             throw new ConflictException("An assigned appointment is required for this clinical workflow");
         }
-        Appointment appointment = appointmentRepo.findByAppointmentIdAndVetUserId(req.appointmentId(),vetUserId)
-            .orElseThrow(() -> new ForbiddenException("Appointment is not assigned to this veterinarian"));
+        Appointment appointment = appointments.requireAssignedVisit(req.appointmentId(), vetUserId);
         if (!pet.getPetId().equals(appointment.getPetId()) || !Objects.equals(req.hospitalId(),appointment.getHospitalId()))
             throw new ForbiddenException("Patient or hospital does not match the appointment");
         access.requireVeterinarian(vetUserId, appointment.getHospitalId());
@@ -95,14 +95,7 @@ public class ClinicalEncounterService {
             savePrescription(encounter, vetUserId, req.medications(), req.dietInstructions());
         }
 
-        // Link with appointment if provided
-        if (req.appointmentId() != null && !req.appointmentId().isBlank()) {
-            appointmentRepo.findById(req.appointmentId()).ifPresent(apt -> {
-                apt.setStatus("IN_CONSULTATION");
-                if (apt.getConsultationStartTime()==null) apt.setConsultationStartTime(Instant.now());
-                appointmentRepo.save(apt);
-            });
-        }
+        appointments.markEncounterStarted(appointment);
 
         log.info("Clinical encounter created: encounterId={}, vetUserId={}, petId={}",
                 encounter.getEncounterId(), vetUserId, pet.getPetId());
@@ -168,28 +161,9 @@ public class ClinicalEncounterService {
         encounter.setDigitalSignatureHash(signatureHash);
         final ClinicalEncounter savedEncounter = encounterRepo.save(encounter);
 
-        // Complete linked appointment
         if (savedEncounter.getAppointmentId() != null) {
-            appointmentRepo.findById(savedEncounter.getAppointmentId()).ifPresent(apt -> {
-                apt.setStatus("COMPLETED");
-                apt.setConsultationEndTime(signTimestamp);
-                // Store serialized summary in visit_notes for legacy compatibility
-                try {
-                    Map<String, Object> summary = new HashMap<>();
-                    summary.put("isSigned", true);
-                    summary.put("assessment", savedEncounter.getDiagnosisPrimary());
-                    summary.put("treatmentPlan", savedEncounter.getTreatmentPlan());
-                    summary.put("temperature", savedEncounter.getTemperatureF());
-                    summary.put("weight", savedEncounter.getBodyWeightKg());
-                    summary.put("dietPlan", savedEncounter.getDietInstructions());
-                    summary.put("signedAt", signTimestamp.toString());
-                    summary.put("digitalSignatureHash", signatureHash);
-                    apt.setVisitNotes(objectMapper.writeValueAsString(summary));
-                } catch (Exception e) {
-                    apt.setVisitNotes(savedEncounter.getDiagnosisPrimary());
-                }
-                appointmentRepo.save(apt);
-            });
+            appointments.completeSignedEncounter(savedEncounter.getAppointmentId(), signTimestamp,
+                    legacyVisitNotes(savedEncounter, signTimestamp, signatureHash));
         }
 
         log.info("Clinical encounter digitally signed: encounterId={}, hash={}", encounterId, signatureHash);
@@ -332,6 +306,23 @@ public class ClinicalEncounterService {
         }
 
         prescriptionRepo.save(rx);
+    }
+
+    private String legacyVisitNotes(ClinicalEncounter encounter, Instant signedAt, String signatureHash) {
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("isSigned", true);
+        summary.put("assessment", encounter.getDiagnosisPrimary());
+        summary.put("treatmentPlan", encounter.getTreatmentPlan());
+        summary.put("temperature", encounter.getTemperatureF());
+        summary.put("weight", encounter.getBodyWeightKg());
+        summary.put("dietPlan", encounter.getDietInstructions());
+        summary.put("signedAt", signedAt.toString());
+        summary.put("digitalSignatureHash", signatureHash);
+        try {
+            return objectMapper.writeValueAsString(summary);
+        } catch (Exception e) {
+            return encounter.getDiagnosisPrimary();
+        }
     }
 
     private String computeSignatureHash(ClinicalEncounter encounter, Instant timestamp) {

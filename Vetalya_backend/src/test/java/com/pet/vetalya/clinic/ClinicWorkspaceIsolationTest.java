@@ -1,6 +1,7 @@
 package com.pet.vetalya.clinic;
 
 import com.pet.vetalya.common.IdGenerator;
+import com.pet.vetalya.vet.service.AppointmentWorkflow;
 import org.junit.jupiter.api.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -33,7 +34,7 @@ class ClinicWorkspaceIsolationTest {
         db.execute("ALTER TABLE appointment ADD consultation_end_time TIMESTAMP");
         db.update("INSERT INTO user_auth VALUES ('finance','ROLE_ACCOUNTANT','ACTIVE','f@example.test')");
         db.update("INSERT INTO clinic_staff_assignment(hospital_id,user_id,active,department) VALUES ('a','finance',TRUE,'Finance')");
-        service=new ClinicWorkspaceService(db,new IdGenerator());
+        service=new ClinicWorkspaceService(db,new IdGenerator(),new AppointmentWorkflow(null,db));
     }
     @Test void roleDoesNotGrantAnotherHospitalsAccess() {
         assertEquals(1,service.hospitals("admin").size());
