@@ -1,5 +1,8 @@
 # 🐾 Vetalya — Digital Animal Healthcare Platform
 
+Start with the [current product and engineering documentation](docs/README.md). It records deployed features, pending work, API routes, and development and release procedures. The detailed sections below retain historical architecture and deployment notes.
+
+
 [![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/projects/jdk/21/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.1-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![React](https://img.shields.io/badge/React-19.0-blue.svg)](https://react.dev/)
