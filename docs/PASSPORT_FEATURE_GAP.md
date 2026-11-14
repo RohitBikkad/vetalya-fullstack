@@ -1,0 +1,17 @@
+# Universal Pet Health Passport feature gaps
+
+Audit baseline: staging commit `6b9a0fe`. The implementation brief describes the target product. Existing business workflows require owner approval before they are changed.
+
+| Area | Existing implementation | Remaining work and dependencies |
+| --- | --- | --- |
+| Identity | V10 adds unique passport numbers, existing pet IDs, identifiers and a health passport table. Web and mobile already show Passport details. | Keep issued numbers and pet IDs valid. Assess issuance for every creation path before switching generation. Verified caregiver delegation, ownership transfer and duplicate review require explicit policy. |
+| Vet discovery | `/api/vets/search` returns verified vets with hospital profiles. The current PIN-code ranking compares PIN numbers. | Add a separate geographic search, with validated clinic coordinates, a reliable Indian postal dataset and radius-based ranking. Test location denial and PIN-code fallback. Use actual slots for availability. Confirm replacing the existing ranking before changing it. |
+| Booking | Owner clients use real appointment slots, and the booking service uses database locking. | A separate booking-with-consent capability needs an atomic appointment and consent transaction. Decide how expiry, cancellation, rescheduling and reassignment affect grants before integrating it with existing booking. Use real fee and payment state where configured. |
+| Sharing management | Owners can list, approve and revoke sharing requests. | The first addition groups existing records in the owner web and mobile interfaces. Approval, revocation and authorization continue through the existing endpoints. Category selection, partial approval and access audit require the scoped grant model. |
+| Vet Passport lookup | The Passport endpoints use the internal pet ID. | Add authenticated exact Passport-ID lookup with verified veterinary identity, active hospital membership, rate limits and uniform responses. Record lookup and access decisions. Passport lookup must never disclose owner information or authorize clinical reads by itself. |
+| Clinical records | Existing Passport timelines, signed encounters, diagnostics and document metadata can be reused. | The current Passport check verifies requester, status and expiry but does not enforce the recorded category or hospital in that predicate. Audit each record endpoint, then enforce the approved role, hospital, category and time window before granting additional access. Verify private document delivery before exposing file links. |
+| Staff clients | Clinic and vet web workspaces exist. The existing Expo app serves pet owners. | Add the vet web flow after server authorization is ready. A veterinary staff mobile experience needs its own verified staff routes and role gating. |
+
+Build and test the standalone discovery and authorization capabilities before enabling their UI. Use new endpoints for optional workflows and preserve current response contracts. Database work should use additive Flyway migrations and preserve earlier migration files. Validate with fresh and upgraded PostgreSQL databases, seeded synthetic clinic data, and cross-hospital authorization tests. Enable feature flags in staging after the underlying checks pass.
+
+The first increment changes the display of sharing history only. It adds no grant, expiry, booking, or authorization rule. Existing buttons use the same handlers. The display uses recorded status and expiry; it does not determine actual access.

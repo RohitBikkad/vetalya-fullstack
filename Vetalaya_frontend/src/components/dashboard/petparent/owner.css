@@ -2348,3 +2348,12 @@
   from { opacity: 0; transform: scale(0.98); }
   to { opacity: 1; transform: scale(1); }
 }
+
+.owner-share-group {
+  margin-top: 16px;
+}
+
+.owner-share-group > h3 {
+  margin-bottom: 8px;
+  font-weight: 700;
+}

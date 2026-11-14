@@ -160,3 +160,34 @@ export function normalizeSpecies(value) {
   const key = String(value || "").toUpperCase();
   return aliases[key] || key;
 }
+
+/**
+ * Group the existing sharing records for display. Authorization stays with the API.
+ * @template {{status: string, expiresAt?: string | null}} T
+ * @param {T[]} requests
+ * @param {number} now
+ */
+export function groupPassportSharing(requests, now = Date.now()) {
+  /** @type {{pending: T[], approved: T[], past: T[], other: T[]}} */
+  const groups = { pending: [], approved: [], past: [], other: [] };
+  for (const request of requests) {
+    const expiration = request.expiresAt ? Date.parse(request.expiresAt) : Infinity;
+    if (["REVOKED", "REJECTED", "EXPIRED"].includes(request.status) || expiration <= now) {
+      groups.past.push(request);
+    } else if (["PENDING", "REQUESTED"].includes(request.status)) {
+      groups.pending.push(request);
+    } else if (request.status === "APPROVED" && Number.isFinite(expiration)) {
+      groups.approved.push(request);
+    } else {
+      groups.other.push(request);
+    }
+  }
+  return groups;
+}
+
+export const passportSharingSections = /** @type {const} */ ([
+  ["pending", "Pending requests"],
+  ["approved", "Approved and within the recorded time window"],
+  ["past", "Expired, revoked or declined"],
+  ["other", "Other sharing records"],
+]);

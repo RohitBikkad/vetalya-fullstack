@@ -4,9 +4,9 @@ import { Redirect } from "expo-router";
 import { useOwner, type Data } from "../OwnerContext";
 import { Screen, Card, Button, ErrorNotice, styles } from "../ui";
 import { ownerApi } from "../api";
-import { dateLabel } from "../../../../packages/owner-domain/src/model.js";
+import { dateLabel, groupPassportSharing, passportSharingSections } from "../../../../packages/owner-domain/src/model.js";
 export default function Share() {
-  const { user, pet, details, detailErrors, reloadDetails } = useOwner();
+  const { user, pet, details, detailLoading, detailErrors, reloadDetails } = useOwner();
   const [hospitals, setHospitals] = useState<Data[]>([]),
     [target, setTarget] = useState(""),
     [scope, setScope] = useState("VACCINES_ONLY"),
@@ -35,6 +35,7 @@ export default function Share() {
     };
   }, []);
   if (!user) return <Redirect href="/sign-in" />;
+  const sharingGroups = groupPassportSharing((details.shares || []) as (Data & { status: string })[]);
   async function action(type: string, request?: Data) {
     setBusy(true);
     setError("");
@@ -117,40 +118,46 @@ export default function Share() {
         <ErrorNotice message={detailErrors.join(" · ")} />
       )}
       <Text style={styles.heading}>Hospital access history</Text>
-      {(details.shares || []).map((request: Data) => (
-        <Card key={request.requestId}>
-          <Text style={styles.body}>
-            {hospitals.find((h) => h.hospitalId === request.targetHospitalId)
-              ?.name ||
-              request.targetHospitalId ||
-              "Hospital not specified"}
-          </Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{request.status}</Text>
-          </View>
-          <Text style={styles.body}>
-            {request.scope.replaceAll("_", " ").toLowerCase()} · expires{" "}
-            {dateLabel(request.expiresAt)}
-          </Text>
-          {request.targetHospitalId &&
-            ["PENDING", "REQUESTED"].includes(request.status) && (
-              <Button
-                title="Approve hospital access"
-                busy={busy}
-                onPress={() => action("approve", request)}
-              />
-            )}{" "}
-          {request.status !== "REVOKED" && (
-            <Button
-              title="Revoke request"
-              secondary
-              busy={busy}
-              onPress={() => action("revoke", request)}
-            />
-          )}
-        </Card>
+      {detailLoading && <Text style={styles.body}>Loading access history…</Text>}
+      {passportSharingSections.map(([key, label]) => sharingGroups[key].length > 0 && (
+        <View key={key} style={{ gap: 12 }}>
+          <Text style={styles.label}>{label}</Text>
+          {sharingGroups[key].map((request) => (
+            <Card key={request.requestId}>
+              <Text style={styles.body}>
+                {hospitals.find((h) => h.hospitalId === request.targetHospitalId)
+                  ?.name ||
+                  request.targetHospitalId ||
+                  "Hospital not specified"}
+              </Text>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{request.status}</Text>
+              </View>
+              <Text style={styles.body}>
+                {request.scope.replaceAll("_", " ").toLowerCase()} · expires{" "}
+                {dateLabel(request.expiresAt)}
+              </Text>
+              {request.targetHospitalId &&
+                ["PENDING", "REQUESTED"].includes(request.status) && (
+                  <Button
+                    title="Approve hospital access"
+                    busy={busy}
+                    onPress={() => action("approve", request)}
+                  />
+                )}{" "}
+              {request.status !== "REVOKED" && (
+                <Button
+                  title="Revoke request"
+                  secondary
+                  busy={busy}
+                  onPress={() => action("revoke", request)}
+                />
+              )}
+            </Card>
+          ))}
+        </View>
       ))}
-      {!(details.shares || []).length && (
+      {!detailLoading && !detailErrors.length && !(details.shares || []).length && (
         <Text style={styles.body}>No hospital access grants recorded.</Text>
       )}
     </Screen>

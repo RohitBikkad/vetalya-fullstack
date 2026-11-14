@@ -45,6 +45,8 @@ import {
   safeExternalUrl,
   PLANNED_SERVICES,
   availableFutureSlots,
+  groupPassportSharing,
+  passportSharingSections,
 } from "../../../../../packages/owner-domain/src/model.js";
 import "./owner.css";
 import OwnerHome, { ownerTabs, DesignIcon } from "./OwnerHome";
@@ -211,8 +213,9 @@ export default function OwnerApp() {
     [slots, setSlots] = useState([]),
     [loadingVets, setLoadingVets] = useState(false),
     [loadingSlots, setLoadingSlots] = useState(false);
-  const shares = details.shares || [];
   const pet = pets.find((p) => p.petId === petId) || pets[0];
+  const shares = (details.shares || []).filter((share) => share.petId === pet?.petId);
+  const sharingGroups = groupPassportSharing(shares);
   const upcoming = upcomingAppointments(appointments);
   const next = upcoming.find((a) => !pet || a.pet?.petId === pet.petId) || null;
   const passport = details.passport;
@@ -1021,50 +1024,53 @@ export default function OwnerApp() {
                             </section>
                             <section className="owner-card">
                               <h2>Hospital access history</h2>
-                              {shares
-                                .filter((s) => s.petId === pet.petId)
-                                .map((s) => (
-                                  <div
-                                    className="owner-share-item"
-                                    key={s.requestId}
-                                  >
-                                    <p>
-                                      Hospital:{" "}
-                                      {s.targetHospitalId || "Not specified"}
-                                    </p>
-                                    <Badge>{s.status}</Badge>
-                                    <p>
-                                      {s.scope
-                                        .replaceAll("_", " ")
-                                        .toLowerCase()}{" "}
-                                      · expires {dateLabel(s.expiresAt)}
-                                    </p>
-                                    {s.targetHospitalId &&
-                                      ["PENDING", "REQUESTED"].includes(
-                                        s.status,
-                                      ) && (
-                                        <button
-                                          disabled={busy}
-                                          className="owner-text-button"
-                                          onClick={() =>
-                                            shareAction(s, "approve")
-                                          }
-                                        >
-                                          Approve hospital access
-                                        </button>
-                                      )}
-                                    {s.status !== "REVOKED" && (
-                                      <button
-                                        disabled={busy}
-                                        className="owner-text-button"
-                                        onClick={() => shareAction(s, "revoke")}
+                              {passportSharingSections.map(([group, label]) => sharingGroups[group].length > 0 && (
+                                <section key={group} className="owner-share-group">
+                                  <h3>{label}</h3>
+                                  {sharingGroups[group].map((s) => (
+                                      <div
+                                        className="owner-share-item"
+                                        key={s.requestId}
                                       >
-                                        Revoke request
-                                      </button>
-                                    )}
-                                  </div>
-                                ))}
-                              {!shares.some((s) => s.petId === pet.petId) && (
+                                        <p>
+                                          Hospital:{" "}
+                                          {s.targetHospitalId || "Not specified"}
+                                        </p>
+                                        <Badge>{s.status}</Badge>
+                                        <p>
+                                          {s.scope
+                                            .replaceAll("_", " ")
+                                            .toLowerCase()}{" "}
+                                          · expires {dateLabel(s.expiresAt)}
+                                        </p>
+                                        {s.targetHospitalId &&
+                                          ["PENDING", "REQUESTED"].includes(
+                                            s.status,
+                                          ) && (
+                                            <button
+                                              disabled={busy}
+                                              className="owner-text-button"
+                                              onClick={() =>
+                                                shareAction(s, "approve")
+                                              }
+                                            >
+                                              Approve hospital access
+                                            </button>
+                                          )}
+                                        {s.status !== "REVOKED" && (
+                                          <button
+                                            disabled={busy}
+                                            className="owner-text-button"
+                                            onClick={() => shareAction(s, "revoke")}
+                                          >
+                                            Revoke request
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                </section>
+                              ))}
+                              {!detailLoading && !detailErrors.length && !shares.length && (
                                 <p className="owner-muted">
                                   Grant scoped access to a specific hospital.
                                   Approval and revocation are controlled by the
