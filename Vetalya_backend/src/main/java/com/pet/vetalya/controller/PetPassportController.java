@@ -30,8 +30,9 @@ public class PetPassportController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PetPassportResponse> getPassport(
             @AuthenticationPrincipal Jwt jwt,
-            @PathVariable String petId) {
-        PetPassportResponse response = passportService.getOrCreatePassport(jwt.getSubject(), petId);
+            @PathVariable String petId,
+            @RequestParam(required = false) String hospitalId) {
+        PetPassportResponse response = passportService.getOrCreatePassport(jwt.getSubject(), petId, hospitalId);
         return ResponseEntity.ok(response);
     }
 
@@ -55,8 +56,9 @@ public class PetPassportController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<PetTimelineItemDto>> getPetTimeline(
             @AuthenticationPrincipal Jwt jwt,
-            @PathVariable String petId) {
-        List<PetTimelineItemDto> timeline = passportService.getPetTimeline(jwt.getSubject(), petId);
+            @PathVariable String petId,
+            @RequestParam(required = false) String hospitalId) {
+        List<PetTimelineItemDto> timeline = passportService.getPetTimeline(jwt.getSubject(), petId, hospitalId);
         return ResponseEntity.ok(timeline);
     }
 
@@ -139,8 +141,9 @@ public class PetPassportController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<PetDocumentDto.Response>> listDocuments(
             @AuthenticationPrincipal Jwt jwt,
-            @PathVariable String petId) {
-        List<PetDocumentDto.Response> res = passportService.listDocuments(jwt.getSubject(), petId);
+            @PathVariable String petId,
+            @RequestParam(required = false) String hospitalId) {
+        List<PetDocumentDto.Response> res = passportService.listDocuments(jwt.getSubject(), petId, hospitalId);
         return ResponseEntity.ok(res);
     }
 }

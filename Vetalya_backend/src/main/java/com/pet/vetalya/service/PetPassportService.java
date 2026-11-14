@@ -4,6 +4,7 @@ import com.pet.vetalya.common.GlobalExceptionHandler.ConflictException;
 import com.pet.vetalya.common.GlobalExceptionHandler.ForbiddenException;
 import com.pet.vetalya.common.GlobalExceptionHandler.ResourceNotFoundException;
 import com.pet.vetalya.common.IdGenerator;
+import com.pet.vetalya.clinic.ClinicalAccess;
 import com.pet.vetalya.dto.*;
 import com.pet.vetalya.entity.*;
 import com.pet.vetalya.repository.*;
@@ -38,6 +39,9 @@ public class PetPassportService {
     private final VaccinationRepository vaccinationRepo;
     private final AppointmentRepository appointmentRepo;
     private final IdGenerator idGenerator;
+    private final ClinicalAccess clinicalAccess;
+
+    private enum SharingScope { FULL_TIMELINE, VACCINES_ONLY, EMERGENCY_SUMMARY }
 
     public PetPassportService(PetRepository petRepo,
                               PetHealthPassportRepository passportRepo,
@@ -46,7 +50,7 @@ public class PetPassportService {
                               PetDocumentRepository documentRepo,
                               VaccinationRepository vaccinationRepo,
                               AppointmentRepository appointmentRepo,
-                              IdGenerator idGenerator) {
+                              IdGenerator idGenerator, ClinicalAccess clinicalAccess) {
         this.petRepo = petRepo;
         this.passportRepo = passportRepo;
         this.identifierRepo = identifierRepo;
@@ -55,17 +59,25 @@ public class PetPassportService {
         this.vaccinationRepo = vaccinationRepo;
         this.appointmentRepo = appointmentRepo;
         this.idGenerator = idGenerator;
+        this.clinicalAccess = clinicalAccess;
     }
 
     /**
      * Get or create a Pet Health Passport.
      */
     @Transactional
-    public PetPassportResponse getOrCreatePassport(String currentUserId, String petId) {
+    public PetPassportResponse getOrCreatePassport(String currentUserId, String petId, String hospitalId) {
         Pet pet = petRepo.findById(petId)
                 .orElseThrow(() -> new ResourceNotFoundException("Pet not found with ID: " + petId));
 
-        validatePetAccess(currentUserId, pet);
+        if (!pet.getOwnerUserId().equals(currentUserId)) {
+            var scopes = sharingScopes(currentUserId, pet, hospitalId);
+            if (!scopes.contains(SharingScope.FULL_TIMELINE) && !scopes.contains(SharingScope.EMERGENCY_SUMMARY))
+                throw consentDenied();
+            var passport = passportRepo.findByPetId(petId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Pet passport not found"));
+            return sharedSummary(pet, passport, scopes.contains(SharingScope.FULL_TIMELINE));
+        }
 
         PetHealthPassport passport = passportRepo.findByPetId(petId).orElseGet(() -> {
             PetHealthPassport newPassport = new PetHealthPassport();
@@ -154,11 +166,14 @@ public class PetPassportService {
      * Get unified medical timeline.
      */
     @Transactional(readOnly = true)
-    public List<PetTimelineItemDto> getPetTimeline(String currentUserId, String petId) {
+    public List<PetTimelineItemDto> getPetTimeline(String currentUserId, String petId, String hospitalId) {
         Pet pet = petRepo.findById(petId)
                 .orElseThrow(() -> new ResourceNotFoundException("Pet not found with ID: " + petId));
 
-        validatePetAccess(currentUserId, pet);
+        boolean owner = pet.getOwnerUserId().equals(currentUserId);
+        var scopes = owner ? EnumSet.of(SharingScope.FULL_TIMELINE) : sharingScopes(currentUserId, pet, hospitalId);
+        boolean fullTimeline = scopes.contains(SharingScope.FULL_TIMELINE);
+        if (!fullTimeline && !scopes.contains(SharingScope.VACCINES_ONLY)) throw consentDenied();
 
         List<PetTimelineItemDto> timeline = new ArrayList<>();
 
@@ -179,7 +194,8 @@ public class PetPassportService {
         }
 
         // 2. Encounters & Completed Consultations
-        List<Appointment> completed = appointmentRepo.findAllByPetIdAndStatus(petId, "COMPLETED");
+        List<Appointment> completed = fullTimeline
+                ? appointmentRepo.findAllByPetIdAndStatus(petId, "COMPLETED") : List.of();
         for (Appointment apt : completed) {
             String desc = apt.getReason() != null ? apt.getReason() : "Clinical Consultation";
             timeline.add(new PetTimelineItemDto(
@@ -196,7 +212,8 @@ public class PetPassportService {
         }
 
         // 3. Uploaded Documents
-        List<PetDocument> docs = documentRepo.findAllByPetIdAndIsDeletedIsFalse(petId);
+        List<PetDocument> docs = fullTimeline
+                ? documentRepo.findAllByPetIdAndIsDeletedIsFalse(petId) : List.of();
         for (PetDocument doc : docs) {
             timeline.add(new PetTimelineItemDto(
                     doc.getDocumentId(),
@@ -206,7 +223,7 @@ public class PetPassportService {
                     doc.getDescription() != null ? doc.getDescription() : "Document attached to passport",
                     "Owner Upload",
                     doc.getVerificationStatus(),
-                    doc.getStoragePath(),
+                    owner ? doc.getStoragePath() : null,
                     doc.getCreatedAt()
             ));
         }
@@ -308,7 +325,7 @@ public class PetPassportService {
         Pet pet = petRepo.findById(petId)
                 .orElseThrow(() -> new ResourceNotFoundException("Pet not found with ID: " + petId));
 
-        validatePetAccess(currentUserId, pet);
+        if (!pet.getOwnerUserId().equals(currentUserId)) throw consentDenied();
 
         PetDocument doc = new PetDocument();
         doc.setDocumentId(idGenerator.newId());
@@ -324,42 +341,60 @@ public class PetPassportService {
         doc.setVerificationStatus("OWNER_UPLOADED");
 
         doc = documentRepo.save(doc);
-        return toDocumentResponse(doc);
+        return toDocumentResponse(doc, true);
     }
 
     /**
      * Document Vault: List documents for a pet.
      */
     @Transactional(readOnly = true)
-    public List<PetDocumentDto.Response> listDocuments(String currentUserId, String petId) {
+    public List<PetDocumentDto.Response> listDocuments(String currentUserId, String petId, String hospitalId) {
         Pet pet = petRepo.findById(petId)
                 .orElseThrow(() -> new ResourceNotFoundException("Pet not found with ID: " + petId));
 
-        validatePetAccess(currentUserId, pet);
+        boolean owner = pet.getOwnerUserId().equals(currentUserId);
+        if (!owner && !sharingScopes(currentUserId, pet, hospitalId).contains(SharingScope.FULL_TIMELINE))
+            throw consentDenied();
 
         return documentRepo.findAllByPetIdAndIsDeletedIsFalse(petId).stream()
-                .map(this::toDocumentResponse)
+                .map(doc -> toDocumentResponse(doc, owner))
                 .toList();
     }
 
     // ── Helper Methods ──
 
-    private void validatePetAccess(String currentUserId, Pet pet) {
-        if (pet.getOwnerUserId().equals(currentUserId)) {
-            return;
-        }
+    private EnumSet<SharingScope> sharingScopes(String userId, Pet pet, String hospitalId) {
+        if (hospitalId == null || hospitalId.isBlank()) throw consentDenied();
+        clinicalAccess.requireVeterinarian(userId, hospitalId);
 
-        // Check if an active approved share request exists
-        List<RecordShareRequest> shares = shareRepo.findAllByPetId(pet.getPetId());
-        boolean hasAccess = shares.stream().anyMatch(s ->
-                s.getRequesterUserId().equals(currentUserId) &&
-                "APPROVED".equals(s.getStatus()) &&
-                (s.getExpiresAt() == null || s.getExpiresAt().isAfter(Instant.now()))
-        );
-
-        if (!hasAccess) {
-            throw new ForbiddenException("You do not have active consent to access this pet's health passport");
+        Instant now = Instant.now();
+        var scopes = EnumSet.noneOf(SharingScope.class);
+        for (var share : shareRepo.findAllByPetId(pet.getPetId())) {
+            if (!hospitalId.equals(share.getTargetHospitalId())
+                    || !"APPROVED".equals(share.getStatus())
+                    || share.getApprovedAt() == null || share.getApprovedAt().isAfter(now)
+                    || share.getRevokedAt() != null
+                    || share.getExpiresAt() == null || !share.getExpiresAt().isAfter(now)
+                    || !userId.equals(share.getRequesterUserId())) continue;
+            for (var scope : SharingScope.values()) {
+                if (scope.name().equals(share.getScope())) scopes.add(scope);
+            }
         }
+        return scopes;
+    }
+
+    private ForbiddenException consentDenied() {
+        return new ForbiddenException("You do not have active consent for these records at this hospital");
+    }
+
+    private PetPassportResponse sharedSummary(Pet pet, PetHealthPassport passport, boolean fullTimeline) {
+        return new PetPassportResponse(
+                passport.getPassportId(), pet.getPetId(), passport.getPassportNumber(),
+                pet.getName(), pet.getSpecies(), pet.getBreed(), pet.getGender(),
+                pet.getDob(), calculateAge(pet.getDob()), pet.getWeightKg(), null, null, null,
+                passport.getBloodGroup(), passport.getAllergiesSummary(), passport.getChronicConditionsSummary(),
+                fullTimeline ? passport.getDietaryNotes() : null, null, null,
+                pet.getPhotoUrl(), pet.isDeceased(), null, null, List.of(), passport.getCreatedAt(), passport.getUpdatedAt());
     }
 
     private String generateQrHash() {
@@ -435,7 +470,7 @@ public class PetPassportService {
         );
     }
 
-    private PetDocumentDto.Response toDocumentResponse(PetDocument doc) {
+    private PetDocumentDto.Response toDocumentResponse(PetDocument doc, boolean owner) {
         return new PetDocumentDto.Response(
                 doc.getDocumentId(),
                 doc.getPetId(),
@@ -443,7 +478,7 @@ public class PetPassportService {
                 doc.getFileName(),
                 doc.getFileType(),
                 doc.getFileSizeBytes(),
-                doc.getStoragePath(),
+                owner ? doc.getStoragePath() : null,
                 doc.getDescription(),
                 doc.getDocumentDate(),
                 doc.getVerificationStatus(),

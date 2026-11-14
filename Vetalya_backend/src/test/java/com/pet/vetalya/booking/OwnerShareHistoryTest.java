@@ -13,7 +13,7 @@ import static org.mockito.Mockito.*;
 class OwnerShareHistoryTest {
     private final PetRepository pets = mock(PetRepository.class);
     private final RecordShareRequestRepository shares = mock(RecordShareRequestRepository.class);
-    private final PetPassportService service = new PetPassportService(pets, null, null, shares, null, null, null, null);
+    private final PetPassportService service = new PetPassportService(pets, null, null, shares, null, null, null, null, null);
 
     @Test void ownerCanReadPersistentHistory() {
         Pet pet = new Pet(); pet.setOwnerUserId("owner");
