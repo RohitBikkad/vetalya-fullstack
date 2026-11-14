@@ -20,7 +20,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import EmailVerification from './EmailVerification';
+import { sendOtpApi, verifyOtpApi } from '../../services/api';
 import VetalyaBrandLogo from './VetalyaBrandLogo';
 
 export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
@@ -30,7 +30,25 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
   // Form Fields
   const [vetName, setVetName] = useState('');
   const [email, setEmail] = useState('');
+  const [pendingRegistration, setPendingRegistration] = useState(null);
+  const [lastCodeRequest, setLastCodeRequest] = useState(null);
+  const [code, setCode] = useState('');
   const [emailProof, setEmailProof] = useState('');
+  const [resendIn, setResendIn] = useState(0);
+
+  useEffect(() => {
+    if (!resendIn) return;
+    const timer = setTimeout(() => setResendIn(resendIn - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendIn]);
+
+  async function sendCode(target) {
+    await sendOtpApi(target, 'REGISTRATION');
+    setLastCodeRequest({ email: target, sentAt: Date.now() });
+    setCode('');
+    setEmailProof('');
+    setResendIn(60);
+  }
   const [phone, setPhone] = useState('');
   const [councilRegNo, setCouncilRegNo] = useState('');
   const [councilState, setCouncilState] = useState('Karnataka Veterinary Council (KVC)');
@@ -50,6 +68,7 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
   // Handle Initial Form Submission (Login OR Step 1 of Registration)
   const handleFormSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting || isLoading) return;
     setError(null);
     setSuccessNotice(null);
 
@@ -102,36 +121,71 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
       return;
     }
 
-    if (!emailProof) { setError('Verify your email address before registering.'); return; }
-    // Form inputs valid -> Register veterinarian pending professional verification
+    const cleanEmail = email.trim().toLowerCase();
+    if (password.length < 8) {
+      setError('Use a password of at least 8 characters to register.');
+      return;
+    }
+    const registration = {
+      fullName: vetName.trim().startsWith('Dr.') ? vetName.trim() : `Dr. ${vetName.trim()}`,
+      email: cleanEmail,
+      phone: phone.trim(),
+      password,
+      role: 'ROLE_VET',
+      councilRegNumber: councilRegNo.trim(),
+      councilState,
+      qualification: degree,
+      degree,
+      clinicName: clinicName.trim(),
+      city: city.trim() || 'Bengaluru',
+    };
+
     setIsSubmitting(true);
     try {
-      const cleanEmail = email.trim().toLowerCase();
-      const cleanPhone = phone.trim();
-      const fullDoctorName = vetName.trim().startsWith('Dr.') ? vetName.trim() : `Dr. ${vetName.trim()}`;
-
-      await signup({
-        fullName: fullDoctorName,
-        email: cleanEmail,
-        phone: cleanPhone,
-        password,
-        role: 'ROLE_VET',
-        emailVerificationToken: emailProof,
-        councilRegNumber: councilRegNo.trim(),
-        councilState,
-        qualification: degree,
-        degree,
-        clinicName: clinicName.trim() || 'Independent Clinic',
-        city: city.trim() || 'Bengaluru',
-      });
-
-      setSuccessNotice('Doctor registered successfully! Entering clinical dashboard...');
+      if (lastCodeRequest?.email !== cleanEmail || Date.now() - lastCodeRequest.sentAt >= 600_000) {
+        await sendCode(cleanEmail);
+      }
+      setPendingRegistration(registration);
     } catch (err) {
-      setError(err.message || 'Registration failed. Please check your credentials or login.');
+      setError(err.message || 'Could not send the verification code.');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  async function finishRegistration(event) {
+    event.preventDefault();
+    if (isSubmitting || isLoading || (!emailProof && code.length !== 6)) return;
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      let proof = emailProof;
+      if (!proof) {
+        const response = await verifyOtpApi(pendingRegistration.email, code, 'REGISTRATION');
+        proof = response.emailVerificationToken;
+        if (!proof) throw new Error('Could not verify your email. Request a new code.');
+        setEmailProof(proof);
+      }
+      await signup({ ...pendingRegistration, emailVerificationToken: proof });
+      setSuccessNotice('Doctor registered successfully! Entering clinical dashboard...');
+    } catch (err) {
+      setError(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function resendCode() {
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await sendCode(pendingRegistration.email);
+    } catch (err) {
+      setError(err.message || 'Could not resend the verification code.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   // Quick helper to fill pre-seeded doctor credentials for testing
   const handleFillDemoVet = () => {
@@ -191,7 +245,8 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
           <div className="flex p-1 bg-[#F5F2EB] rounded-2xl">
             <button
               type="button"
-              onClick={() => { setMode('login'); setError(null); setSuccessNotice(null); }}
+              disabled={isSubmitting || isLoading}
+              onClick={() => { setPendingRegistration(null); setMode('login'); setError(null); setSuccessNotice(null); }}
               className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                 mode === 'login'
                   ? 'bg-white text-[#10324E] shadow-2xs'
@@ -202,6 +257,7 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
             </button>
             <button
               type="button"
+              disabled={isSubmitting || isLoading}
               onClick={() => { setMode('register'); setError(null); setSuccessNotice(null); }}
               className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                 mode === 'register'
@@ -246,8 +302,35 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
           )}
 
           {/* ── Main Form (Login OR Registration) ── */}
+          {pendingRegistration ? (
+            <form onSubmit={finishRegistration} className="space-y-4">
+              <h2 className="text-lg font-bold text-[#10324E]">Verify your email</h2>
+              <p className="text-xs">Enter the code sent to {pendingRegistration.email}. It expires in 10 minutes.</p>
+              {!emailProof && (
+                <label className="block text-xs font-bold">
+                  6-digit email code
+                  <input autoFocus autoComplete="one-time-code" inputMode="numeric" maxLength={6}
+                    value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))}
+                    disabled={isSubmitting} className="block w-full mt-2 p-3 rounded-xl bg-[#FAF8F5] border border-[#10324E]/10" />
+                </label>
+              )}
+              <button type="submit" disabled={isSubmitting || isLoading || (!emailProof && code.length !== 6)}
+                className="w-full p-3 rounded-2xl bg-[#10324E] text-white text-xs font-bold disabled:opacity-50">
+                {isSubmitting ? 'Please wait…' : emailProof ? 'Retry registration' : 'Verify and register'}
+              </button>
+              <div className="flex flex-wrap gap-4 text-xs font-bold text-[#10324E]">
+                <button type="button" disabled={isSubmitting || resendIn > 0} onClick={resendCode}>
+                  {resendIn ? `Resend in ${resendIn}s` : 'Resend code'}
+                </button>
+                <button type="button" disabled={isSubmitting}
+                  onClick={() => { setPendingRegistration(null); setError(null); }}>
+                  Back to registration
+                </button>
+              </div>
+            </form>
+          ) : (
           <form onSubmit={handleFormSubmit} className="space-y-4">
-              {mode === 'register' && <EmailVerification email={email} onVerified={setEmailProof} />}
+            <fieldset disabled={isSubmitting || isLoading} className="space-y-4">
               
               {mode === 'register' && (
                 <>
@@ -437,12 +520,14 @@ export default function VetAuthPage({ initialMode = 'login', onNavigate }) {
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>
-                    <span>{mode === 'login' ? 'Sign In to OPD Desk' : 'Register Doctor Account & Enter OPD Desk →'}</span>
+                    <span>{mode === 'login' ? 'Sign In to OPD Desk' : 'Register Doctor Account'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
+            </fieldset>
             </form>
+          )}
 
           {/* Quick Role Switcher Footer */}
           <div className="pt-2 text-center text-[11px] text-[#242826]/60">
